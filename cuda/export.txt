@@ -1,16 +1,16 @@
                  w _Jv_RegisterClasses
-0000000000007c72 T _Z10printArrayPii
-0000000000008161 T _Z17integrate_riemannffPfS_ii
-0000000000007aca T _Z20cudaIntegrateRiemannffPfS_ii
-00000000000081a9 T _Z26__device_stub__Z5helloPiS_PiS_
-0000000000007e37 T _Z3barv
-0000000000008060 T _Z43__device_stub__Z17integrate_riemannffPfS_iiffPfS_ii
-0000000000008299 T _Z4dydtfff
-0000000000008216 T _Z5helloPiS_
-0000000000007cc4 T _Z6arraddiPiS_S_
-000000000000826a T _Z9innerstepffPfS_ii
-0000000000007eec W _ZN4dim3C1Ejjj
-0000000000276568 B __bss_start
+0000000000007c81 T _Z10printArrayPii
+00000000000082a9 T _Z14calculate_dydtfPfS_S_
+0000000000008171 T _Z17integrate_riemannffPfS_ii
+0000000000007ada T _Z20cudaIntegrateRiemannffPfS_ii
+00000000000081b9 T _Z26__device_stub__Z5helloPiS_PiS_
+0000000000007e46 T _Z3barv
+0000000000008070 T _Z43__device_stub__Z17integrate_riemannffPfS_iiffPfS_ii
+0000000000008226 T _Z5helloPiS_
+0000000000007cd3 T _Z6arraddiPiS_S_
+000000000000827a T _Z9innerstepffPfS_ii
+0000000000007efa W _ZN4dim3C1Ejjj
+0000000000277568 B __bss_start
                  U __cxa_atexit
                  w __cxa_finalize
                  U __errno_location
@@ -19,10 +19,10 @@
                  U __gxx_personality_v0
                  U __strtol_internal
                  U __xstat
-0000000000276568 D _edata
-0000000000277628 B _end
-000000000005ead8 T _fini
-0000000000006f90 T _init
+0000000000277568 D _edata
+0000000000278628 B _end
+000000000005eaf8 T _fini
+0000000000006fa0 T _init
                  U bind
                  U calloc
                  U chmod

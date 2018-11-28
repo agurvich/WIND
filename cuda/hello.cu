@@ -91,9 +91,9 @@ void cudaIntegrateRiemann(
 
     // setup the grid dimensions
     int blocksize,gridsize;
-    if (Nequations < THREAD_BLOCK_LIMIT){
-        blocksize = Nequations;
-        gridsize = 1;
+    if (Nequations_per_system < THREAD_BLOCK_LIMIT){
+        blocksize = Nequations_per_system;
+        gridsize = Nsystems;
     }
     else{
         blocksize = THREAD_BLOCK_LIMIT;
@@ -105,12 +105,11 @@ void cudaIntegrateRiemann(
     dim3 dimGrid( gridsize, 1 );
 
     //bar();
-    integrate_riemann <<<dimBlock , dimGrid >>> (
+    integrate_riemann <<<dimGrid,dimBlock >>> (
         tnow, delta_t,
         constantsDevice,equationsDevice,
         Nsystems,Nequations_per_system);
     
-
     // copy the new state back
     cudaMemcpy(equations, equationsDevice, equations_size, cudaMemcpyDeviceToHost ); 
     printf("c-equations after %.2f \n",equations[0]);
