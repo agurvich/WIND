@@ -25,9 +25,9 @@ SupernovaCluster._fields_ = [
                 ("NextCluster",ctypes.POINTER(SupernovaCluster))
             ]
 
-
 ## find that shared object library 
-exec_call = os.path.join(os.getcwd(),"arradd.so")
+curdir = os.path.split(os.getcwd())[0]
+exec_call = os.path.join(curdir,"cuda","arradd.so")
 c_obj = ctypes.CDLL(exec_call)
 
 print(dir(c_obj))
