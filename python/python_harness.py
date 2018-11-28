@@ -32,7 +32,7 @@ c_obj = ctypes.CDLL(exec_call)
 
 print(dir(c_obj))
 print(c_obj.__dict__)
-c_arradd = getattr(c_obj,"_Z6arraddiPiS_S_")
+c_cudaIntegrateRiemann = getattr(c_obj,"_Z20cudaIntegrateRiemannffPfS_ii")
 
 ## pass the arrays to be added
 Narr = 4
@@ -41,10 +41,21 @@ arr_b = copy.copy(np.array(range(Narr),dtype=np.int32,order='C')[::-1])
 out_pointer = (ctypes.c_int*Narr)()
 print(arr_a)
 
-c_arradd(
-    ctypes.c_int(Narr),
-    arr_a.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-    arr_b.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-    ctypes.byref(out_pointer))
+tnow = 0.0
+timestep = 0.5
+Nsystems = 1
+Nequations_per_system = 1 
 
-print("Python output:",np.ctypeslib.as_array(out_pointer))
+constants = np.ones(Nsystems*Nequations_per_system,dtype=np.float32)
+equations = np.zeros(Nsystems*Nequations_per_system,dtype=np.float32)
+
+print("equations before:",equations)
+c_cudaIntegrateRiemann(
+    ctypes.c_float(tnow),
+    ctypes.c_float(timestep),
+    constants.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+    equations.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+    ctypes.c_int(Nsystems),
+    ctypes.c_int(Nequations_per_system))
+
+print("equations after:",equations)

@@ -1,19 +1,38 @@
+                 w _Jv_RegisterClasses
+0000000000007c72 T _Z10printArrayPii
+0000000000008161 T _Z17integrate_riemannffPfS_ii
+0000000000007aca T _Z20cudaIntegrateRiemannffPfS_ii
+00000000000081a9 T _Z26__device_stub__Z5helloPiS_PiS_
+0000000000007e37 T _Z3barv
+0000000000008060 T _Z43__device_stub__Z17integrate_riemannffPfS_iiffPfS_ii
+0000000000008299 T _Z4dydtfff
+0000000000008216 T _Z5helloPiS_
+0000000000007cc4 T _Z6arraddiPiS_S_
+000000000000826a T _Z9innerstepffPfS_ii
+0000000000007eec W _ZN4dim3C1Ejjj
+0000000000276568 B __bss_start
+                 U __cxa_atexit
+                 w __cxa_finalize
+                 U __errno_location
+                 U __fxstat
+                 w __gmon_start__
+                 U __gxx_personality_v0
+                 U __strtol_internal
+                 U __xstat
+0000000000276568 D _edata
+0000000000277628 B _end
+000000000005ead8 T _fini
+0000000000006f90 T _init
                  U bind
-0000000000275530 B __bss_start
                  U calloc
                  U chmod
                  U clock_gettime
                  U close
                  U connect
-                 U __cxa_atexit
-                 w __cxa_finalize
                  U dlclose
                  U dlerror
                  U dlopen
                  U dlsym
-0000000000275530 D _edata
-00000000002765a8 B _end
-                 U __errno_location
                  U exit
                  U fchmod
                  U fclose
@@ -25,7 +44,6 @@
                  U fgetc
                  U fgets
                  U fileno
-000000000005e4a8 T _fini
                  U fopen
                  U fread
                  U free
@@ -34,26 +52,20 @@
                  U ftell
                  U ftruncate
                  U fwrite
-                 U __fxstat
+                 U get_nprocs
                  U getcwd
                  U getegid
                  U getenv
                  U geteuid
                  U gethostname
-                 U get_nprocs
                  U getpid
                  U gettimeofday
                  U getuid
-                 w __gmon_start__
-                 U __gxx_personality_v0
-0000000000006dc0 T _init
-                 w _Jv_RegisterClasses
                  U kill
                  U listen
                  U localtime_r
                  U lseek
                  U madvise
-0000000000007b92 T main
                  U malloc
                  U memcpy
                  U memset
@@ -68,14 +80,14 @@
                  U pipe
                  U poll
                  U printf
-                 U pthread_condattr_init
-                 U pthread_condattr_setpshared
                  U pthread_cond_broadcast
                  U pthread_cond_destroy
                  U pthread_cond_init
                  U pthread_cond_signal
                  U pthread_cond_timedwait
                  U pthread_cond_wait
+                 U pthread_condattr_init
+                 U pthread_condattr_setpshared
                  U pthread_create
                  U pthread_detach
                  U pthread_getspecific
@@ -83,19 +95,17 @@
                  U pthread_key_create
                  U pthread_key_delete
                  U pthread_kill
-                 U pthread_mutexattr_destroy
-                 U pthread_mutexattr_init
-                 U pthread_mutexattr_setprotocol
-                 U pthread_mutexattr_setpshared
-                 U pthread_mutexattr_settype
                  U pthread_mutex_destroy
                  U pthread_mutex_init
                  U pthread_mutex_lock
                  U pthread_mutex_trylock
                  U pthread_mutex_unlock
+                 U pthread_mutexattr_destroy
+                 U pthread_mutexattr_init
+                 U pthread_mutexattr_setprotocol
+                 U pthread_mutexattr_setpshared
+                 U pthread_mutexattr_settype
                  U pthread_once
-                 U pthread_rwlockattr_init
-                 U pthread_rwlockattr_setpshared
                  U pthread_rwlock_destroy
                  U pthread_rwlock_init
                  U pthread_rwlock_rdlock
@@ -103,6 +113,8 @@
                  U pthread_rwlock_trywrlock
                  U pthread_rwlock_unlock
                  U pthread_rwlock_wrlock
+                 U pthread_rwlockattr_init
+                 U pthread_rwlockattr_setpshared
                  U pthread_self
                  U pthread_setspecific
                  U putchar
@@ -123,12 +135,12 @@
                  U sendmsg
                  U setenv
                  U setsockopt
+                 U shm_open
+                 U shm_unlink
                  U shmat
                  U shmctl
                  U shmdt
                  U shmget
-                 U shm_open
-                 U shm_unlink
                  U snprintf
                  U socket
                  U socketpair
@@ -141,7 +153,6 @@
                  U strncmp
                  U strncpy
                  U strstr
-                 U __strtol_internal
                  U sysconf
                  U sysinfo
                  U uname
@@ -149,9 +160,3 @@
                  U usleep
                  U vsnprintf
                  U write
-                 U __xstat
-00000000000079cd T _Z10printArrayPii
-000000000000790c T _Z26__device_stub__Z5helloPiS_PiS_
-0000000000007979 T _Z5helloPiS_
-0000000000007a1f T _Z6arraddiPiS_S_
-0000000000007c54 W _ZN4dim3C1Ejjj

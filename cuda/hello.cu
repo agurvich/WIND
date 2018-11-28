@@ -6,14 +6,8 @@
  
 #include <stdio.h>
 #include "python_arradd.h"
- 
-__global__ 
-void hello(int *a, int *b) 
-{
-    int tid =threadIdx.x+blockDim.x*blockIdx.x;
-    a[tid] += b[tid];
-}
- 
+#include "cu_routines.h"
+  
 void printArray(int * arr,int N){
     for (int i = 0; i<N;i++){
         printf("%d ",arr[i]);
@@ -54,15 +48,17 @@ void arradd(int Narr,int * arr_a,int * arr_b,int * arr_c){
 
     cudaFree( ad );
     cudaFree( bd );
-
 }
 
-int main()
+
+int bar()
 {
     const int Narr = 4; 
     int a[Narr] = {0,1,2,3};
     int b[Narr] = {3,2,1,0};
-    int c[Narr] = {0,0,0,0};
+    int * c;
+    c = (int *) malloc(sizeof(int)*Narr);
+
     printArray(a,Narr);
     printf("+ \n");
     printArray(b,Narr);
@@ -70,6 +66,58 @@ int main()
 
     arradd(Narr,a,b,c);
     printArray(c,Narr);
-
-    return EXIT_SUCCESS;
+    return 1;
 }
+
+void cudaIntegrateRiemann(
+    float tnow, // the current time
+    float delta_t, // the time we integrating the system for
+    float * constants, // the constants for each system
+    float * equations, // a flattened array containing the y value for each equation in each system
+    int Nsystems, // the number of systems
+    int Nequations_per_system){ // the number of equations in each system
+
+    printf("Received %d systems, %d equations per system\n",Nsystems,Nequations_per_system);
+
+    // copy the arrays over to the device
+    int Nequations = Nsystems*Nequations_per_system;
+    int equations_size = Nequations*sizeof(float);
+    float *constantsDevice;
+    float *equationsDevice;
+    cudaMalloc((void**)&constantsDevice, equations_size); 
+    cudaMalloc((void**)&equationsDevice, equations_size); 
+    cudaMemcpy( constantsDevice, constants, equations_size, cudaMemcpyHostToDevice ); 
+    cudaMemcpy( equationsDevice, equations, equations_size, cudaMemcpyHostToDevice ); 
+
+    // setup the grid dimensions
+    int blocksize,gridsize;
+    if (Nequations < THREAD_BLOCK_LIMIT){
+        blocksize = Nequations;
+        gridsize = 1;
+    }
+    else{
+        blocksize = THREAD_BLOCK_LIMIT;
+        gridsize = Nequations/THREAD_BLOCK_LIMIT+1;
+    }
+
+    printf("%d blocksize, %d gridsize\n",blocksize,gridsize);
+    dim3 dimBlock( blocksize, 1 );
+    dim3 dimGrid( gridsize, 1 );
+
+    //bar();
+    integrate_riemann <<<dimBlock , dimGrid >>> (
+        tnow, delta_t,
+        constantsDevice,equationsDevice,
+        Nsystems,Nequations_per_system);
+    
+
+    // copy the new state back
+    cudaMemcpy(equations, equationsDevice, equations_size, cudaMemcpyDeviceToHost ); 
+    printf("c-equations after %.2f \n",equations[0]);
+
+    // free up the memory on the device
+    cudaFree(constantsDevice);
+    cudaFree(equationsDevice);
+
+} // cudaIntegrateRiemann
+

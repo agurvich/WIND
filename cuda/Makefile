@@ -2,7 +2,7 @@
 EXECUTABLE	:= arradd.so
 
 # Cuda source files (compiled with cudacc)
-CUFILES		:= hello.cu
+CUFILES		:= hello.cu kernel.cu
 
 CFLAGS = -shared
 
@@ -16,4 +16,4 @@ CFLAGS = -shared
 hellomake: $(CUFILES) $(CUDEPS); nvcc --compiler-options '-fPIC' $(CFLAGS) -o $(EXECUTABLE) $(CUFILES) $(CUDEPS) 
 
 clean: 
-	rm arradd *.o
+	rm arradd.so *.o
