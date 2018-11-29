@@ -105,7 +105,7 @@ void cudaIntegrateRiemann(
     dim3 dimGrid( gridsize, 1 );
 
     //bar();
-    integrate_riemann <<<dimGrid,dimBlock >>> (
+    integrate_riemann <<<dimGrid,dimBlock,Nequations_per_system*sizeof(float) >>> (
         tnow, delta_t,
         constantsDevice,equationsDevice,
         Nsystems,Nequations_per_system);

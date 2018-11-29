@@ -1,15 +1,15 @@
                  w _Jv_RegisterClasses
-0000000000007c81 T _Z10printArrayPii
-00000000000082a9 T _Z14calculate_dydtfPfS_S_
-0000000000008171 T _Z17integrate_riemannffPfS_ii
+0000000000007c87 T _Z10printArrayPii
+00000000000082ad T _Z14calculate_dydtfPfS_S_
+0000000000008175 T _Z17integrate_riemannffPfS_ii
 0000000000007ada T _Z20cudaIntegrateRiemannffPfS_ii
-00000000000081b9 T _Z26__device_stub__Z5helloPiS_PiS_
-0000000000007e46 T _Z3barv
-0000000000008070 T _Z43__device_stub__Z17integrate_riemannffPfS_iiffPfS_ii
-0000000000008226 T _Z5helloPiS_
-0000000000007cd3 T _Z6arraddiPiS_S_
-000000000000827a T _Z9innerstepffPfS_ii
-0000000000007efa W _ZN4dim3C1Ejjj
+00000000000081bd T _Z26__device_stub__Z5helloPiS_PiS_
+0000000000007e4c T _Z3barv
+0000000000008074 T _Z43__device_stub__Z17integrate_riemannffPfS_iiffPfS_ii
+000000000000822a T _Z5helloPiS_
+0000000000007cd9 T _Z6arraddiPiS_S_
+000000000000827e T _Z9innerstepffPfS_ii
+0000000000007f00 W _ZN4dim3C1Ejjj
 0000000000277568 B __bss_start
                  U __cxa_atexit
                  w __cxa_finalize
