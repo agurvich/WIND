@@ -1,15 +1,15 @@
                  w _Jv_RegisterClasses
-0000000000007c87 T _Z10printArrayPii
-00000000000082ad T _Z14calculate_dydtfPfS_S_
-0000000000008175 T _Z17integrate_riemannffPfS_ii
-0000000000007ada T _Z20cudaIntegrateRiemannffPfS_ii
-00000000000081bd T _Z26__device_stub__Z5helloPiS_PiS_
-0000000000007e4c T _Z3barv
-0000000000008074 T _Z43__device_stub__Z17integrate_riemannffPfS_iiffPfS_ii
-000000000000822a T _Z5helloPiS_
-0000000000007cd9 T _Z6arraddiPiS_S_
-000000000000827e T _Z9innerstepffPfS_ii
-0000000000007f00 W _ZN4dim3C1Ejjj
+0000000000007c95 T _Z10printArrayPii
+00000000000082c6 T _Z14calculate_dydtfPfS_S_
+000000000000828e T _Z15euler_innerstepfffPfS_iiS_
+0000000000008185 T _Z15integrate_eulerffPfS_ii
+0000000000007ada T _Z18cudaIntegrateEulerffPfS_ii
+00000000000081cd T _Z26__device_stub__Z5helloPiS_PiS_
+0000000000007e5a T _Z3barv
+0000000000008084 T _Z41__device_stub__Z15integrate_eulerffPfS_iiffPfS_ii
+000000000000823a T _Z5helloPiS_
+0000000000007ce7 T _Z6arraddiPiS_S_
+0000000000007f0e W _ZN4dim3C1Ejjj
 0000000000277568 B __bss_start
                  U __cxa_atexit
                  w __cxa_finalize
@@ -21,7 +21,7 @@
                  U __xstat
 0000000000277568 D _edata
 0000000000278628 B _end
-000000000005eaf8 T _fini
+000000000005eb08 T _fini
 0000000000006fa0 T _init
                  U bind
                  U calloc

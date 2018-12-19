@@ -69,9 +69,9 @@ int bar()
     return 1;
 }
 
-void cudaIntegrateRiemann(
+void cudaIntegrateEuler(
     float tnow, // the current time
-    float delta_t, // the time we integrating the system for
+    float tend, // the time we integrating the system to
     float * constants, // the constants for each system
     float * equations, // a flattened array containing the y value for each equation in each system
     int Nsystems, // the number of systems
@@ -105,8 +105,10 @@ void cudaIntegrateRiemann(
     dim3 dimGrid( gridsize, 1 );
 
     //bar();
-    integrate_riemann <<<dimGrid,dimBlock,Nequations_per_system*sizeof(float) >>> (
-        tnow, delta_t,
+    integrate_euler <<<dimGrid,dimBlock,
+        3*Nequations_per_system*sizeof(float)+ sizeof(int)
+         >>> (
+        tnow, tend,
         constantsDevice,equationsDevice,
         Nsystems,Nequations_per_system);
     
@@ -118,5 +120,5 @@ void cudaIntegrateRiemann(
     cudaFree(constantsDevice);
     cudaFree(equationsDevice);
 
-} // cudaIntegrateRiemann
+} // cudaIntegrateEuler
 

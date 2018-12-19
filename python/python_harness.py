@@ -32,7 +32,7 @@ c_obj = ctypes.CDLL(exec_call)
 
 #print(dir(c_obj))
 #print(c_obj.__dict__)
-c_cudaIntegrateRiemann = getattr(c_obj,"_Z20cudaIntegrateRiemannffPfS_ii")
+c_cudaIntegrateEuler = getattr(c_obj,"_Z18cudaIntegrateEulerffPfS_ii")
 
 
 def runCudaIntegrator(tnow,timestep,constants,equations,Nsystems,Nequations_per_system):
@@ -40,7 +40,7 @@ def runCudaIntegrator(tnow,timestep,constants,equations,Nsystems,Nequations_per_
     equations = equations.astype(np.float32)
     
     print("equations before:",equations)
-    c_cudaIntegrateRiemann(
+    c_cudaIntegrateEuler(
         ctypes.c_float(tnow),
         ctypes.c_float(timestep),
         constants.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
@@ -49,12 +49,12 @@ def runCudaIntegrator(tnow,timestep,constants,equations,Nsystems,Nequations_per_
         ctypes.c_int(Nequations_per_system))
 
     print("equations after:",equations)
-    print("residuals:",equations-constants*timestep)
+    print("residuals:",equations-constants*timestep**3/3.)
 
     
 ####### Test for y' = c ########
 tnow = 0.0
-timestep = 0.5
+timestep = 1
 Nsystems = 2
 Nequations_per_system = 3
 
