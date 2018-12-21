@@ -106,7 +106,7 @@ void cudaIntegrateEuler(
 
     //bar();
     integrate_euler <<<dimGrid,dimBlock,
-        3*Nequations_per_system*sizeof(float)+ sizeof(int)
+        2*Nequations_per_system*sizeof(float)+ sizeof(int)
          >>> (
         tnow, tend,
         constantsDevice,equationsDevice,
