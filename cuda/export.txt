@@ -10,7 +10,7 @@
 0000000000008232 T _Z5helloPiS_
 0000000000007ce0 T _Z6arraddiPiS_S_
 0000000000007f08 W _ZN4dim3C1Ejjj
-0000000000277568 B __bss_start
+0000000000278568 B __bss_start
                  U __cxa_atexit
                  w __cxa_finalize
                  U __errno_location
@@ -19,8 +19,8 @@
                  U __gxx_personality_v0
                  U __strtol_internal
                  U __xstat
-0000000000277568 D _edata
-0000000000278628 B _end
+0000000000278568 D _edata
+0000000000279628 B _end
 000000000005eaf8 T _fini
 0000000000006fa0 T _init
                  U bind
