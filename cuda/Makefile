@@ -13,7 +13,7 @@ CFLAGS = -shared
 #CUDEPS		:= ODE_kernel.cu;
 
 
-hellomake: $(CUFILES) $(CUDEPS); nvcc --compiler-options '-fPIC' $(CFLAGS) -o $(EXECUTABLE) $(CUFILES) $(CUDEPS) 
+make: $(CUFILES) $(CUDEPS); nvcc --compiler-options '-fPIC' $(CFLAGS) -arch=sm_35 -o $(EXECUTABLE) $(CUFILES) $(CUDEPS)
 
 clean: 
 	rm arradd.so *.o
