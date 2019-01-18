@@ -48,14 +48,16 @@ def runCudaInvertMatrix(arr_a,arr_b):
     B = arr_b.reshape(3,3)
     Ainv = joined[:arr_a.shape[0]].reshape(3,3)
     Binv = joined[arr_a.shape[0]:].reshape(3,3)
+    
+    id = np.identity(3)
 
-    print("A:\n",A)
+    print("A:\n",id-A)
     print("A^-1:\n",Ainv)
-    print("A^-1 A\n",np.round(np.dot(Ainv,A)).astype(int))
+    print("A^-1 A\n",np.round(np.dot(Ainv,id-A),2))
     print('----')
-    print("B:\n",B)
+    print("B:\n",id-B)
     print("B^-1:\n",Binv)
-    print("B^-1 B\n",np.round(np.dot(Binv,B)).astype(int))
+    print("B^-1 B\n",np.round(np.dot(Binv,id-B),2))
 
     
 
