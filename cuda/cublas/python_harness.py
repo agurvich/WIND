@@ -36,7 +36,7 @@ c_obj = ctypes.CDLL(exec_call)
 c_cudaInvertMatrix = getattr(c_obj,"_Z12invertMatrixiPfi")
 
 
-def runCudaInvertMatrix(arr_a,arr_b,print_flag=0):
+def runCudaInvertMatrix(arr_a,arr_b,print_flag=1):
 
     joined = np.append(arr_a,arr_b).astype(np.float32)
     c_cudaInvertMatrix(
