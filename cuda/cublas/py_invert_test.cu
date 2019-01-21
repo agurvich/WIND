@@ -32,9 +32,9 @@
 //  // TODO have to have multiple hs here
 //  //addArrayToBatchArrays<<<nsystems,ndim*ndim>>>(d_identity,d_Jacobianss,1.0,-h);
 //  addArrayToBatchArraysVaryScale<<<nsystems,ndim*ndim>>>(d_identity,d_Jacobianss,-1.0,d_hs);
-//  //cudaRoutine<<<1,ndim*ndim>>>(ndim,A_d,0);
+//  //cudaRoutine<<<1,ndim*ndim>>>(ndim,d_Jacobianss,0);
 
-//  // host call to cublas, does LU factorization for matrices in A_d, stores the result in... P? 
+//  // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P? 
 //  // the permutation array seems to be important for some reason
 //  // but it is "batching" the call, it's good for inverting a bunch of small matrices where setup
 //  // could be expensive. Potentially this will be a problem for us? 
@@ -51,7 +51,7 @@
 //  cublasSgetriBatched(
 //      handle, // cublas handle
 //      ndim, // leading dimension of matrix ??
-//      (const float **)A_d,
+//      (const float **)d_Jacobianss,
 //      ndim,
 //      P,
 //      C_d,
@@ -60,7 +60,6 @@
 //      nsystems);
 // ----------------------------------------------- */
 
-  
 void printArray(int * arr,int N){
     for (int i = 0; i<N;i++){
         printf("%d ",arr[i]);
@@ -93,7 +92,7 @@ void setIdentityMatrix(float * identity,int ndim){
     }
 }
 
-float ** moveFlatBatchArrayToDevice(float * h_flat, float ** p_d_flat, int arr_size,int nbatch){
+float ** initializeDeviceMatrix(float * h_flat, float ** p_d_flat, int arr_size,int nbatch){
     // returns a device pointer to the 2d array, the pointer to the 
     // flat array is the first element of the 2d array, just ask for 
     // more bytes
@@ -125,7 +124,6 @@ float ** moveFlatBatchArrayToDevice(float * h_flat, float ** p_d_flat, int arr_s
     return d_arr;
 }
 
-
 __global__ void addArrayToBatchArrays(float ** single_arr, float ** batch_arrs, float alpha, float beta){
     // assumes that gridDim = nbatch and blockDim = ndim
     batch_arrs[blockIdx.x][threadIdx.x]=alpha*single_arr[0][threadIdx.x]+ beta*batch_arrs[blockIdx.x][threadIdx.x];
@@ -141,13 +139,15 @@ __global__ void addArrayToBatchArrays(float ** single_arr, float ** batch_arrs, 
 */
 
 void SIE_step(
-    float ** A_d, 
+    float ** d_Jacobianss, 
     float ** C_d,
     float ** d_identity,
-    float ** d_my_vecs,
-    float ** d_out,
+    float ** d_derivatives,
+    float * d_derivatives_flat,
+    float * d_out_flat,
     int batchSize,
     int ndim){
+
 /* -------------- initialize cublas -------------- */
     // initialize cublas status tracking pointers
     cublasHandle_t handle;
@@ -166,31 +166,24 @@ void SIE_step(
     // TODO pretty sure i need a multidimensional grid here, 
     // blocks can't be 160x160 threads
     float h = 1.0;
-    addArrayToBatchArrays<<<batchSize,ndim*ndim>>>(d_identity,A_d,1.0,-h);
-    //cudaRoutine<<<1,ndim*ndim>>>(ndim,A_d,0);
+    addArrayToBatchArrays<<<batchSize,ndim*ndim>>>(d_identity,d_Jacobianss,1.0,-h);
+    //cudaRoutine<<<1,ndim*ndim>>>(ndim,d_Jacobianss,0);
 
-    // host call to cublas, does LU factorization for matrices in A_d, stores the result in... P? 
+    // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P? 
     // the permutation array seems to be important for some reason
     // but it is "batching" the call, it's good for inverting a bunch of small matrices where setup
     // could be expensive. Potentially this will be a problem for us? 
-    cublasSgetrfBatched(handle,ndim,A_d,ndim,P,INFO,batchSize);
+    cublasSgetrfBatched(handle,ndim,d_Jacobianss,ndim,P,INFO,batchSize);
 
     // second cublas call, this one solves AX=B with B the inverse. It puts X in C_d
-    cublasSgetriBatched(handle,ndim,(const float **)A_d,ndim,P,C_d,ndim,INFO,batchSize);
-    //cudaRoutine<<<1,18>>>(ndim,C_d,0);
+    cublasSgetriBatched(handle,ndim,(const float **)d_Jacobianss,ndim,P,C_d,ndim,INFO,batchSize);
 /* ----------------------------------------------- */
 
 /* -------------- perform a vector mult ---------- */
     
+    // scalars for adding/multiplying
     float alpha = 1.0;
-    //float * d_alpha;
-    //cudaMalloc(&d_alpha,sizeof(float));
-    //cudaMemcpy(d_alpha,&alpha, sizeof(float), cudaMemcpyHostToDevice);
-
     float beta = 0.0;
-    //float * d_beta;
-    //cudaMalloc(&d_beta,sizeof(float));
-    //cudaMemcpy(d_beta,&beta, sizeof(float), cudaMemcpyHostToDevice);
 
     // define the identity matrix on the host
     float *many_identity_flat = (float *)malloc(batchSize*ndim*ndim*sizeof(float));
@@ -199,10 +192,6 @@ void SIE_step(
     }
     
     // set a batchsize of one
-    float * d_many_identity_flat;
-    float ** d_many_identity = moveFlatBatchArrayToDevice(many_identity_flat,&d_many_identity_flat,ndim*ndim,batchSize);
-    
-    addArrayToBatchArrays<<<batchSize,ndim*ndim>>>(d_many_identity,d_many_identity,1.0,1.0);
 
     cublasSgemmBatched(
         handle,// cublas handle
@@ -212,19 +201,31 @@ void SIE_step(
         1, //n- number of columns in B (and C)
         ndim, //k-number of columns in A and rows in B
         (const float *) &alpha, // alpha scalar
-        (const float **) d_many_identity, // A matrix
+        (const float **) C_d, // A matrix
         ndim, // leading dimension of the 2d array storing A??
-        (const float **) d_my_vecs, // B matrix (or n x 1 column vector)
+        (const float **) d_derivatives, // B matrix (or n x 1 column vector)
         ndim, // leading dimension of the 2d array storing B??
         (const float *) &beta, // beta scalar
-        (float **) d_out, // output "matrix" 
+        (float **) d_derivatives, // output "matrix," let's overwrite B
         ndim, // leading dimension of the 2d array storing C??
         batchSize); // batch count
-        
-    cudaRoutine<<<1,ndim>>>(ndim,d_out,0);
-    cudaRoutine<<<1,ndim>>>(ndim,d_out,1);
-    
+            
 /* ----------------------------------------------- */
+
+/* -------------- perform a vector addition ------ */
+        // scale the dy vectors by the timestep size
+        //scaleVector<<<batchSize,ndim>>>(d_derivatives_flat,hs);
+        cublasSaxpy(
+            handle, // cublas handle
+            ndim*batchSize, // number of elements in each vector
+            (const float *) &alpha, // alpha scalar
+            (const float *) d_derivatives_flat, // vector we are adding, flattened derivative vector
+            1, // stride between consecutive elements
+            d_out_flat, // vector we are replacing
+            1); // stride between consecutive elements
+/* ----------------------------------------------- */
+
+    cudaRoutineFlat<<<1,ndim*batchSize>>>(ndim,d_out_flat);
 
     // shut down cublas
     cudaFree(P); cudaFree(INFO); cublasDestroy_v2(handle);
@@ -262,52 +263,58 @@ void invertMatrix(int batchSize,float * src_flat,int ndim){
     
     // set a batchsize of one
     float * d_identity_flat;
-    float ** d_identity = moveFlatBatchArrayToDevice(identity_flat,&d_identity_flat,ndim*ndim,1);
+    float ** d_identity = initializeDeviceMatrix(identity_flat,&d_identity_flat,ndim*ndim,1);
     
 /* -------------- move data to device ------------ */
     // allocate memory for matrices as a single "batch"
-    float *A_d_flat;
-    float **A_d = moveFlatBatchArrayToDevice(src_flat,&A_d_flat,ndim*ndim,batchSize);
-
-    // make a second set of matrices to store the inverses
-    float *C_dflat;
-    float **C_d = moveFlatBatchArrayToDevice(src_flat,&C_dflat,ndim*ndim,batchSize);
-
+    float *d_Jacobianss_flat;
+    float **d_Jacobianss = initializeDeviceMatrix(src_flat,&d_Jacobianss_flat,ndim*ndim,batchSize);
 
     float * my_vecs = (float *) malloc(batchSize*ndim*sizeof(float));
+
     for (int i=0; i<ndim*batchSize; i++){
         my_vecs[i]=i;
     }   
 
-    
-    float * zeros = (float *) malloc(ndim*sizeof(float));
-    for (int i=0; i<ndim; i++){
-        zeros[i]=0.0;
+    // input derivative vectors
+    float *d_derivatives_flat;
+    float **d_derivatives = initializeDeviceMatrix(my_vecs,&d_derivatives_flat,ndim,batchSize);
+
+    // output zero vectors
+    float * zeros = (float *) malloc(batchSize*ndim*sizeof(float));
+    for (int i=0; i<ndim*batchSize; i++){
+        zeros[i]=0;
     }   
 
-    float *d_my_vecs_flat;
-    float **d_my_vecs = moveFlatBatchArrayToDevice(my_vecs,&d_my_vecs_flat,ndim,batchSize);
-
     float *d_out_flat;
-    float **d_out = moveFlatBatchArrayToDevice(zeros,&d_out_flat,ndim,batchSize);
+    float **d_out = initializeDeviceMatrix(zeros,&d_out_flat,ndim,batchSize);
 
 /* ----------------------------------------------- */
 
     
-/* -------------- invert matrices and stuff ------ */
-    SIE_step(A_d,C_d,d_identity,d_my_vecs,d_out,batchSize,ndim);
+/* -------------- main integration loop ---------- */
+    for (int i=0; i<1; i++){
+        SIE_step(
+            d_Jacobianss, // matrix (jacobian) input
+            d_Jacobianss, // inverse output, overwrite d_Jacobianss
+            d_identity, // pointer to identity (ideally in constant memory?)
+            d_derivatives, // vector (derivatives) input
+            d_derivatives_flat, // dy vector output
+            d_out_flat, // y vector output
+            batchSize, // number of systems
+            ndim); // number of equations in each system
+    }
 /* ----------------------------------------------- */
     
 /* -------------- copy data to host -------------- */
     // copy results to the destination array
     for (int i = 0; i < batchSize; i++){
-      cudaMemcpy((void *)(dest+i*ndim*ndim), C_dflat + (i*ndim*ndim), ndim*ndim*sizeof(float), cudaMemcpyDeviceToHost);
+      cudaMemcpy((void *)(dest+i*ndim*ndim), d_Jacobianss_flat + (i*ndim*ndim), ndim*ndim*sizeof(float), cudaMemcpyDeviceToHost);
     }
 /* ----------------------------------------------- */
 
 /* -------------- shutdown cublas   -------------- */
-    cudaFree(A_d); //cudaFree(A_dflat); free(A);
-    cudaFree(C_d); cudaFree(C_dflat);
+    cudaFree(d_Jacobianss); //cudaFree(d_Jacobianssflat); free(A);
 /* ----------------------------------------------- */
 
 }
