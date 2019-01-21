@@ -26,8 +26,9 @@ SupernovaCluster._fields_ = [
             ]
 
 ## find that shared object library 
-curdir = os.path.split(os.getcwd())[0]
-exec_call = os.path.join(curdir,'cublas',"invert_test.so")
+curdir = os.path.split(os.getcwd())
+exec_call = os.path.join(*curdir,"invert_test.so")
+print("executing:",exec_call)
 c_obj = ctypes.CDLL(exec_call)
 
 #print(dir(c_obj))
@@ -35,7 +36,7 @@ c_obj = ctypes.CDLL(exec_call)
 c_cudaInvertMatrix = getattr(c_obj,"_Z12invertMatrixiPfi")
 
 
-def runCudaInvertMatrix(arr_a,arr_b):
+def runCudaInvertMatrix(arr_a,arr_b,print_flag=0):
 
     joined = np.append(arr_a,arr_b).astype(np.float32)
     c_cudaInvertMatrix(
@@ -51,16 +52,14 @@ def runCudaInvertMatrix(arr_a,arr_b):
     
     id = np.identity(3)
 
-    print("A:\n",id-A)
-    print("A^-1:\n",Ainv)
-    print("A^-1 A\n",np.round(np.dot(Ainv,id-A),2))
-    print('----')
-    print("B:\n",id-B)
-    print("B^-1:\n",Binv)
-    print("B^-1 B\n",np.round(np.dot(Binv,id-B),2))
-
-    
-
+    if print_flag:
+        print("A:\n",id-A)
+        print("A^-1:\n",Ainv)
+        print("A^-1 A\n",np.round(np.dot(Ainv,id-A),2))
+        print('----')
+        print("B:\n",id-B)
+        print("B^-1:\n",Binv)
+        print("B^-1 B\n",np.round(np.dot(Binv,id-B),2))
     
 
 def runCudaIntegrator(tnow,timestep,constants,equations,Nsystems,Nequations_per_system):

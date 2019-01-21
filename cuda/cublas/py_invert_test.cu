@@ -39,7 +39,7 @@ void setIdentityMatrix(float * identity,int ndim){
     }
 }
 
-float ** moveFlatBatchArrayToDevice(float * h_flat, int ndim, int nbatch){
+float ** moveFlatBatchArrayToDevice(float * h_flat, float ** p_d_flat, int arr_size,int nbatch){
     // returns a device pointer to the 2d array, the pointer to the 
     // flat array is the first element of the 2d array, just ask for 
     // more bytes
@@ -48,7 +48,7 @@ float ** moveFlatBatchArrayToDevice(float * h_flat, int ndim, int nbatch){
 
     float ** d_arr, *d_flat;
     cudaMalloc(&d_arr,nbatch*sizeof(float *));
-    cudaMalloc(&d_flat, ndim*ndim*nbatch*sizeof(float));
+    cudaMalloc(&d_flat, arr_size*nbatch*sizeof(float));
 
     // create a temporary array that partitions d_flat
     float **temp = (float **) malloc(nbatch*sizeof(float *));
@@ -56,15 +56,18 @@ float ** moveFlatBatchArrayToDevice(float * h_flat, int ndim, int nbatch){
     // arrange the array in column major order
     temp[0]=d_flat;
     for (int i=1; i<nbatch; i++){
-        temp[i]=temp[i-1]+(ndim*ndim);
+        temp[i]=temp[i-1]+(arr_size);
     }
 
     // copy the temporary pointer's values to the device
     cudaMemcpy(d_arr,temp,nbatch*sizeof(float *),cudaMemcpyHostToDevice);
 
     // copy the actual values across
-    cudaMemcpy(d_flat,h_flat,ndim*ndim*nbatch*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_flat,h_flat,arr_size*nbatch*sizeof(float),cudaMemcpyHostToDevice);
     //cudaRoutine<<<1,9>>>(9,d_arr,0);
+
+    // return what we want
+    *p_d_flat=d_flat;
     return d_arr;
 }
 
@@ -72,34 +75,6 @@ float ** moveFlatBatchArrayToDevice(float * h_flat, int ndim, int nbatch){
 __global__ void addArrayToBatchArrays(float ** single_arr, float ** batch_arrs, float alpha, float beta){
     // assumes that gridDim = nbatch and blockDim = ndim
     batch_arrs[blockIdx.x][threadIdx.x]=alpha*single_arr[0][threadIdx.x]+ beta*batch_arrs[blockIdx.x][threadIdx.x];
-}
-
-__device__ dotMatrixByVector(float * batch_matrix, float * batch_vector){
-    __shared__ new_vector;
-    for (int rowi = 0; rowi<ndim;rowi++){
-        new_vector[row_i]+=batch_matrix[threadIdx.x]*batch_vector[threadIdx.x];
-    }
-}
-
-__global__ void multiplyBatchedArraysByBatchedVectors(float ** batch_matrices, float ** batch_vectors,int ndim){
-    // move the batched matrix into shared memory
-    /*
-    extern __shared__ float total_shared[];
-    float * s_batch_matrix = (int *) &total_shared[0];
-    float * s_vector= (float *) &total_shared[ndim*ndim];
-
-    for (int rowi = 0; rowi<ndim;rowi++){
-        s_batch_matrix[threadIdx.x+rowi*ndim]=batch_matrices[blockIdx.x][rowi*ndim+threadIdx.x];
-    }
-
-    s_vector[threadIdx.x] = batch_vectors[blockIdx.x][threadIdx.x];
-    __syncthreads();
-    */
-    
-    float * batch_matrix = batch_matrices[blockIdx.x];
-    float * batch_vectors[blockIdx.x];
-    // dot the matrix by the vector
-    dotMatrixByVector(batch_matrix,batch_vector);
 }
 
 /*float * getDFlatPointer(float ** d_arr,int nbatch){
@@ -142,7 +117,8 @@ void invertMatrix(int batchSize,float * src_flat,int ndim){
     setIdentityMatrix(identity_flat,ndim);
     
     // set a batchsize of one
-    float ** d_identity = moveFlatBatchArrayToDevice(identity_flat,ndim,1);
+    float * d_identity_flat;
+    float ** d_identity = moveFlatBatchArrayToDevice(identity_flat,&d_identity_flat,ndim*ndim,1);
     
     //float *d_identity_flat = *d_identity;
     //cudaRoutineFlat<<<1,9>>>(ndim,d_identity_flat,0);
@@ -162,19 +138,12 @@ void invertMatrix(int batchSize,float * src_flat,int ndim){
 
 /* -------------- move data to device ------------ */
     // allocate memory for matrices as a single "batch"
-    float **A_d = moveFlatBatchArrayToDevice(src_flat,ndim,batchSize);
-    //float **C_d = moveFlatBatchArrayToDevice(zeros,ndim,batchSize);
+    float *A_d_flat;
+    float **A_d = moveFlatBatchArrayToDevice(src_flat,&A_d_flat,ndim*ndim,batchSize);
 
     // make a second set of matrices to store the inverses
-    float **C = (float **)malloc(batchSize*sizeof(float *));
-    float **C_d, *C_dflat;
-    cudaMalloc(&C_d,batchSize*sizeof(float *));
-    cudaMalloc(&C_dflat, ndim*ndim*batchSize*sizeof(float));
-    C[0] = C_dflat;
-    for (int i = 1; i < batchSize; i++)
-      C[i] = C[i-1] + (ndim*ndim);
-
-    cudaMemcpy(C_d,C,batchSize*sizeof(float *),cudaMemcpyHostToDevice);
+    float *C_dflat;
+    float **C_d = moveFlatBatchArrayToDevice(src_flat,&C_dflat,ndim*ndim,batchSize);
 /* ----------------------------------------------- */
 
 
@@ -184,7 +153,7 @@ void invertMatrix(int batchSize,float * src_flat,int ndim){
     // blocks can't be 160x160 threads
     float h = 1.0;
     addArrayToBatchArrays<<<batchSize,ndim*ndim>>>(d_identity,A_d,1.0,-h);
-    cudaRoutine<<<1,ndim*ndim>>>(ndim,A_d,0);
+    //cudaRoutine<<<1,ndim*ndim>>>(ndim,A_d,0);
 
     // host call to cublas, does LU factorization for matrices in A_d, stores the result in... P? 
     // the permutation array seems to be important for some reason
@@ -197,6 +166,73 @@ void invertMatrix(int batchSize,float * src_flat,int ndim){
     //cudaRoutine<<<1,18>>>(ndim,C_d,0);
 /* ----------------------------------------------- */
 
+/* -------------- perform a vector mult ---------- */
+    float * my_vecs = (float *) malloc(batchSize*ndim*sizeof(float));
+    for (int i=0; i<ndim*batchSize; i++){
+        my_vecs[i]=i;
+    }   
+
+    
+    float * zeros = (float *) malloc(ndim*sizeof(float));
+    for (int i=0; i<ndim; i++){
+        zeros[i]=0.0;
+    }   
+
+    float *d_my_vecs_flat;
+    float **d_my_vecs = moveFlatBatchArrayToDevice(my_vecs,&d_my_vecs_flat,ndim,batchSize);
+
+    float *d_out_flat;
+    float **d_out = moveFlatBatchArrayToDevice(zeros,&d_out_flat,ndim,batchSize);
+
+    float alpha = 1.0;
+    //float * d_alpha;
+    //cudaMalloc(&d_alpha,sizeof(float));
+    //cudaMemcpy(d_alpha,&alpha, sizeof(float), cudaMemcpyHostToDevice);
+
+    float beta = 0.0;
+    //float * d_beta;
+    //cudaMalloc(&d_beta,sizeof(float));
+    //cudaMemcpy(d_beta,&beta, sizeof(float), cudaMemcpyHostToDevice);
+
+    // define the identity matrix on the host
+    float *many_identity_flat = (float *)malloc(batchSize*ndim*ndim*sizeof(float));
+    for (int i=0; i<batchSize; i++){
+        setIdentityMatrix(many_identity_flat+ndim*ndim*i,ndim);
+    }
+    
+    // set a batchsize of one
+    float * d_many_identity_flat;
+    float ** d_many_identity = moveFlatBatchArrayToDevice(many_identity_flat,&d_many_identity_flat,ndim*ndim,batchSize);
+    
+    addArrayToBatchArrays<<<batchSize,ndim*ndim>>>(d_many_identity,d_many_identity,1.0,1.0);
+    //cudaRoutine<<<1,ndim*ndim>>>(ndim,d_many_identity,0);
+    //cudaRoutine<<<1,ndim*ndim>>>(ndim,d_many_identity,1);
+
+    cudaRoutineFlat<<<1,ndim*batchSize>>>(ndim,d_my_vecs_flat);
+
+    cublasSgemmBatched(
+        handle,// cublas handle
+        CUBLAS_OP_N,// no transformation
+        CUBLAS_OP_N,// no transformation
+        ndim, //m- number of rows in A (and C)
+        1, //n- number of columns in B (and C)
+        ndim, //k-number of columns in A and rows in B
+        (const float *) &alpha, // alpha scalar
+        (const float **) d_many_identity, // A matrix
+        ndim, // leading dimension of the 2d array storing A??
+        (const float **) d_my_vecs, // B matrix (or n x 1 column vector)
+        ndim, // leading dimension of the 2d array storing B??
+        (const float *) &beta, // beta scalar
+        (float **) d_out, // output "matrix" 
+        ndim, // leading dimension of the 2d array storing C??
+        batchSize); // batch count
+        
+    cudaRoutine<<<1,ndim>>>(ndim,d_out,0);
+    cudaRoutine<<<1,ndim>>>(ndim,d_out,1);
+    
+/* ----------------------------------------------- */
+
+    
 /* -------------- copy data to host -------------- */
     // copy results to the destination array
     for (int i = 0; i < batchSize; i++){
@@ -206,7 +242,7 @@ void invertMatrix(int batchSize,float * src_flat,int ndim){
 
 /* -------------- shutdown cublas   -------------- */
     cudaFree(A_d); //cudaFree(A_dflat); free(A);
-    cudaFree(C_d); cudaFree(C_dflat); free(C);
+    cudaFree(C_d); cudaFree(C_dflat);
     cudaFree(P); cudaFree(INFO); cublasDestroy_v2(handle);
 /* ----------------------------------------------- */
 
