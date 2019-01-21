@@ -69,9 +69,9 @@ float ** initializeDeviceMatrix(float * h_flat, float ** p_d_flat, int arr_size,
     return d_arr;
 }
 
-__global__ void addArrayToBatchArrays(float ** single_arr, float ** batch_arrs, float alpha, float beta, float *betas){
+__global__ void addArrayToBatchArrays(float ** single_arr, float ** batch_arrs, float alpha, float beta, float *p_beta){
     // assumes that gridDim = nsystems and blockDim = neqn
-    batch_arrs[blockIdx.x][threadIdx.x]=alpha*single_arr[0][threadIdx.x]+ beta*betas[blockIdx.x]*batch_arrs[blockIdx.x][threadIdx.x];
+    batch_arrs[blockIdx.x][threadIdx.x]=alpha*single_arr[0][threadIdx.x]+ beta*(*p_beta)*batch_arrs[blockIdx.x][threadIdx.x];
 }
 
 __global__ void scaleVector(float * vector, float * scales){
@@ -79,8 +79,25 @@ __global__ void scaleVector(float * vector, float * scales){
     vector[blockIdx.x*blockDim.x+threadIdx.x]*=scales[blockIdx.x];
 }
 
+__global__ void updateTimestep(float * timestep, float * derivatives_flat, int * max_index){
+
+    // changes the value of the pointer in global memory on the device without copying back the derivatives
+    float ABSOLUTE_TOLERANCE = 1e-4;
+    *timestep = ABSOLUTE_TOLERANCE/derivatives_flat[*max_index];
+}
+
+__global__ void calculateDerivatives(float * d_derivatives_flat, float time){
+    d_derivatives_flat[threadIdx.x + blockIdx.x*blockDim.x] = (threadIdx.x + blockIdx.x*blockDim.x) * time;
+}
+
+__global__ void calculateJacobians(float **d_Jacobianss){
+    // relies on the fact that blockDim.x is ndim and we're striding to get to the diagonals
+    d_Jacobianss[blockIdx.x][threadIdx.x+blockDim.x*threadIdx.x] = threadIdx.x + blockIdx.x*blockDim.x;
+}
+
 void SIE_step(
-    float * d_timesteps, // nsystems length vector for the timestep for each system
+    float * p_time,
+    float * d_timestep, // pointer to the current timestep (across all systems, lame!!)
     float ** d_Jacobianss,  // nsystems x neqn*neqn 2d array with flattened jacobians
     float ** d_inverse, // nsystems x neqn*neqn 2d array to store output (can be same as jacobians to overwrite)
     float ** d_identity, // 1 x neqn*neqn array storing the identity (ideally in constant memory?)
@@ -103,11 +120,27 @@ void SIE_step(
     cudaMalloc(&INFO,  nsystems * sizeof(int));
 /* ----------------------------------------------- */
 
-/* -------------- invert the matrix -------------- */
+/* -------------- calculate the timestep --------- */
+    int * d_max_index;
+    cudaMalloc(&d_max_index,sizeof(int));
 
+    // TODO have to have a place to 
+    cublasIsamax(
+        handle, // cublas handle
+        nsystems*neqn, // number of elements in the vector
+        d_derivatives_flat, // the vector to take the max of
+        1, // the stride between elements of the vector
+        d_max_index); // the index of the max element of the vector
+
+    // literally change what the pointer is pointing to on the device
+    updateTimestep<<<1,1>>>(d_timestep,d_derivatives_flat,d_max_index);
+
+/* ----------------------------------------------- */
+
+/* -------------- invert the matrix -------------- */
     // TODO pretty sure i need a multidimensional grid here, 
     // blocks can't be 160x160 threads
-    addArrayToBatchArrays<<<nsystems,neqn*neqn>>>(d_identity,d_Jacobianss,1.0,-1.0,d_timesteps);
+    addArrayToBatchArrays<<<nsystems,neqn*neqn>>>(d_identity,d_Jacobianss,1.0,-1.0,d_timestep);
 
     // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
     // the permutation array seems to be important for some reason
@@ -139,7 +172,7 @@ void SIE_step(
     float alpha = 1.0;
     float beta = 0.0;
 
-    // multiply (1-hs*Js)^-1 x fs
+    // multiply (1-h*Js)^-1 x fs
     cublasSgemmBatched(
         handle,// cublas handle
         CUBLAS_OP_N,// no transformation
@@ -163,13 +196,13 @@ void SIE_step(
     // scale the dy vectors by the timestep size
     // TODO pretty sure i need a multidimensional grid here, 
     // blocks can't be 160x160 threads
-    scaleVector<<<nsystems,neqn>>>(d_derivatives_flat,d_timesteps);
+    //scaleVector<<<nsystems,neqn>>>(d_derivatives_flat,d_timesteps);
     
-    // add ys + hs*dys = ys + hs*(1-hs*Js)^-1*fs
+    // add ys + h x dys = ys + h x [(1-h*Js)^-1*fs]
     cublasSaxpy(
         handle, // cublas handle
         neqn*nsystems, // number of elements in each vector
-        (const float *) &alpha, // alpha scalar
+        (const float *) d_timestep, // alpha scalar
         (const float *) d_derivatives_flat, // vector we are adding, flattened derivative vector
         1, // stride between consecutive elements
         d_out_flat, // vector we are replacing
@@ -180,6 +213,12 @@ void SIE_step(
 
     // shut down cublas
     cudaFree(P); cudaFree(INFO); cublasDestroy_v2(handle);
+    
+    float * timestep = (float *) malloc(sizeof(float));
+    cudaMemcpy(d_timestep,timestep,sizeof(float),cudaMemcpyDeviceToHost);
+    
+    // increment the timestep by whatever we just stepped by
+    *p_time+=*timestep;
 }
 
 void invertMatrix(int nsystems,float * src_flat,int neqn){
@@ -241,19 +280,20 @@ void invertMatrix(int nsystems,float * src_flat,int neqn){
     float **d_out = initializeDeviceMatrix(zeros,&d_out_flat,neqn,nsystems);
 
     // timesteps
-    float * timesteps_init = (float *) malloc(nsystems*sizeof(float));
-    for (int i=0; i<nsystems; i++){
-        timesteps_init[i]=i+1;
-    }   
+    //float * timesteps_init = (float *) malloc(nsystems*sizeof(float));
+    //for (int i=0; i<nsystems; i++){
+        //timesteps_init[i]=i+1;
+    //}   
 
-    float * d_timesteps;
-    cudaMalloc(&d_timesteps,nsystems*sizeof(float));
-    cudaMemcpy(d_timesteps,timesteps_init,nsystems*sizeof(float),cudaMemcpyHostToDevice);
+    float * d_timestep;
+    cudaMalloc(&d_timestep,sizeof(float));
+    //cudaMemcpy(d_timestep,timesteps_init,nsystems*sizeof(float),cudaMemcpyHostToDevice);
 /* ----------------------------------------------- */
 
     
 /* -------------- main integration loop ---------- */
     int nsteps = 0;
+    float current_time = 1.0;
     while (nsteps < 1){
 /*
         if (nstep != 0){
@@ -264,7 +304,8 @@ void invertMatrix(int nsystems,float * src_flat,int neqn){
 */
 
         SIE_step(
-            d_timesteps, // nsystems length vector for timestep to use
+            &current_time, //the current time
+            d_timestep, // nsystems length vector for timestep to use
             d_Jacobianss, // matrix (jacobian) input
             d_Jacobianss, // inverse output, overwrite d_Jacobianss
             d_identity, // pointer to identity (ideally in constant memory?)
