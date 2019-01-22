@@ -59,7 +59,7 @@ def runCudaInvertMatrix(arr_a,arr_b,print_flag=1):
         print('----')
         print("B:\n",id-B)
         print("B^-1:\n",Binv)
-        print("B^-1 B\n",np.round(np.dot(Binv,id-2*B),2))
+        print("B^-1 B\n",np.round(np.dot(Binv,id-B),2))
     
 
 def runCudaIntegrator(tnow,timestep,constants,equations,Nsystems,Nequations_per_system):
