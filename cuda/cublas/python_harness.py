@@ -33,7 +33,7 @@ c_obj = ctypes.CDLL(exec_call)
 
 #print(dir(c_obj))
 #print(c_obj.__dict__)
-c_cudaSIE_integrate = getattr(c_obj,"_Z13SIE_integrateiiffPf")
+c_cudaSIE_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffPfS_ii")
 
 
 def runCudaSIEIntegrator(nsystems,neqn,current_time,end_time,state,print_flag=1):
@@ -41,11 +41,12 @@ def runCudaSIEIntegrator(nsystems,neqn,current_time,end_time,state,print_flag=1)
         print("Current time: %.2f"%current_time)
         print(state)
     c_cudaSIE_integrate(
-        ctypes.c_int(nsystems), ## number of systems
-        ctypes.c_int(neqn), ## number of equations
         ctypes.c_float(current_time), ## current time
         ctypes.c_float(end_time), ## end time
         state.ctypes.data_as(ctypes.POINTER(ctypes.c_float)), ## current state vector
+        state.ctypes.data_as(ctypes.POINTER(ctypes.c_float)), ## current state vector
+        ctypes.c_int(nsystems), ## number of systems
+        ctypes.c_int(neqn), ## number of equations
     )
 
     if print_flag:
@@ -67,7 +68,7 @@ def runCudaIntegrator(tnow,timestep,constants,equations,Nsystems,Nequations_per_
         ctypes.c_int(Nequations_per_system))
 
     print("equations after:",equations)
-    print("residuals:",equations-constants*timestep**3/3.)
+    print("residuals:",equations-constants*timestep**2/2.)
 
     
 ####### Test for y' = c ########
@@ -98,5 +99,5 @@ runCudaSIEIntegrator(2,3,current_time,end_time,state,False)
 predicted_state = copy_state + 0.5*np.array([1,2,3,1,2,3])*(end_time**2 - current_time**2)
 print(predicted_state,'predicted')
 print(state,'actual')
-print(predicted_state-state,'residual')
+print((predicted_state-state).astype(np.float32),'residual')
 ####### Test for y' = ct ########
