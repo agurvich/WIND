@@ -33,33 +33,24 @@ c_obj = ctypes.CDLL(exec_call)
 
 #print(dir(c_obj))
 #print(c_obj.__dict__)
-c_cudaInvertMatrix = getattr(c_obj,"_Z12invertMatrixiPfi")
+c_cudaSIE_integrate = getattr(c_obj,"_Z13SIE_integrateiiffPf")
 
 
-def runCudaInvertMatrix(arr_a,arr_b,print_flag=1):
-
-    joined = np.append(arr_a,arr_b).astype(np.float32)
-    c_cudaInvertMatrix(
-        ctypes.c_int(2),
-        joined.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
-        ctypes.c_int(int(arr_a.shape[0]**0.5))
+def runCudaSIEIntegrator(nsystems,neqn,current_time,end_time,state,print_flag=1):
+    if print_flag:
+        print("Current time: %.2f"%current_time)
+        print(state)
+    c_cudaSIE_integrate(
+        ctypes.c_int(nsystems), ## number of systems
+        ctypes.c_int(neqn), ## number of equations
+        ctypes.c_float(current_time), ## current time
+        ctypes.c_float(end_time), ## end time
+        state.ctypes.data_as(ctypes.POINTER(ctypes.c_float)), ## current state vector
     )
 
-    A = arr_a.reshape(3,3)
-    B = arr_b.reshape(3,3)
-    Ainv = joined[:arr_a.shape[0]].reshape(3,3)
-    Binv = joined[arr_a.shape[0]:].reshape(3,3)
-    
-    id = np.identity(3)
-
     if print_flag:
-        print("A:\n",id-A)
-        print("A^-1:\n",Ainv)
-        print("A^-1 A\n",np.round(np.dot(Ainv,id-A),2))
-        print('----')
-        print("B:\n",id-B)
-        print("B^-1:\n",Binv)
-        print("B^-1 B\n",np.round(np.dot(Binv,id-B),2))
+        print("Current time: %.2f"%end_time)
+        print(state)
     
 
 def runCudaIntegrator(tnow,timestep,constants,equations,Nsystems,Nequations_per_system):
@@ -98,6 +89,14 @@ B = np.array([
     1,5,6,
     9,8,2]).astype(np.float32)
 
+state = np.arange(6).astype(np.float32)
+copy_state =copy.copy(state)
 #runCudaIntegrator(tnow,timestep,constants,equations,Nsystems,Nequations_per_system)
-runCudaInvertMatrix(A.flatten(),B.flatten())
+current_time = 0.0
+end_time = 1.0
+runCudaSIEIntegrator(2,3,current_time,end_time,state,False)
+predicted_state = copy_state + 0.5*np.array([1,2,3,1,2,3])*(end_time**2 - current_time**2)
+print(predicted_state,'predicted')
+print(state,'actual')
+print(predicted_state-state,'residual')
 ####### Test for y' = ct ########
