@@ -1,7 +1,5 @@
 #include <stdio.h>
-#include "cu_routines.h"
-//#include "magmablas.h"
-#include "cublas_v2.h"
+#include "explicit_solver.h"
 
 #define ABSOLUTE_TOLERANCE 1e-2
 #define RELATIVE_TOLERANCE 1e-2

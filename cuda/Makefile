@@ -1,21 +1,17 @@
 # Add source files here
-EXECUTABLE	:= arradd.so
+EXECUTABLE	:= lib/wind.so
 
-# Cuda source files (compiled with cudacc)
-CUFILES		:= hello.cu kernel.cu
+# Cuda source files (compiled with nvcc)
+CUFILES		:= harness.cu kernel.cu SIE_harness_kernels.cu
 
-CFLAGS = -shared
+CFLAGS = --compiler-options '-fPIC' -shared
 
-INCLUDE = -I/sw/xe/magma/1.5.0/cnl5.2_gnu4.8.2/include
+INCLUDE = ##-I/sw/xe/magma/1.5.0/cnl5.2_gnu4.8.2/include
 
-## TODO how to link these to executable? 
-# C/C++ source files (compiled with gcc / c++)
-#CCFILES		:= matrixmul_gold.cpp
+LIB = -lcublas -lcusolver
 
-#CUDEPS		:= ODE_kernel.cu;
-
-
-make: $(CUFILES) $(CUDEPS); nvcc --compiler-options '-fPIC' $(CFLAGS) -arch=sm_35 $(INCLUDE) -o $(EXECUTABLE) $(CUFILES) $(CUDEPS)
-
+make: $(CUFILES)
+	nvcc $(CFLAGS) -arch=sm_35 $(INCLUDE) $(LIB) -o $(EXECUTABLE) $(CUFILES) $(CUDEPS);
 clean: 
-	rm arradd.so *.o
+	rm lib/*.so
+

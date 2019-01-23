@@ -5,8 +5,7 @@
 // By Ingemar Ragnemalm 2010
  
 #include <stdio.h>
-#include "python_arradd.h"
-#include "cu_routines.h"
+#include "explicit_solver.h"
   
 void printArray(int * arr,int N){
     for (int i = 0; i<N;i++){
