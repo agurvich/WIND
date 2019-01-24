@@ -68,7 +68,7 @@ int bar()
     return 1;
 }
 
-void cudaIntegrateEuler(
+int cudaIntegrateEuler(
     float tnow, // the current time
     float tend, // the time we integrating the system to
     float * constants, // the constants for each system
@@ -81,12 +81,19 @@ void cudaIntegrateEuler(
     // copy the arrays over to the device
     int Nequations = Nsystems*Nequations_per_system;
     int equations_size = Nequations*sizeof(float);
+
     float *constantsDevice;
-    float *equationsDevice;
     cudaMalloc((void**)&constantsDevice, equations_size); 
-    cudaMalloc((void**)&equationsDevice, equations_size); 
     cudaMemcpy( constantsDevice, constants, equations_size, cudaMemcpyHostToDevice ); 
+
+    float *equationsDevice;
+    cudaMalloc((void**)&equationsDevice, equations_size); 
     cudaMemcpy( equationsDevice, equations, equations_size, cudaMemcpyHostToDevice ); 
+
+    int nloops=0;
+    int * nloopsDevice;
+    cudaMalloc(&nloopsDevice, sizeof(int)); 
+    cudaMemcpy(nloopsDevice, &nloops, sizeof(int), cudaMemcpyHostToDevice ); 
 
     // setup the grid dimensions
     int blocksize,gridsize;
@@ -109,15 +116,19 @@ void cudaIntegrateEuler(
          >>> (
         tnow, tend,
         constantsDevice,equationsDevice,
-        Nsystems,Nequations_per_system);
+        Nsystems,Nequations_per_system,
+        nloopsDevice);
     
     // copy the new state back
     cudaMemcpy(equations, equationsDevice, equations_size, cudaMemcpyDeviceToHost ); 
+    cudaMemcpy(&nloops,nloopsDevice,sizeof(int),cudaMemcpyDeviceToHost);
     //printf("c-equations after %.2f \n",equations[0]);
 
     // free up the memory on the device
     cudaFree(constantsDevice);
     cudaFree(equationsDevice);
 
+    // return how many steps were taken
+    return nloops;
 } // cudaIntegrateEuler
 

@@ -20,24 +20,26 @@ def runCudaIntegrator(tnow,tend,constants,equations,Nsystems,Nequations_per_syst
         print("equations before:",equations)
 
     before = copy.copy(equations)
-    c_cudaIntegrateEuler(
+    nsteps =c_cudaIntegrateEuler(
         ctypes.c_float(tnow),
         ctypes.c_float(tend),
         constants.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
         equations.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
         ctypes.c_int(Nsystems),
-        ctypes.c_int(Nequations_per_system))
+        ctypes.c_int(Nequations_per_system),
+        )
 
     if print_flag:
-        print("equations after:",equations)
+        print("equations after %d steps:"%nsteps,equations)
         print("residuals:",equations-(before+constants*(tend**3-tnow**3)/3.))
+    return nsteps
 
 def runCudaSIEIntegrator(tnow,tend,constants,equations,Nsystems,Nequations_per_system,print_flag=1):
     if print_flag:
         print("equations before:",equations)
 
     before = copy.copy(equations)
-    c_cudaSIE_integrate(
+    nsteps = c_cudaSIE_integrate(
         ctypes.c_float(tnow), ## current time
         ctypes.c_float(tend), ## end time
         constants.ctypes.data_as(ctypes.POINTER(ctypes.c_float)), ## current state vector
@@ -47,9 +49,10 @@ def runCudaSIEIntegrator(tnow,tend,constants,equations,Nsystems,Nequations_per_s
     )
 
     if print_flag:
-        print("equations after:",equations)
+        print("equations after %d steps:"%nsteps,equations)
         ##print("residuals:",equations-constants*((tend)**2-(tnow)**2)/2.)
         print("residuals:",equations-(before+constants*(tend**3-tnow**3)/3.))
+    return nsteps
 
 def runIntegratorOutput(
     integrator_fn,
@@ -60,6 +63,8 @@ def runIntegratorOutput(
     Nsystems,
     Nequations_per_system,
     output_mode=None):
+
+    ## initialize integration breakdown variables
     tcur = tnow
     dt = (tend-tnow)/10.
     equations_over_time = np.zeros((11,len(equations)))
@@ -67,8 +72,15 @@ def runIntegratorOutput(
     equations_over_time[nloops]=copy.copy(equations)
     times = []
     times+=[tcur]
+    nsteps = []
+
     while tcur < tend:
-        integrator_fn(tnow,tcur+dt,constants,equations,Nsystems,Nequations_per_system)
+        nsteps+=[integrator_fn(
+        tnow,tcur+dt,
+        constants,equations,
+        Nsystems,Nequations_per_system,
+        print_flag = 0)]
+
         tcur+=dt
         times+=[tcur]
         nloops+=1
@@ -79,7 +91,7 @@ def runIntegratorOutput(
             group = handle.create_group(integrator_name)
             group['equations_over_time'] = equations_over_time
             group['times'] = times
-
+            group['nsteps'] = nsteps
    
 ####### Test for y' = ct #######
 tnow = 1.0

@@ -265,7 +265,7 @@ void SIE_step(
     //TODO should free more stuff here?
 }
 
-void cudaIntegrateSIE(
+int cudaIntegrateSIE(
     float tnow, // the current time
     float tend, // the time we integrating the system to
     float * constants, // the constants for each system
@@ -390,4 +390,6 @@ void cudaIntegrateSIE(
     free(temp_timestep);
     free(identity_flat);
 /* ----------------------------------------------- */
+    //return how many steps were taken
+    return nsteps;
 }
