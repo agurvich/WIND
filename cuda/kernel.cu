@@ -43,6 +43,7 @@ __device__ float euler_innerstep(
             constants,
             shared_temp_equations);
 
+            /*
             if (threadIdx.x == 1 && blockIdx.x == 0){
                 printf("dydt(%.2f) - t(%.2f) - h(%.2f) - dydt-inner-step-%d-%d\n",
                     dydt,
@@ -50,6 +51,7 @@ __device__ float euler_innerstep(
                     h,
                     blockIdx.x,threadIdx.x);
             }
+            */
 
         // update value of temporary equations
         shared_temp_equations[threadIdx.x] += h*dydt;
@@ -131,6 +133,7 @@ __global__ void integrate_euler(
             *shared_error_flag = y2 - y1 > ABSOLUTE_TOLERANCE || (y2-y1)/(2*y2-y1) > RELATIVE_TOLERANCE;
             __syncthreads();
 
+            /*
             if (threadIdx.x == 1 && blockIdx.x == 0){
                 printf("%.3f-%.3f - error(%d) - %d thread %d block\n",
                     y1,
@@ -139,20 +142,25 @@ __global__ void integrate_euler(
                     threadIdx.x,
                     blockIdx.x);
             }
+            */
 
             //tnow+=h;
             nloops++;
             if (*shared_error_flag){
+                /*
                 if (threadIdx.x == 1 && blockIdx.x == 0){
                     printf("bad - %d\n",*shared_error_flag);
                 }
+                */
                 // refine and start over
                 h/=2;
             } // if shared_error_flag
             else{
+                /*
                 if (threadIdx.x == 1 && blockIdx.x == 0){
                     printf("good\n");
                 }
+                */
                 // accept this step and update the shared array
                 //  using local extrapolation (see NR e:17.2.3)
                 shared_equations[threadIdx.x] = 2*y2-y1;
@@ -169,7 +177,7 @@ __global__ void integrate_euler(
         // copy the y values back to global memory
         equations[tid]=shared_equations[threadIdx.x];
         if (threadIdx.x == 1 && blockIdx.x == 0){
-            printf("nloops: %d\n",nloops);
+            printf("nsteps taken: %d\n",nloops);
         }
     } // if tid < nequations
 } //integrate_euler

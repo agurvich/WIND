@@ -94,19 +94,19 @@ __global__ void updateTimestep(float * timestep, float * derivatives_flat, int *
         *timestep = ABSOLUTE_TOLERANCE/derivatives_flat[*max_index-1];
     }
     */
-    *timestep = 0.0001;
+    *timestep = 0.001;
 
     // TODO fixed timestep because why not?
     //*timestep = 0.25;
 }
 
 __global__ void calculateDerivatives(float * d_derivatives_flat, float time){
-    d_derivatives_flat[threadIdx.x + blockIdx.x*blockDim.x] = (threadIdx.x + 1) * time;
+    d_derivatives_flat[threadIdx.x + blockIdx.x*blockDim.x] = (threadIdx.x + 1) * time * time;
 }
 
-__global__ void calculateJacobians(float **d_Jacobianss){
+__global__ void calculateJacobians(float **d_Jacobianss, float time){
     // relies on the fact that blockDim.x is ndim and we're striding to get to the diagonals
-    d_Jacobianss[blockIdx.x][threadIdx.x+blockDim.x*threadIdx.x] = threadIdx.x+1;
+    d_Jacobianss[blockIdx.x][threadIdx.x+blockDim.x*threadIdx.x] = ((float ) (threadIdx.x+1)) * time;
     //printf("%d - %d = %d\n",blockIdx.x,threadIdx.x+blockDim.x*threadIdx.x,threadIdx.x+1);
 }
 
@@ -288,7 +288,7 @@ void cudaIntegrateSIE(
     dim3 dimGrid( gridsize, 1 );
     */
 
-    printf("Received %d arrays, each %d x %d:\n",Nsystems,Neqn_p_sys,Neqn_p_sys);
+    printf("SIE Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
     float *dest = equations;
 
     // define the identity matrix on the host
@@ -309,7 +309,7 @@ void cudaIntegrateSIE(
     // allocate memory for Jacobian matrices as a single "batch"
     float *d_Jacobianss_flat;
     float **d_Jacobianss = initializeDeviceMatrix(jacobian_zeros,&d_Jacobianss_flat,Neqn_p_sys*Neqn_p_sys,Nsystems);
-    calculateJacobians<<<Nsystems,Neqn_p_sys>>>(d_Jacobianss);
+    calculateJacobians<<<Nsystems,Neqn_p_sys>>>(d_Jacobianss,tnow);
 
     // initialize state-equation vectors
     float * zeros = (float *) malloc(Nsystems*Neqn_p_sys*sizeof(float));
@@ -347,7 +347,7 @@ void cudaIntegrateSIE(
                 d_Jacobianss_flat,jacobian_zeros,
                 Nsystems*Neqn_p_sys*Neqn_p_sys*sizeof(float),
                 cudaMemcpyHostToDevice);
-            calculateJacobians<<<Nsystems,Neqn_p_sys>>>(d_Jacobianss);
+            calculateJacobians<<<Nsystems,Neqn_p_sys>>>(d_Jacobianss,tnow);
         }
 
         /*

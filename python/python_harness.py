@@ -3,24 +3,26 @@ import ctypes
 import time
 import os
 import copy
+import h5py
 
 ## find that shared object library 
 curdir = os.path.split(os.getcwd())[0]
-exec_call = os.path.join(curdir,"cuda","arradd.so")
+exec_call = os.path.join(curdir,"cuda","lib","wind.so")
 c_obj = ctypes.CDLL(exec_call)
 
 #print(dir(c_obj))
 #print(c_obj.__dict__)
 c_cudaIntegrateEuler = getattr(c_obj,"_Z18cudaIntegrateEulerffPfS_ii")
-c_cudaSIE_integrate = getattr(c_obj,"_Z13SIE_integrateiiffPf")
+c_cudaSIE_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffPfS_ii")
 
-def runCudaIntegrator(tnow,timestep,constants,equations,Nsystems,Nequations_per_system,print_flag=1):
+def runCudaIntegrator(tnow,tend,constants,equations,Nsystems,Nequations_per_system,print_flag=1):
     if print_flag:
         print("equations before:",equations)
 
+    before = copy.copy(equations)
     c_cudaIntegrateEuler(
         ctypes.c_float(tnow),
-        ctypes.c_float(timestep),
+        ctypes.c_float(tend),
         constants.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
         equations.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
         ctypes.c_int(Nsystems),
@@ -28,36 +30,84 @@ def runCudaIntegrator(tnow,timestep,constants,equations,Nsystems,Nequations_per_
 
     if print_flag:
         print("equations after:",equations)
-        print("residuals:",equations-constants*((tnow+timestep)**2-(tnow)**2)/2.)
+        print("residuals:",equations-(before+constants*(tend**3-tnow**3)/3.))
 
-def runCudaSIEIntegrator(tnow,timestep,constants,equations,Nsystems,Nequations_per_system,print_flag=1):
+def runCudaSIEIntegrator(tnow,tend,constants,equations,Nsystems,Nequations_per_system,print_flag=1):
     if print_flag:
         print("equations before:",equations)
 
+    before = copy.copy(equations)
     c_cudaSIE_integrate(
-        ctypes.c_int(Nsystems), ## number of systems
-        ctypes.c_int(Nequations_per_system), ## number of equations
         ctypes.c_float(tnow), ## current time
-        ctypes.c_float(tnow+timestep), ## end time
+        ctypes.c_float(tend), ## end time
         constants.ctypes.data_as(ctypes.POINTER(ctypes.c_float)), ## current state vector
         equations.ctypes.data_as(ctypes.POINTER(ctypes.c_float)), ## current state vector
+        ctypes.c_int(Nsystems), ## number of systems
+        ctypes.c_int(Nequations_per_system), ## number of equations
     )
 
     if print_flag:
         print("equations after:",equations)
-        print("residuals:",equations-constants*((tnow+timestep)**2-(tnow)**2)/2.)
+        ##print("residuals:",equations-constants*((tend)**2-(tnow)**2)/2.)
+        print("residuals:",equations-(before+constants*(tend**3-tnow**3)/3.))
+
+def runIntegratorOutput(
+    integrator_fn,
+    integrator_name,
+    tnow,tend,
+    constants,
+    equations,
+    Nsystems,
+    Nequations_per_system,
+    output_mode=None):
+    tcur = tnow
+    dt = (tend-tnow)/10.
+    equations_over_time = np.zeros((11,len(equations)))
+    nloops=0
+    equations_over_time[nloops]=copy.copy(equations)
+    times = []
+    times+=[tcur]
+    while tcur < tend:
+        integrator_fn(tnow,tcur+dt,constants,equations,Nsystems,Nequations_per_system)
+        tcur+=dt
+        times+=[tcur]
+        nloops+=1
+        equations_over_time[nloops]=copy.copy(equations)
+    print(equations_over_time)
+    if output_mode is not None:
+        with h5py.File("cubic_out.hdf5",output_mode) as handle:
+            group = handle.create_group(integrator_name)
+            group['equations_over_time'] = equations_over_time
+            group['times'] = times
+
    
 ####### Test for y' = ct #######
-tnow = 0.0
-timestep = 1
+tnow = 1.0
+tend = 2
 Nsystems = 2
 Nequations_per_system = 3
 
-constants = (np.arange(Nsystems*Nequations_per_system)+1.0).astype(np.float32)
-equations = np.arange(Nsystems*Nequations_per_system)
-
-runCudaIntegrator(tnow,timestep,constants,equations,Nsystems,Nequations_per_system)
-runCudaSIEIntegrator(tnow,timestep,constants,equations,Nsystems,Nequations_per_system)
+constants = np.array([1,2,3,1,2,3]).astype(np.float32)
+equations = np.arange(Nsystems*Nequations_per_system).astype(np.float32)
+runIntegratorOutput(
+    runCudaIntegrator,'Euler',
+    tnow,tend,
+    constants,
+    equations,
+    Nsystems,
+    Nequations_per_system,
+    output_mode = 'w')
+print("---------------------------------------------------")
+constants = np.array([1,2,3,1,2,3]).astype(np.float32)
+equations = np.arange(Nsystems*Nequations_per_system).astype(np.float32)
+runIntegratorOutput(
+    runCudaSIEIntegrator,'SIE',
+    tnow,tend,
+    constants,
+    equations,
+    Nsystems,
+    Nequations_per_system,
+    output_mode = 'a')
 
 ### LEGACY
 """

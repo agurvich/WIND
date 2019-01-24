@@ -76,7 +76,7 @@ void cudaIntegrateEuler(
     int Nsystems, // the number of systems
     int Nequations_per_system){ // the number of equations in each system
 
-    printf("Received %d systems, %d equations per system\n",Nsystems,Nequations_per_system);
+    printf("Forward Euler Received %d systems, %d equations per system\n",Nsystems,Nequations_per_system);
 
     // copy the arrays over to the device
     int Nequations = Nsystems*Nequations_per_system;
@@ -99,7 +99,7 @@ void cudaIntegrateEuler(
         gridsize = Nequations/THREAD_BLOCK_LIMIT+1;
     }
 
-    printf("%d blocksize, %d gridsize\n",blocksize,gridsize);
+    //printf("%d blocksize, %d gridsize\n",blocksize,gridsize);
     dim3 dimBlock( blocksize, 1 );
     dim3 dimGrid( gridsize, 1 );
 
@@ -113,7 +113,7 @@ void cudaIntegrateEuler(
     
     // copy the new state back
     cudaMemcpy(equations, equationsDevice, equations_size, cudaMemcpyDeviceToHost ); 
-    printf("c-equations after %.2f \n",equations[0]);
+    //printf("c-equations after %.2f \n",equations[0]);
 
     // free up the memory on the device
     cudaFree(constantsDevice);
