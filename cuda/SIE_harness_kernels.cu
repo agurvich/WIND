@@ -19,7 +19,7 @@ void printFArray(float * arr, int N){
 }
 
 __global__ void cudaRoutineFlat(int Neqn_p_sys, float * d_arr){
-    printf("%d - %.2f hello\n",threadIdx.x,d_arr[threadIdx.x]);
+    printf("%d - %.3f hello\n",threadIdx.x,d_arr[threadIdx.x]);
 }
 __global__ void cudaRoutine(int Neqn_p_sys, float ** d_arr,int index){
     printf("%d - %.2f hello\n",threadIdx.x,d_arr[index][threadIdx.x]);
@@ -94,7 +94,7 @@ __global__ void updateTimestep(float * timestep, float * derivatives_flat, int *
         *timestep = ABSOLUTE_TOLERANCE/derivatives_flat[*max_index-1];
     }
     */
-    *timestep = 0.001;
+    *timestep = .01;
 
     // TODO fixed timestep because why not?
     //*timestep = 0.25;
@@ -210,6 +210,7 @@ void SIE_step(
         INFO, // cublas status object
         Nsystems); // number of systems
 /* ----------------------------------------------- */
+    //cudaRoutine<<<1,Neqn_p_sys*Neqn_p_sys>>>(Neqn_p_sys,d_Jacobianss,0);
 
 /* -------------- perform a matrix-vector mult --- */
     // multiply (I-h*Js)^-1 x fs
@@ -239,6 +240,11 @@ void SIE_step(
     
     //cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_derivatives_flat);
     // add ys + h x dys = ys + h x [(I-h*Js)^-1*fs]
+    /*
+    printfCUDA<<<1,1>>>(d_timestep);
+    cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_derivatives_flat);
+    cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_out_flat);
+    */
     cublasSaxpy(
         handle, // cublas handle
         Neqn_p_sys*Nsystems, // number of elements in each vector
@@ -247,6 +253,7 @@ void SIE_step(
         1, // stride between consecutive elements
         d_out_flat, // vector we are replacing
         1); // stride between consecutive elements
+    //cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_out_flat);
 /* ----------------------------------------------- */
     
     cudaFree(P); cudaFree(INFO); cublasDestroy_v2(handle);
@@ -309,7 +316,7 @@ int cudaIntegrateSIE(
     // allocate memory for Jacobian matrices as a single "batch"
     float *d_Jacobianss_flat;
     float **d_Jacobianss = initializeDeviceMatrix(jacobian_zeros,&d_Jacobianss_flat,Neqn_p_sys*Neqn_p_sys,Nsystems);
-    calculateJacobians<<<Nsystems,Neqn_p_sys>>>(d_Jacobianss,tnow);
+    //calculateJacobians<<<Nsystems,Neqn_p_sys>>>(d_Jacobianss,tnow);
 
     // initialize state-equation vectors
     float * zeros = (float *) malloc(Nsystems*Neqn_p_sys*sizeof(float));
@@ -340,6 +347,7 @@ int cudaIntegrateSIE(
         
         // evaluate the derivative function at tnow
         calculateDerivatives<<<Nsystems,Neqn_p_sys>>>(d_derivatives_flat,tnow);
+        //printf("t - %.4f\n",tnow);
 
         // reset the jacobian, which has been replaced by (I-hJ)^-1
         if (nsteps > 1){
@@ -347,7 +355,7 @@ int cudaIntegrateSIE(
                 d_Jacobianss_flat,jacobian_zeros,
                 Nsystems*Neqn_p_sys*Neqn_p_sys*sizeof(float),
                 cudaMemcpyHostToDevice);
-            calculateJacobians<<<Nsystems,Neqn_p_sys>>>(d_Jacobianss,tnow);
+            //calculateJacobians<<<Nsystems,Neqn_p_sys>>>(d_Jacobianss,tnow);
         }
 
         /*
@@ -358,6 +366,7 @@ int cudaIntegrateSIE(
         cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(5,d_out_flat);
         */
 
+        //printf("stepping...\n");
         SIE_step(
             &tnow, //the current time
             d_timestep, // Nsystems length vector for timestep to use

@@ -4,6 +4,7 @@ import time
 import os
 import copy
 import h5py
+import time
 
 ## find that shared object library 
 curdir = os.path.split(os.getcwd())[0]
@@ -19,10 +20,11 @@ def runCudaIntegrator(tnow,tend,constants,equations,Nsystems,Nequations_per_syst
     if print_flag:
         print("equations before:",equations)
 
+    print(tnow,'python')
     before = copy.copy(equations)
     nsteps =c_cudaIntegrateEuler(
-        ctypes.c_float(tnow),
-        ctypes.c_float(tend),
+        ctypes.c_float(np.float32(tnow)),
+        ctypes.c_float(np.float32(tend)),
         constants.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
         equations.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
         ctypes.c_int(Nsystems),
@@ -30,8 +32,9 @@ def runCudaIntegrator(tnow,tend,constants,equations,Nsystems,Nequations_per_syst
         )
 
     if print_flag:
-        print("equations after %d steps:"%nsteps,equations)
+        print("equations after %d steps:"%nsteps,equations.astype(np.float32))
         print("residuals:",equations-(before+constants*(tend**3-tnow**3)/3.))
+        print(tnow,tend)
     return nsteps
 
 def runCudaSIEIntegrator(tnow,tend,constants,equations,Nsystems,Nequations_per_system,print_flag=1):
@@ -49,7 +52,7 @@ def runCudaSIEIntegrator(tnow,tend,constants,equations,Nsystems,Nequations_per_s
     )
 
     if print_flag:
-        print("equations after %d steps:"%nsteps,equations)
+        print("equations after %d steps:"%nsteps,equations.astype(np.float32))
         ##print("residuals:",equations-constants*((tend)**2-(tnow)**2)/2.)
         print("residuals:",equations-(before+constants*(tend**3-tnow**3)/3.))
     return nsteps
@@ -73,25 +76,28 @@ def runIntegratorOutput(
     times = []
     times+=[tcur]
     nsteps = []
+    walltimes = []
 
     while tcur < tend:
+        init_time = time.time()
         nsteps+=[integrator_fn(
-        tnow,tcur+dt,
-        constants,equations,
-        Nsystems,Nequations_per_system,
-        print_flag = 0)]
-
+                    tcur,tcur+dt,
+                    constants,equations,
+                    Nsystems,Nequations_per_system,
+                    print_flag = 0)]
+        walltimes+=[time.time()-init_time]
         tcur+=dt
         times+=[tcur]
         nloops+=1
         equations_over_time[nloops]=copy.copy(equations)
-    print(equations_over_time)
+    print(np.round(equations_over_time.astype(float),3))
     if output_mode is not None:
         with h5py.File("cubic_out.hdf5",output_mode) as handle:
             group = handle.create_group(integrator_name)
             group['equations_over_time'] = equations_over_time
             group['times'] = times
             group['nsteps'] = nsteps
+            group['walltimes'] = walltimes
    
 ####### Test for y' = ct #######
 tnow = 1.0
@@ -109,6 +115,7 @@ runIntegratorOutput(
     Nsystems,
     Nequations_per_system,
     output_mode = 'w')
+"""
 print("---------------------------------------------------")
 constants = np.array([1,2,3,1,2,3]).astype(np.float32)
 equations = np.arange(Nsystems*Nequations_per_system).astype(np.float32)
@@ -120,6 +127,7 @@ runIntegratorOutput(
     Nsystems,
     Nequations_per_system,
     output_mode = 'a')
+"""
 
 ### LEGACY
 """

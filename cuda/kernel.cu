@@ -1,14 +1,8 @@
 #include <stdio.h>
 #include "explicit_solver.h"
 
-#define ABSOLUTE_TOLERANCE 1e-2
-#define RELATIVE_TOLERANCE 1e-2
-
-__global__ void hello(int * a, int * b){
-    int tid = threadIdx.x + blockIdx.x*blockDim.x;
-    printf("tid %d\n",tid);
-    a[tid]=a[tid]+b[tid];
-} // hello
+#define ABSOLUTE_TOLERANCE 1e-3
+#define RELATIVE_TOLERANCE 1e-3
 
 __device__ float calculate_dydt(
     float tnow,
@@ -18,7 +12,7 @@ __device__ float calculate_dydt(
     //  at the beginning of the block's values.
     int tid = blockIdx.x*blockDim.x+threadIdx.x;
 
-    return constants[tid]*tnow*tnow; //equations[threadIdx.x]*equations[(threadIdx.x+1)%blockDim.x];
+    return constants[tid]*tnow*tnow;
 } // calculate_dydyt
 
 __device__ float euler_innerstep(
@@ -32,7 +26,6 @@ __device__ float euler_innerstep(
 
     float dydt = 0;
 
-    //dydt = (float *) malloc(blockDim.x*sizeof(float));
     while (tnow < tstop){
         // limit step size based on remaining time
         h = fmin(tstop - tnow, h);
@@ -42,16 +35,6 @@ __device__ float euler_innerstep(
             tnow,
             constants,
             shared_temp_equations);
-
-            /*
-            if (threadIdx.x == 1 && blockIdx.x == 0){
-                printf("dydt(%.2f) - t(%.2f) - h(%.2f) - dydt-inner-step-%d-%d\n",
-                    dydt,
-                    tnow,
-                    h,
-                    blockIdx.x,threadIdx.x);
-            }
-            */
 
         // update value of temporary equations
         shared_temp_equations[threadIdx.x] += h*dydt;
@@ -111,11 +94,6 @@ __global__ void integrate_euler(
             // now reset the temporary equations
             shared_temp_equations[threadIdx.x] = shared_equations[threadIdx.x];
             __syncthreads();
-            /*
-            if (threadIdx.x == 1 && blockIdx.x == 0){
-                printf("y1 %.2f\n",y1);
-            }
-            */
 
             y2 = euler_innerstep(
                 tnow, tnow+h,
@@ -124,43 +102,15 @@ __global__ void integrate_euler(
                 shared_temp_equations,
                 Nsystems, Nequations_per_system );
 
-            /*
-            if (threadIdx.x == 1 && blockIdx.x == 0){
-                printf("y2 %.2f\n",y2);
-            }
-            */
-
             *shared_error_flag = y2 - y1 > ABSOLUTE_TOLERANCE || (y2-y1)/(2*y2-y1) > RELATIVE_TOLERANCE;
             __syncthreads();
 
-            /*
-            if (threadIdx.x == 1 && blockIdx.x == 0){
-                printf("%.3f-%.3f - error(%d) - %d thread %d block\n",
-                    y1,
-                    y2,
-                    *shared_error_flag,
-                    threadIdx.x,
-                    blockIdx.x);
-            }
-            */
-
-            //tnow+=h;
             (*nloops)++;
             if (*shared_error_flag){
-                /*
-                if (threadIdx.x == 1 && blockIdx.x == 0){
-                    printf("bad - %d\n",*shared_error_flag);
-                }
-                */
                 // refine and start over
                 h/=2;
             } // if shared_error_flag
             else{
-                /*
-                if (threadIdx.x == 1 && blockIdx.x == 0){
-                    printf("good\n");
-                }
-                */
                 // accept this step and update the shared array
                 //  using local extrapolation (see NR e:17.2.3)
                 shared_equations[threadIdx.x] = 2*y2-y1;

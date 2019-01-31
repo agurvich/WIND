@@ -14,60 +14,6 @@ void printArray(int * arr,int N){
     printf("\n");
 }
 
-void arradd(int Narr,int * arr_a,int * arr_b,int * arr_c){
-    printf("Received %d:\n",Narr);
-    printArray(arr_a,Narr);
-    printArray(arr_b,Narr);
-    int *ad;
-    int *bd;
-    const int isize = Narr*sizeof(int);
- 
-    cudaMalloc( (void**)&ad, isize ); 
-    cudaMalloc( (void**)&bd, isize ); 
-    cudaMemcpy( ad, arr_a, isize, cudaMemcpyHostToDevice ); 
-    cudaMemcpy( bd, arr_b, isize, cudaMemcpyHostToDevice ); 
-    
-    int blocksize,gridsize;
-    if (Narr < THREAD_BLOCK_LIMIT){
-        blocksize = Narr;
-        gridsize = 1;
-    }
-    else{
-        blocksize = THREAD_BLOCK_LIMIT;
-        gridsize = Narr/THREAD_BLOCK_LIMIT+1;
-    }
-
-    dim3 dimBlock( blocksize, 1 );
-    dim3 dimGrid( gridsize, 1 );
-    hello<<<dimGrid, dimBlock>>>(ad, bd);
-    cudaMemcpy( arr_c, ad, isize, cudaMemcpyDeviceToHost ); 
-
-    printf("Returning:\n");
-    printArray(arr_c,Narr);
-
-    cudaFree( ad );
-    cudaFree( bd );
-}
-
-
-int bar()
-{
-    const int Narr = 4; 
-    int a[Narr] = {0,1,2,3};
-    int b[Narr] = {3,2,1,0};
-    int * c;
-    c = (int *) malloc(sizeof(int)*Narr);
-
-    printArray(a,Narr);
-    printf("+ \n");
-    printArray(b,Narr);
-    printf("= \n");
-
-    arradd(Narr,a,b,c);
-    printArray(c,Narr);
-    return 1;
-}
-
 int cudaIntegrateEuler(
     float tnow, // the current time
     float tend, // the time we integrating the system to
@@ -94,6 +40,15 @@ int cudaIntegrateEuler(
     int * nloopsDevice;
     cudaMalloc(&nloopsDevice, sizeof(int)); 
     cudaMemcpy(nloopsDevice, &nloops, sizeof(int), cudaMemcpyHostToDevice ); 
+
+
+    float * tnowDevice;
+    cudaMalloc(&tnowDevice, sizeof(float)); 
+    cudaMemcpy(tnowDevice, &tnow, sizeof(float), cudaMemcpyHostToDevice ); 
+
+    float * tendDevice;
+    cudaMalloc(&tendDevice, sizeof(float)); 
+    cudaMemcpy(tendDevice, &tend, sizeof(float), cudaMemcpyHostToDevice ); 
 
     // setup the grid dimensions
     int blocksize,gridsize;
