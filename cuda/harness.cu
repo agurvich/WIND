@@ -22,7 +22,7 @@ int cudaIntegrateEuler(
     int Nsystems, // the number of systems
     int Nequations_per_system){ // the number of equations in each system
 
-    printf("Forward Euler Received %d systems, %d equations per system\n",Nsystems,Nequations_per_system);
+    printf("RK2 Received %d systems, %d equations per system\n",Nsystems,Nequations_per_system);
 
     // copy the arrays over to the device
     int Nequations = Nsystems*Nequations_per_system;

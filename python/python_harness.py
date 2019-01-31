@@ -108,7 +108,7 @@ Nequations_per_system = 3
 constants = np.array([1,2,3,1,2,3]).astype(np.float32)
 equations = np.arange(Nsystems*Nequations_per_system).astype(np.float32)
 runIntegratorOutput(
-    runCudaIntegrator,'Euler',
+    runCudaIntegrator,'RK2',
     tnow,tend,
     constants,
     equations,
