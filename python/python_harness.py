@@ -115,7 +115,6 @@ runIntegratorOutput(
     Nsystems,
     Nequations_per_system,
     output_mode = 'w')
-"""
 print("---------------------------------------------------")
 constants = np.array([1,2,3,1,2,3]).astype(np.float32)
 equations = np.arange(Nsystems*Nequations_per_system).astype(np.float32)
@@ -127,7 +126,6 @@ runIntegratorOutput(
     Nsystems,
     Nequations_per_system,
     output_mode = 'a')
-"""
 
 ### LEGACY
 """

@@ -94,7 +94,7 @@ __global__ void updateTimestep(float * timestep, float * derivatives_flat, int *
         *timestep = ABSOLUTE_TOLERANCE/derivatives_flat[*max_index-1];
     }
     */
-    *timestep = .01;
+    *timestep = .001;
 
     // TODO fixed timestep because why not?
     //*timestep = 0.25;
