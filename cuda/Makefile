@@ -2,7 +2,7 @@
 EXECUTABLE	:= lib/wind.so
 
 # Cuda source files (compiled with nvcc)
-CUFILES		:= harness.cu kernel.cu SIE_harness_kernels.cu
+CUFILES		:= harness.cu kernel.cu SIE_harness_kernels.cu BDF2_harness_kernels.cu
 
 CFLAGS = --compiler-options '-fPIC' -shared
 

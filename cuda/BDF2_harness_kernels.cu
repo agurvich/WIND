@@ -8,110 +8,10 @@
 #include "implicit_solver.h"
 //#include <cusolverDn.h>
 //#include "magmablas.h"
-
 //#define FIXEDTIMESTEP
 //#define COMMENTSIE
 
-void printFArray(float * arr, int N){
-    for (int i = 0; i<N;i++){
-        printf("%.2f ",arr[i]);
-    }
-    printf("\n");
-}
-
-__global__ void cudaRoutineFlat(int Neqn_p_sys, float * d_arr){
-    printf("%d - %.3f hello\n",threadIdx.x,d_arr[threadIdx.x]);
-}
-__global__ void cudaRoutine(int Neqn_p_sys, float ** d_arr,int index){
-    printf("%d - %.2f hello\n",threadIdx.x,d_arr[index][threadIdx.x]);
-}
-
-__global__ void printfCUDA(float * pointer){
-    printf("%f value of cuda pointer \n",*pointer);
-}
-
-void setIdentityMatrix(float * identity,int Neqn_p_sys){
-    for (int i=0; i<(Neqn_p_sys*Neqn_p_sys);i++){
-        if (!(i%(Neqn_p_sys+1))){
-            identity[i]=1;
-        }
-        else{
-            identity[i]=0;
-        }
-    }
-}
-
-float ** initializeDeviceMatrix(float * h_flat, float ** p_d_flat, int arr_size,int nbatch){
-    // returns a device pointer to the 2d array, the pointer to the 
-    // flat array is the first element of the 2d array, just ask for 
-    // more bytes
-    
-    // allocate device pointers
-
-    float ** d_arr, *d_flat;
-    cudaMalloc(&d_arr,nbatch*sizeof(float *));
-    cudaMalloc(&d_flat, arr_size*nbatch*sizeof(float));
-
-    // create a temporary array that partitions d_flat
-    float **temp = (float **) malloc(nbatch*sizeof(float *));
-
-    // arrange the array in column major order
-    temp[0]=d_flat;
-    for (int i=1; i<nbatch; i++){
-        temp[i]=temp[i-1]+(arr_size);
-    }
-
-    // copy the temporary pointer's values to the device
-    cudaMemcpy(d_arr,temp,nbatch*sizeof(float *),cudaMemcpyHostToDevice);
-    // copy the actual values across
-    cudaMemcpy(d_flat,h_flat,arr_size*nbatch*sizeof(float),cudaMemcpyHostToDevice);
-
-    free(temp);
-    // return what we want
-    *p_d_flat=d_flat;
-    return d_arr;
-}
-
-__global__ void addArrayToBatchArrays(float ** single_arr, float ** batch_arrs, float alpha, float beta, float *p_beta){
-    // assumes that gridDim = Nsystems and blockDim = Neqn_p_sys
-    batch_arrs[blockIdx.x][threadIdx.x]=alpha*single_arr[0][threadIdx.x]+ beta*(*p_beta)*batch_arrs[blockIdx.x][threadIdx.x];
-}
-
-__global__ void scaleVector(float * vector, float * scales){
-    // assumes that gridDim = Nsystems and blockDim = Neqn_p_sys
-    vector[blockIdx.x*blockDim.x+threadIdx.x]*=scales[blockIdx.x];
-}
-
-__global__ void updateTimestep(float * timestep, float * derivatives_flat, int * max_index){
-
-    // changes the value of the pointer in global memory on the device without copying back the derivatives
-    float ABSOLUTE_TOLERANCE = 1e-4;
-    // -1 because cublas is 1 index. whyyyy
-    /*
-    if ( derivatives_flat[*max_index-1] < 1000*ABSOLUTE_TOLERANCE){
-        *timestep = 1000*ABSOLUTE_TOLERANCE;
-    }
-    else{
-        *timestep = ABSOLUTE_TOLERANCE/derivatives_flat[*max_index-1];
-    }
-    */
-    *timestep = .001;
-
-    // TODO fixed timestep because why not?
-    //*timestep = 0.25;
-}
-
-__global__ void calculateDerivatives(float * d_derivatives_flat, float time){
-    d_derivatives_flat[threadIdx.x + blockIdx.x*blockDim.x] = (threadIdx.x + 1) * time * time;
-}
-
-__global__ void calculateJacobians(float **d_Jacobianss, float time){
-    // relies on the fact that blockDim.x is ndim and we're striding to get to the diagonals
-    d_Jacobianss[blockIdx.x][threadIdx.x+blockDim.x*threadIdx.x] = ((float ) (threadIdx.x+1)) * time;
-    //printf("%d - %d = %d\n",blockIdx.x,threadIdx.x+blockDim.x*threadIdx.x,threadIdx.x+1);
-}
-
-void SIE_step(
+void BDF2_step(
     float * p_time, // pointer to current time
     float * d_timestep, // device pointer to the current timestep (across all systems, lame!!)
     float ** d_Jacobianss,  // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array with flattened jacobians
@@ -258,7 +158,7 @@ void SIE_step(
     //TODO should free more stuff here?
 }
 
-int cudaIntegrateSIE(
+int cudaIntegrateBDF2(
     float tnow, // the current time
     float tend, // the time we integrating the system to
     float * constants, // the constants for each system
@@ -281,7 +181,7 @@ int cudaIntegrateSIE(
     dim3 dimGrid( gridsize, 1 );
     */
 
-    printf("SIE Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
+    printf("BDF2 Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
     float *dest = equations;
 
     // define the identity matrix on the host
@@ -353,7 +253,7 @@ int cudaIntegrateSIE(
         */
 
         //printf("stepping...\n");
-        SIE_step(
+        BDF2_step(
             &tnow, //the current time
             d_timestep, // Nsystems length vector for timestep to use
             d_Jacobianss, // matrix (jacobian) input
