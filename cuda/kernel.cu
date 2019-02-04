@@ -51,7 +51,7 @@ __global__ void integrate_euler(
     float * equations, // a flattened array containing the y value for each equation in each system
     int Nsystems, // the number of systems
     int Nequations_per_system,
-    int * nloops){ // the number of equations in each system
+    int * nsteps){ // the number of equations in each system
 
     // unique thread ID , based on local ID in block and block ID
     int tid = threadIdx.x + ( blockDim.x * blockIdx.x);
@@ -105,7 +105,7 @@ __global__ void integrate_euler(
             *shared_error_flag = y2 - y1 > ABSOLUTE_TOLERANCE || (y2-y1)/(2*y2-y1) > RELATIVE_TOLERANCE;
             __syncthreads();
 
-            (*nloops)++;
+            (*nsteps)++;
             if (*shared_error_flag){
                 // refine and start over
                 h/=2;
@@ -127,7 +127,7 @@ __global__ void integrate_euler(
         // copy the y values back to global memory
         equations[tid]=shared_equations[threadIdx.x];
         if (threadIdx.x == 1 && blockIdx.x == 0){
-            printf("nsteps taken: %d\n",*nloops);
+            printf("nsteps taken: %d - tnow: %.2f\n",*nsteps,tnow);
         }
     } // if tid < nequations
 } //integrate_euler

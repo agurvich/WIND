@@ -15,14 +15,21 @@ c_obj = ctypes.CDLL(exec_call)
 #print(c_obj.__dict__)
 c_cudaIntegrateEuler = getattr(c_obj,"_Z18cudaIntegrateEulerffPfS_ii")
 c_cudaSIE_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffPfS_ii")
+c_cudaBDF2_integrate = getattr(c_obj,"_Z17cudaIntegrateBDF2ffPfS_ii")
 
-def runCudaIntegrator(tnow,tend,constants,equations,Nsystems,Nequations_per_system,print_flag=1):
+
+def runCudaIntegrator(
+    integrator,
+    tnow,tend,
+    constants,equations,
+    Nsystems,Nequations_per_system,
+    print_flag=1):
+
     if print_flag:
         print("equations before:",equations)
 
-    print(tnow,'python')
     before = copy.copy(equations)
-    nsteps =c_cudaIntegrateEuler(
+    nsteps =integrator(
         ctypes.c_float(np.float32(tnow)),
         ctypes.c_float(np.float32(tend)),
         constants.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
@@ -35,26 +42,6 @@ def runCudaIntegrator(tnow,tend,constants,equations,Nsystems,Nequations_per_syst
         print("equations after %d steps:"%nsteps,equations.astype(np.float32))
         print("residuals:",equations-(before+constants*(tend**3-tnow**3)/3.))
         print(tnow,tend)
-    return nsteps
-
-def runCudaSIEIntegrator(tnow,tend,constants,equations,Nsystems,Nequations_per_system,print_flag=1):
-    if print_flag:
-        print("equations before:",equations)
-
-    before = copy.copy(equations)
-    nsteps = c_cudaSIE_integrate(
-        ctypes.c_float(tnow), ## current time
-        ctypes.c_float(tend), ## end time
-        constants.ctypes.data_as(ctypes.POINTER(ctypes.c_float)), ## current state vector
-        equations.ctypes.data_as(ctypes.POINTER(ctypes.c_float)), ## current state vector
-        ctypes.c_int(Nsystems), ## number of systems
-        ctypes.c_int(Nequations_per_system), ## number of equations
-    )
-
-    if print_flag:
-        print("equations after %d steps:"%nsteps,equations.astype(np.float32))
-        ##print("residuals:",equations-constants*((tend)**2-(tnow)**2)/2.)
-        print("residuals:",equations-(before+constants*(tend**3-tnow**3)/3.))
     return nsteps
 
 def runIntegratorOutput(
@@ -80,11 +67,13 @@ def runIntegratorOutput(
 
     while tcur < tend:
         init_time = time.time()
-        nsteps+=[integrator_fn(
-                    tcur,tcur+dt,
-                    constants,equations,
-                    Nsystems,Nequations_per_system,
-                    print_flag = 0)]
+        nsteps+=[
+            runCudaIntegrator(
+                integrator_fn,
+                tcur,tcur+dt,
+                constants,equations,
+                Nsystems,Nequations_per_system,
+                print_flag = 0)]
         walltimes+=[time.time()-init_time]
         tcur+=dt
         times+=[tcur]
@@ -108,7 +97,7 @@ Nequations_per_system = 3
 constants = np.array([1,2,3,1,2,3]).astype(np.float32)
 equations = np.arange(Nsystems*Nequations_per_system).astype(np.float32)
 runIntegratorOutput(
-    runCudaIntegrator,'RK2',
+    c_cudaIntegrateEuler,'RK2',
     tnow,tend,
     constants,
     equations,
@@ -119,7 +108,18 @@ print("---------------------------------------------------")
 constants = np.array([1,2,3,1,2,3]).astype(np.float32)
 equations = np.arange(Nsystems*Nequations_per_system).astype(np.float32)
 runIntegratorOutput(
-    runCudaSIEIntegrator,'SIE',
+    c_cudaSIE_integrate,'SIE',
+    tnow,tend,
+    constants,
+    equations,
+    Nsystems,
+    Nequations_per_system,
+    output_mode = 'a')
+print("---------------------------------------------------")
+constants = np.array([1,2,3,1,2,3]).astype(np.float32)
+equations = np.arange(Nsystems*Nequations_per_system).astype(np.float32)
+runIntegratorOutput(
+    c_cudaBDF2_integrate,'BDF2',
     tnow,tend,
     constants,
     equations,

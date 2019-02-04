@@ -52,10 +52,9 @@ void BDF2_step(
     // scalars for adding/multiplying
     float alpha = 1.0;
     cudaMemcpy(d_alpha,&alpha,sizeof(float),cudaMemcpyHostToDevice);
-    float beta = 0.0;
+    float beta = 2.0/3.0;
     cudaMemcpy(d_beta,&beta,sizeof(float),cudaMemcpyHostToDevice);
 
-#ifndef FIXEDTIMESTEP
     // TODO don't really understand how this should be working :|
     cublasIsamax(
         handle, // cublas handle
@@ -68,8 +67,12 @@ void BDF2_step(
     updateTimestep<<<1,1>>>(
         d_timestep,
         d_derivatives_flat,
+        d_beta,
         d_max_index);
-#endif
+
+    // overwrite beta = 2/3 with beta = 0
+    beta = 0.0;
+    cudaMemcpy(d_beta,&beta,sizeof(float),cudaMemcpyHostToDevice);
 /* ----------------------------------------------- */
 
 
@@ -379,7 +382,7 @@ int cudaIntegrateBDF2(
             Nsystems, // number of systems
             Neqn_p_sys); // number of equations in each system
     }
-    printf("nsteps taken: %d\n",nsteps);
+    printf("nsteps taken: %d - tnow: %.2f\n",nsteps,tnow);
 
 /* -------------- copy data to host -------------- */
     // retrieve the output

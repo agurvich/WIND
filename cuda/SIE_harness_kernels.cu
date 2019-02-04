@@ -92,7 +92,7 @@ __global__ void addVectors(float alpha, float * v1, float beta, float * v2, floa
     v3[blockIdx.x*blockDim.x+threadIdx.x] = alpha * v1[blockIdx.x*blockDim.x+threadIdx.x] + beta * v2[blockIdx.x*blockDim.x+threadIdx.x];
 }
 
-__global__ void updateTimestep(float * timestep, float * derivatives_flat, int * max_index){
+__global__ void updateTimestep(float * timestep, float * derivatives_flat, float * scale_factor, int * max_index){
 
     // changes the value of the pointer in global memory on the device without copying back the derivatives
     float ABSOLUTE_TOLERANCE = 1e-4;
@@ -105,7 +105,7 @@ __global__ void updateTimestep(float * timestep, float * derivatives_flat, int *
         *timestep = ABSOLUTE_TOLERANCE/derivatives_flat[*max_index-1];
     }
     */
-    *timestep = .001;
+    *timestep = .001 * (*scale_factor);
 
     // TODO fixed timestep because why not?
     //*timestep = 0.25;
@@ -162,7 +162,6 @@ void SIE_step(
     float beta = 0.0;
     cudaMemcpy(d_beta,&beta,sizeof(float),cudaMemcpyHostToDevice);
 
-#ifndef FIXEDTIMESTEP
     // TODO don't really understand how this should be working :|
     cublasIsamax(
         handle, // cublas handle
@@ -172,8 +171,11 @@ void SIE_step(
         d_max_index); // the index of the max element of the vector
 
     // literally just change what the pointer is pointing to on the device
-    updateTimestep<<<1,1>>>(d_timestep,d_derivatives_flat,d_max_index);
-#endif
+    updateTimestep<<<1,1>>>(
+        d_timestep,
+        d_derivatives_flat,
+        d_alpha,
+        d_max_index);
 /* ----------------------------------------------- */
 
 
@@ -378,7 +380,7 @@ int cudaIntegrateSIE(
         //printf("%.2f %.2f\n",tnow,tend);
 
     }
-    printf("nsteps taken: %d\n",nsteps);
+    printf("nsteps taken: %d - tnow: %.2f\n",nsteps,tnow);
 
 /* -------------- copy data to host -------------- */
     // retrieve the output
