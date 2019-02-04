@@ -1,15 +1,16 @@
-// This is the REAL "hello world" for CUDA!
-// It takes the string "Hello ", prints it, then passes it to CUDA with an array
-// of offsets. Then the offsets are added in parallel to produce the string "World!"
-// By Ingemar Ragnemalm 2010
- 
 #include <stdio.h>
 #include <cublas_v2.h>
+
 #include "implicit_solver.h"
+#include "ode.h"
+#include "utils.h"
+#include "cuda_utils.h"
+#include "vector_kernels.h"
+
 //#include <cusolverDn.h>
 //#include "magmablas.h"
-//#define FIXEDTIMESTEP
-//#define COMMENTSIE
+
+//#define COMMENTBDF2
 
 void BDF2_step(
     float * p_time, // pointer to current time
@@ -26,7 +27,7 @@ void BDF2_step(
     int Nsystems, // number of ODE systems
     int Neqn_p_sys){ // number of equations in each system
 
-#ifndef COMMENTSIE
+#ifndef COMMENTBDF2
 /* -------------- initialize cublas -------------- */
     // initialize cublas status tracking pointers
     cublasHandle_t handle;

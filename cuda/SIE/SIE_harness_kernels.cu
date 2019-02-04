@@ -1,135 +1,16 @@
-// This is the REAL "hello world" for CUDA!
-// It takes the string "Hello ", prints it, then passes it to CUDA with an array
-// of offsets. Then the offsets are added in parallel to produce the string "World!"
-// By Ingemar Ragnemalm 2010
- 
 #include <stdio.h>
 #include <cublas_v2.h>
+
+#include "implicit_solver.h"
+#include "ode.h"
+#include "utils.h"
+#include "cuda_utils.h"
+#include "vector_kernels.h"
+
 //#include <cusolverDn.h>
+//#include "magmablas.h"
 
-//#define FIXEDTIMESTEP
 //#define COMMENTSIE
-
-void printArray(int * arr,int N){
-    for (int i = 0; i<N;i++){
-        printf("%d ",arr[i]);
-    }
-    printf("\n");
-}
-
-void printFArray(float * arr, int N){
-    for (int i = 0; i<N;i++){
-        printf("%.2f ",arr[i]);
-    }
-    printf("\n");
-}
-
-__global__ void cudaRoutineFlat(int Neqn_p_sys, float * d_arr){
-    printf("%d - %.2f hello\n",threadIdx.x,d_arr[threadIdx.x]);
-}
-__global__ void cudaRoutine(int Neqn_p_sys, float ** d_arr,int index){
-    printf("%d - %.2f hello\n",threadIdx.x,d_arr[index][threadIdx.x]);
-}
-
-__global__ void printfCUDA(float * pointer){
-    printf("%f value of cuda pointer \n",*pointer);
-}
-
-void setIdentityMatrix(float * identity,int Neqn_p_sys){
-    for (int i=0; i<(Neqn_p_sys*Neqn_p_sys);i++){
-        if (!(i%(Neqn_p_sys+1))){
-            identity[i]=1;
-        }
-        else{
-            identity[i]=0;
-        }
-    }
-}
-
-float ** initializeDeviceMatrix(float * h_flat, float ** p_d_flat, int arr_size,int nbatch){
-    // returns a device pointer to the 2d array, the pointer to the 
-    // flat array is the first element of the 2d array, just ask for 
-    // more bytes
-    
-    // allocate device pointers
-
-    float ** d_arr, *d_flat;
-    cudaMalloc(&d_arr,nbatch*sizeof(float *));
-    cudaMalloc(&d_flat, arr_size*nbatch*sizeof(float));
-
-    // create a temporary array that partitions d_flat
-    float **temp = (float **) malloc(nbatch*sizeof(float *));
-
-    // arrange the array in column major order
-    temp[0]=d_flat;
-    for (int i=1; i<nbatch; i++){
-        temp[i]=temp[i-1]+(arr_size);
-    }
-
-    // copy the temporary pointer's values to the device
-    cudaMemcpy(d_arr,temp,nbatch*sizeof(float *),cudaMemcpyHostToDevice);
-    // copy the actual values across
-    cudaMemcpy(d_flat,h_flat,arr_size*nbatch*sizeof(float),cudaMemcpyHostToDevice);
-
-    free(temp);
-    // return what we want
-    *p_d_flat=d_flat;
-    return d_arr;
-}
-
-__global__ void addArrayToBatchArrays(float ** single_arr, float ** batch_arrs, float alpha, float beta, float *p_beta){
-    // assumes that gridDim = Nsystems and blockDim = Neqn_p_sys
-    batch_arrs[blockIdx.x][threadIdx.x]=alpha*single_arr[0][threadIdx.x]+ beta*(*p_beta)*batch_arrs[blockIdx.x][threadIdx.x];
-}
-
-__global__ void scaleVector(float * vector, float * scales){
-    // assumes that gridDim = Nsystems and blockDim = Neqn_p_sys
-    vector[blockIdx.x*blockDim.x+threadIdx.x]*=scales[blockIdx.x];
-}
-
-__global__ void updateTimestep(float * timestep, float * derivatives_flat, int * max_index){
-
-    // changes the value of the pointer in global memory on the device without copying back the derivatives
-    float ABSOLUTE_TOLERANCE = 1e-4;
-    // -1 because cublas is 1 index. whyyyy
-    /*
-    if ( derivatives_flat[*max_index-1] < 1000*ABSOLUTE_TOLERANCE){
-        *timestep = 1000*ABSOLUTE_TOLERANCE;
-    }
-    else{
-        *timestep = ABSOLUTE_TOLERANCE/derivatives_flat[*max_index-1];
-    }
-    */
-    *timestep = 0.0001;
-
-    // TODO fixed timestep because why not?
-    //*timestep = 0.25;
-}
-
-__global__ void calculateDerivatives(float * d_derivatives_flat, float time){
-    d_derivatives_flat[threadIdx.x + blockIdx.x*blockDim.x] = (threadIdx.x + 1) * time;
-}
-
-__global__ void calculateJacobians(float **d_Jacobianss){
-    // relies on the fact that blockDim.x is ndim and we're striding to get to the diagonals
-    d_Jacobianss[blockIdx.x][threadIdx.x+blockDim.x*threadIdx.x] = threadIdx.x+1;
-    //printf("%d - %d = %d\n",blockIdx.x,threadIdx.x+blockDim.x*threadIdx.x,threadIdx.x+1);
-}
-
-void dummy(
-    float * p_time, // pointer to current time
-    float * d_timestep, // device pointer to the current timestep (across all systems, lame!!)
-    float ** d_Jacobianss,  // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array with flattened jacobians
-    float ** d_inverse, // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array to store output (same as jacobians to overwrite)
-    float ** d_identity, // 1 x Neqn_p_sys*Neqn_p_sys array storing the identity (ideally in constant memory?)
-    float ** d_derivatives, // Nsystems x Neqn_p_sys 2d array to store derivatives
-    float * d_derivatives_flat, // Nsystems*Neqn_p_sys 1d array (flattened above)
-    float * d_out_flat, // output state vector, iterative calls integrates
-    int Nsystems, // number of ODE systems
-    int Neqn_p_sys){
-
-    printf("hello from dummy\n");
-}
 
 void SIE_step(
     float * p_time, // pointer to current time
@@ -172,7 +53,6 @@ void SIE_step(
     float beta = 0.0;
     cudaMemcpy(d_beta,&beta,sizeof(float),cudaMemcpyHostToDevice);
 
-#ifndef FIXEDTIMESTEP
     // TODO don't really understand how this should be working :|
     cublasIsamax(
         handle, // cublas handle
@@ -182,8 +62,11 @@ void SIE_step(
         d_max_index); // the index of the max element of the vector
 
     // literally just change what the pointer is pointing to on the device
-    updateTimestep<<<1,1>>>(d_timestep,d_derivatives_flat,d_max_index);
-#endif
+    updateTimestep<<<1,1>>>(
+        d_timestep,
+        d_derivatives_flat,
+        d_alpha,
+        d_max_index);
 /* ----------------------------------------------- */
 
 
@@ -216,6 +99,7 @@ void SIE_step(
         INFO, // cublas status object
         Nsystems); // number of systems
 /* ----------------------------------------------- */
+    //cudaRoutine<<<1,Neqn_p_sys*Neqn_p_sys>>>(Neqn_p_sys,d_Jacobianss,0);
 
 /* -------------- perform a matrix-vector mult --- */
     // multiply (I-h*Js)^-1 x fs
@@ -245,6 +129,11 @@ void SIE_step(
     
     //cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_derivatives_flat);
     // add ys + h x dys = ys + h x [(I-h*Js)^-1*fs]
+    /*
+    printfCUDA<<<1,1>>>(d_timestep);
+    cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_derivatives_flat);
+    cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_out_flat);
+    */
     cublasSaxpy(
         handle, // cublas handle
         Neqn_p_sys*Nsystems, // number of elements in each vector
@@ -253,6 +142,7 @@ void SIE_step(
         1, // stride between consecutive elements
         d_out_flat, // vector we are replacing
         1); // stride between consecutive elements
+    //cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_out_flat);
 /* ----------------------------------------------- */
     
     cudaFree(P); cudaFree(INFO); cublasDestroy_v2(handle);
@@ -271,7 +161,7 @@ void SIE_step(
     //TODO should free more stuff here?
 }
 
-void cudaIntegrateSIE(
+int cudaIntegrateSIE(
     float tnow, // the current time
     float tend, // the time we integrating the system to
     float * constants, // the constants for each system
@@ -294,7 +184,7 @@ void cudaIntegrateSIE(
     dim3 dimGrid( gridsize, 1 );
     */
 
-    printf("Received %d arrays, each %d x %d:\n",Nsystems,Neqn_p_sys,Neqn_p_sys);
+    printf("SIE Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
     float *dest = equations;
 
     // define the identity matrix on the host
@@ -315,7 +205,7 @@ void cudaIntegrateSIE(
     // allocate memory for Jacobian matrices as a single "batch"
     float *d_Jacobianss_flat;
     float **d_Jacobianss = initializeDeviceMatrix(jacobian_zeros,&d_Jacobianss_flat,Neqn_p_sys*Neqn_p_sys,Nsystems);
-    calculateJacobians<<<Nsystems,Neqn_p_sys>>>(d_Jacobianss);
+    //calculateJacobians<<<Nsystems,Neqn_p_sys>>>(d_Jacobianss,tnow);
 
     // initialize state-equation vectors
     float * zeros = (float *) malloc(Nsystems*Neqn_p_sys*sizeof(float));
@@ -346,6 +236,7 @@ void cudaIntegrateSIE(
         
         // evaluate the derivative function at tnow
         calculateDerivatives<<<Nsystems,Neqn_p_sys>>>(d_derivatives_flat,tnow);
+        //printf("t - %.4f\n",tnow);
 
         // reset the jacobian, which has been replaced by (I-hJ)^-1
         if (nsteps > 1){
@@ -353,7 +244,7 @@ void cudaIntegrateSIE(
                 d_Jacobianss_flat,jacobian_zeros,
                 Nsystems*Neqn_p_sys*Neqn_p_sys*sizeof(float),
                 cudaMemcpyHostToDevice);
-            calculateJacobians<<<Nsystems,Neqn_p_sys>>>(d_Jacobianss);
+            //calculateJacobians<<<Nsystems,Neqn_p_sys>>>(d_Jacobianss,tnow);
         }
 
         /*
@@ -364,6 +255,7 @@ void cudaIntegrateSIE(
         cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(5,d_out_flat);
         */
 
+        //printf("stepping...\n");
         SIE_step(
             &tnow, //the current time
             d_timestep, // Nsystems length vector for timestep to use
@@ -379,7 +271,7 @@ void cudaIntegrateSIE(
         //printf("%.2f %.2f\n",tnow,tend);
 
     }
-    printf("nsteps taken: %d\n",nsteps);
+    printf("nsteps taken: %d - tnow: %.2f\n",nsteps,tnow);
 
 /* -------------- copy data to host -------------- */
     // retrieve the output
@@ -396,4 +288,6 @@ void cudaIntegrateSIE(
     free(temp_timestep);
     free(identity_flat);
 /* ----------------------------------------------- */
+    //return how many steps were taken
+    return nsteps;
 }
