@@ -82,6 +82,16 @@ __global__ void scaleVector(float * vector, float * scales){
     vector[blockIdx.x*blockDim.x+threadIdx.x]*=scales[blockIdx.x];
 }
 
+__global__ void overwriteVector(float * v1, float * v2){
+    // copies the contents of v1 into v2
+    v2[blockIdx.x*blockDim.x+threadIdx.x] = v1[blockIdx.x*blockDim.x+threadIdx.x];
+}
+
+__global__ void addVectors(float alpha, float * v1, float beta, float * v2, float * v3){
+    // outputs the result in v3
+    v3[blockIdx.x*blockDim.x+threadIdx.x] = alpha * v1[blockIdx.x*blockDim.x+threadIdx.x] + beta * v2[blockIdx.x*blockDim.x+threadIdx.x];
+}
+
 __global__ void updateTimestep(float * timestep, float * derivatives_flat, int * max_index){
 
     // changes the value of the pointer in global memory on the device without copying back the derivatives

@@ -19,7 +19,10 @@ void BDF2_step(
     float ** d_identity, // 1 x Neqn_p_sys*Neqn_p_sys array storing the identity (ideally in constant memory?)
     float ** d_derivatives, // Nsystems x Neqn_p_sys 2d array to store derivatives
     float * d_derivatives_flat, // Nsystems*Neqn_p_sys 1d array (flattened above)
-    float * d_out_flat, // output state vector, iterative calls integrates
+    float * d_previous_state_flat, // state vector from previous timestep
+    float * d_current_state_flat, // state vector from this timestep, where output goes
+    float ** d_intermediate, // matrix holding intermediate values used internally for the calculation
+    float * d_intermediate_flat, // flat array storing intermediate values used internally for the calculation
     int Nsystems, // number of ODE systems
     int Neqn_p_sys){ // number of equations in each system
 
@@ -62,16 +65,24 @@ void BDF2_step(
         d_max_index); // the index of the max element of the vector
 
     // literally just change what the pointer is pointing to on the device
-    updateTimestep<<<1,1>>>(d_timestep,d_derivatives_flat,d_max_index);
+    updateTimestep<<<1,1>>>(
+        d_timestep,
+        d_derivatives_flat,
+        d_max_index);
 #endif
 /* ----------------------------------------------- */
 
 
 /* -------------- invert the matrix -------------- */
-    // compute (I-hJ) with a custom kernel
+    // compute (I-2/3hJ) with a custom kernel, here d_timestep = 2/3h
     // TODO pretty sure i need a multidimensional grid here, 
     // blocks can't be 160x160 threads
-    addArrayToBatchArrays<<<Nsystems,Neqn_p_sys*Neqn_p_sys>>>(d_identity,d_Jacobianss,1.0,-1.0,d_timestep);
+    addArrayToBatchArrays<<<Nsystems,Neqn_p_sys*Neqn_p_sys>>>(
+        d_identity,
+        d_Jacobianss,
+        1.0,
+        -1.0,
+        d_timestep);
 
     // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
     // the permutation array seems to be important for some reason
@@ -98,8 +109,27 @@ void BDF2_step(
 /* ----------------------------------------------- */
     //cudaRoutine<<<1,Neqn_p_sys*Neqn_p_sys>>>(Neqn_p_sys,d_Jacobianss,0);
 
-/* -------------- perform a matrix-vector mult --- */
-    // multiply (I-h*Js)^-1 x fs
+/* -------------- perform the state switcheroo --- */
+    //  (y(n)-y(n-1)) into d_intermediate_flat
+    // TODO pretty sure i need a multidimensional grid here, 
+    // blocks can't be 160x160 threads
+    addVectors<<<1,Nsystems*Neqn_p_sys>>>(
+        -1.0,d_previous_state_flat,
+        1.0, d_current_state_flat,
+        d_intermediate_flat);
+
+    // copies the values of y(n) -> y(n-1)
+    //  now that we don't need the "previous" step
+    // TODO pretty sure i need a multidimensional grid here, 
+    // blocks can't be 160x160 threads
+    overwriteVector<<<1,Nsystems*Neqn_p_sys>>>(
+        d_current_state_flat,
+        d_previous_state_flat);
+/* ----------------------------------------------- */
+
+/* -------------- perform two matrix-vector mults  */
+    // multiply (I-2/3h*Js)^-1 x (y(n)-y(n-1)), 
+    //  overwrite the output into d_intermediate
     cublasSgemmBatched(
         handle,// cublas handle
         CUBLAS_OP_N,// no transformation
@@ -110,12 +140,52 @@ void BDF2_step(
         (const float *) d_alpha, // alpha scalar
         (const float **) d_inverse, // A matrix
         Neqn_p_sys, // leading dimension of the 2d array storing A??
+        (const float **) d_intermediate, // B matrix (or n x 1 column vector)
+        Neqn_p_sys, // leading dimension of the 2d array storing B??
+        (const float *) d_beta, // beta scalar
+        (float **) d_intermediate, // output "matrix," let's overwrite B
+        Neqn_p_sys, // leading dimension of the 2d array storing C??
+        Nsystems); // batch count
+
+    // multiply 2/3h*(I-2/3h*Js)^-1 x fs
+    //  store the output in d_derivatives
+    cublasSgemmBatched(
+        handle,// cublas handle
+        CUBLAS_OP_N,// no transformation
+        CUBLAS_OP_N,// no transformation
+        Neqn_p_sys, //m- number of rows in A (and C)
+        1, //n- number of columns in B (and C)
+        Neqn_p_sys, //k-number of columns in A and rows in B
+        (const float *) d_timestep, // alpha scalar
+        (const float **) d_inverse, // A matrix
+        Neqn_p_sys, // leading dimension of the 2d array storing A??
         (const float **) d_derivatives, // B matrix (or n x 1 column vector)
         Neqn_p_sys, // leading dimension of the 2d array storing B??
         (const float *) d_beta, // beta scalar
         (float **) d_derivatives, // output "matrix," let's overwrite B
         Neqn_p_sys, // leading dimension of the 2d array storing C??
         Nsystems); // batch count
+
+    // add 1/3(I-2/3hJ)^-1(Y(n)-Y(n-1)) 
+    //  to Y(n) (from d_previous_state_flat), 
+    //  storing the output in d_current_state_flat
+    // TODO pretty sure i need a multidimensional grid here, 
+    // blocks can't be 160x160 threads
+    addVectors<<<1,Nsystems*Neqn_p_sys>>>(
+        1.0, d_previous_state_flat,
+        1.0/3.0, d_intermediate_flat,
+        d_current_state_flat);
+
+    // add [Y(n) + 1/3(I-2/3hJ)^-1(Y(n)-Y(n-1))] 
+    //  to [2/3h*(I-2/3hJ)^-1 x f] to get BDF 2 sln,
+    //  storing the output in  d_current_state_flat
+    // TODO pretty sure i need a multidimensional grid here, 
+    // blocks can't be 160x160 threads
+    addVectors<<<1,Nsystems*Neqn_p_sys>>>(
+        1.0, d_current_state_flat, 
+        1.0, d_derivatives_flat,  // only need 1.0 here because d_timestep is representing 2/3h
+        d_current_state_flat);
+
 /* ----------------------------------------------- */
 
 /* -------------- perform a vector addition ------ */
@@ -131,6 +201,8 @@ void BDF2_step(
     cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_derivatives_flat);
     cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_out_flat);
     */
+
+    /*
     cublasSaxpy(
         handle, // cublas handle
         Neqn_p_sys*Nsystems, // number of elements in each vector
@@ -140,6 +212,7 @@ void BDF2_step(
         d_out_flat, // vector we are replacing
         1); // stride between consecutive elements
     //cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_out_flat);
+    */
 /* ----------------------------------------------- */
     
     cudaFree(P); cudaFree(INFO); cublasDestroy_v2(handle);
@@ -152,7 +225,10 @@ void BDF2_step(
     // even still necessary.
     float timestep = 1.0;
     cudaMemcpy(&timestep,d_timestep,sizeof(float),cudaMemcpyDeviceToHost);
-    *p_time+=timestep;
+    
+    // this changes the meaning of timestep to be 2/3 h instead of h 
+    //  without actually changing any code.
+    *p_time+=3.0/2.0*timestep;
 
     // shut down cublas
     //TODO should free more stuff here?
@@ -209,8 +285,20 @@ int cudaIntegrateBDF2(
     for (int i=0; i<Neqn_p_sys*Nsystems; i++){
         zeros[i]=0;
     }   
-    float *d_out_flat;
-    float **d_out = initializeDeviceMatrix(equations,&d_out_flat,Neqn_p_sys,Nsystems);
+
+
+    // state equations, where output will be stored
+    float *d_current_state_flat;
+    float **d_current_state = initializeDeviceMatrix(equations,&d_current_state_flat,Neqn_p_sys,Nsystems);
+
+    // saving previous step Y(n-1) because we need that for BDF2
+    float *d_previous_state_flat;
+    float **d_previous_state = initializeDeviceMatrix(zeros,&d_previous_state_flat,Neqn_p_sys,Nsystems);
+
+    // memory for intermediate calculation... reuse it so we aren't constantly allocating
+    //  and deallocating memory, NOTE can we remove this??
+    float *d_intermediate_flat;
+    float **d_intermediate = initializeDeviceMatrix(zeros,&d_intermediate_flat,Neqn_p_sys,Nsystems);
 
     // initialize derivative vectors
     float *d_derivatives_flat;
@@ -226,8 +314,31 @@ int cudaIntegrateBDF2(
 /* ----------------------------------------------- */
 
     
+
+/* -------------- first integration step --------- */
+    int nsteps=1;
+    SIE_step(
+        &tnow, //the current time
+        d_timestep, // Nsystems length vector for timestep to use
+        d_Jacobianss, // matrix (jacobian) input
+        d_Jacobianss, // inverse output, overwrite d_Jacobianss
+        d_identity, // pointer to identity (ideally in constant memory?)
+        d_derivatives, // vector (derivatives) input
+        d_derivatives_flat, // dy vector output
+        d_current_state_flat, // y vector output
+        Nsystems, // number of systems
+        Neqn_p_sys); // number of equations in each system
+
+    // copies the values of y(n) -> y(n-1)
+    //  now that we don't need the "previous" step
+    // TODO pretty sure i need a multidimensional grid here, 
+    // blocks can't be 160x160 threads
+    overwriteVector<<<1,Nsystems*Neqn_p_sys>>>(
+        d_current_state_flat,
+        d_previous_state_flat);
+/* ----------------------------------------------- */
+
 /* -------------- main integration loop ---------- */
-    int nsteps=0;
     while (tnow < tend){
         nsteps++;
         
@@ -261,23 +372,25 @@ int cudaIntegrateBDF2(
             d_identity, // pointer to identity (ideally in constant memory?)
             d_derivatives, // vector (derivatives) input
             d_derivatives_flat, // dy vector output
-            d_out_flat, // y vector output
+            d_previous_state_flat,// Y(n-1) vector
+            d_current_state_flat, // Y(n) vector output
+            d_intermediate, // matrix memory for intermediate calculation
+            d_intermediate_flat,// flattened memory for intermediate calculation
             Nsystems, // number of systems
             Neqn_p_sys); // number of equations in each system
-
-        //printf("%.2f %.2f\n",tnow,tend);
-
     }
     printf("nsteps taken: %d\n",nsteps);
 
 /* -------------- copy data to host -------------- */
     // retrieve the output
-    cudaMemcpy(dest, d_out_flat, Neqn_p_sys*Nsystems*sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(dest, d_current_state_flat, Neqn_p_sys*Nsystems*sizeof(float), cudaMemcpyDeviceToHost);
 /* ----------------------------------------------- */
 
 /* -------------- shutdown by freeing memory   --- */
     cudaFree(d_Jacobianss); cudaFree(d_Jacobianss_flat);
-    cudaFree(d_out); cudaFree(d_out_flat);
+    cudaFree(d_current_state); cudaFree(d_current_state_flat);
+    cudaFree(d_previous_state); cudaFree(d_previous_state_flat);
+    cudaFree(d_intermediate); cudaFree(d_intermediate_flat);
     cudaFree(d_identity); cudaFree(d_identity_flat);
     cudaFree(d_derivatives); cudaFree(d_derivatives_flat);
 
