@@ -290,6 +290,14 @@ int cudaIntegrateBDF2(
         zeros[i]=0;
     }   
 
+    // constants that define the ODEs
+    /* TODO put this in constant memory instead-- does the below work? 
+    __constant__ float d_constants[NUM_CONST]; // NUM_CONST #define'd in ode.h
+    cudaMemcpyToSymbol(constants,d_constants,sizeof(d_constants));
+    */
+    float * d_constants;
+    cudaMalloc(&d_constants,NUM_CONST*sizeof(float));
+    cudaMemcpy(d_constants,constants,NUM_CONST*sizeof(float),cudaMemcpyHostToDevice);
 
     // state equations, where output will be stored
     float *d_current_state_flat;
@@ -347,7 +355,7 @@ int cudaIntegrateBDF2(
         nsteps++;
         
         // evaluate the derivative function at tnow
-        calculateDerivatives<<<Nsystems,Neqn_p_sys>>>(d_derivatives_flat,tnow);
+        calculateDerivatives<<<Nsystems,1>>>(d_derivatives_flat,d_constants,d_current_state_flat,Neqn_p_sys,tnow);
         //printf("t - %.4f\n",tnow);
 
         // reset the jacobian, which has been replaced by (I-hJ)^-1
@@ -356,8 +364,8 @@ int cudaIntegrateBDF2(
                 d_Jacobianss_flat,jacobian_zeros,
                 Nsystems*Neqn_p_sys*Neqn_p_sys*sizeof(float),
                 cudaMemcpyHostToDevice);
-            //calculateJacobians<<<Nsystems,Neqn_p_sys>>>(d_Jacobianss,tnow);
         }
+        calculateJacobians<<<Nsystems,1>>>(d_Jacobianss,d_constants,d_current_state_flat,Neqn_p_sys,tnow);
 
         /*
         printfCUDA<<<1,1>>>(d_timestep);

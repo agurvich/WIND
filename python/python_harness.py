@@ -92,10 +92,54 @@ def runIntegratorOutput(
 tnow = 1.0
 tend = 2
 Nsystems = 2
-Nequations_per_system = 3
+Nequations_per_system = 5
 
-constants = np.array([1,2,3,1,2,3]).astype(np.float32)
-equations = np.arange(Nsystems*Nequations_per_system).astype(np.float32)
+constants_dict = {}
+
+
+
+
+constants_dict['Gamma_(e,H0)'] = 5.85e-11 * np.sqrt(T)
+constants_dict['Gamma_(gamma,H0)'] = 
+constants_dict['alpha_(H+)'] = 
+constants_dict['Gamma_(e,He0)'] = 
+constants_dict['Gamma_(gamma,He0)'] = 
+constants_dict['Gamma_(e,He+)'] = 
+constants_dict['Gamma_(gamma,He+)'] = 
+constants_dict['alpha_(He+)'] = 
+constants_dict['alpha_(d)'] = 
+constants_dict['alpha_(He++)'] = 
+
+## /* constants = [
+##  Gamma_(e,H0), Gamma_(gamma,H0), 
+##  alpha_(H+),
+##  Gamma_(e,He0), Gamma_(gamma,He0),
+##  Gamma_(e,He+), Gamma_(gamma,He+),
+##      alpha_(He+), alpha_(d),
+##  alpha_(He++)
+##  ] 
+## */
+
+constants = np.array([
+    constants_dict['Gamma_(e,H0)'],
+    constants_dict['Gamma_(gamma,H0)'],
+    constants_dict['alpha_(H+)'],
+    constants_dict['Gamma_(e,He0)'],
+    constants_dict['Gamma_(gamma,He0)'],
+    constants_dict['Gamma_(e,He+)'],
+    constants_dict['Gamma_(gamma,He+)'],
+    constants_dict['alpha_(He+)'],
+    constants_dict['alpha_(d)'],
+    constants_dict['alpha_(He++)']])
+
+equations = np.array([
+    0.5, ## H0
+    0.5, ## H+
+    0.5, ## He0
+    0.25,## He+
+    0.25 ## He++
+]*Nsystems)
+
 runIntegratorOutput(
     c_cudaIntegrateEuler,'RK2',
     tnow,tend,
@@ -104,9 +148,17 @@ runIntegratorOutput(
     Nsystems,
     Nequations_per_system,
     output_mode = 'w')
+
 print("---------------------------------------------------")
+
 constants = np.array([1,2,3,1,2,3]).astype(np.float32)
-equations = np.arange(Nsystems*Nequations_per_system).astype(np.float32)
+equations = np.array([
+    0.5, ## H0
+    0.5, ## H+
+    0.5, ## He0
+    0.25,## He+
+    0.25 ## He++
+]*Nsystems)
 runIntegratorOutput(
     c_cudaSIE_integrate,'SIE',
     tnow,tend,
@@ -115,9 +167,29 @@ runIntegratorOutput(
     Nsystems,
     Nequations_per_system,
     output_mode = 'a')
+
 print("---------------------------------------------------")
-constants = np.array([1,2,3,1,2,3]).astype(np.float32)
-equations = np.arange(Nsystems*Nequations_per_system).astype(np.float32)
+
+constants = np.array([
+    constants_dict['Gamma_(e,H0)'],
+    constants_dict['Gamma_(gamma,H0)'],
+    constants_dict['alpha_(H+)'],
+    constants_dict['Gamma_(e,He0)'],
+    constants_dict['Gamma_(gamma,He0)'],
+    constants_dict['Gamma_(e,He+)'],
+    constants_dict['Gamma_(gamma,He+)'],
+    constants_dict['alpha_(He+)'],
+    constants_dict['alpha_(d)'],
+    constants_dict['alpha_(He++)']])
+
+equations = np.array([
+    0.5, ## H0
+    0.5, ## H+
+    0.5, ## He0
+    0.25,## He+
+    0.25 ## He++
+]*Nsystems)
+
 runIntegratorOutput(
     c_cudaBDF2_integrate,'BDF2',
     tnow,tend,

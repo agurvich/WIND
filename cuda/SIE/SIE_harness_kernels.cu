@@ -164,10 +164,11 @@ void SIE_step(
 int cudaIntegrateSIE(
     float tnow, // the current time
     float tend, // the time we integrating the system to
-    float * constants, // the constants for each system
+    float * constants, // the constants for each system // TODO const? 
     float * equations, // a flattened array containing the y value for each equation in each system
     int Nsystems, // the number of systems
-    int Neqn_p_sys){ // the number of equations in each system
+    int Neqn_p_sys// the number of equations in each system
+    ){ 
 
     /*
     int blocksize,gridsize;
@@ -205,7 +206,6 @@ int cudaIntegrateSIE(
     // allocate memory for Jacobian matrices as a single "batch"
     float *d_Jacobianss_flat;
     float **d_Jacobianss = initializeDeviceMatrix(jacobian_zeros,&d_Jacobianss_flat,Neqn_p_sys*Neqn_p_sys,Nsystems);
-    //calculateJacobians<<<Nsystems,Neqn_p_sys>>>(d_Jacobianss,tnow);
 
     // initialize state-equation vectors
     float * zeros = (float *) malloc(Nsystems*Neqn_p_sys*sizeof(float));
@@ -218,6 +218,16 @@ int cudaIntegrateSIE(
     // initialize derivative vectors
     float *d_derivatives_flat;
     float **d_derivatives = initializeDeviceMatrix(zeros,&d_derivatives_flat,Neqn_p_sys,Nsystems);
+
+
+    // constants that define the ODEs
+    /* TODO put this in constant memory instead-- does the below work? 
+    __constant__ float d_constants[NUM_CONST]; // NUM_CONST #define'd in ode.h
+    cudaMemcpyToSymbol(constants,d_constants,sizeof(d_constants));
+    */
+    float * d_constants;
+    cudaMalloc(&d_constants,NUM_CONST*sizeof(float));
+    cudaMemcpy(d_constants,constants,NUM_CONST*sizeof(float),cudaMemcpyHostToDevice);
 
     // initialize single global timestep shared across systems
     float * d_timestep;
@@ -235,7 +245,7 @@ int cudaIntegrateSIE(
         nsteps++;
         
         // evaluate the derivative function at tnow
-        calculateDerivatives<<<Nsystems,Neqn_p_sys>>>(d_derivatives_flat,tnow);
+        calculateDerivatives<<<Nsystems,1>>>(d_derivatives_flat,d_constants,d_out_flat,Neqn_p_sys,tnow);
         //printf("t - %.4f\n",tnow);
 
         // reset the jacobian, which has been replaced by (I-hJ)^-1
@@ -244,8 +254,8 @@ int cudaIntegrateSIE(
                 d_Jacobianss_flat,jacobian_zeros,
                 Nsystems*Neqn_p_sys*Neqn_p_sys*sizeof(float),
                 cudaMemcpyHostToDevice);
-            //calculateJacobians<<<Nsystems,Neqn_p_sys>>>(d_Jacobianss,tnow);
         }
+        calculateJacobians<<<Nsystems,1>>>(d_Jacobianss,d_constants,d_out_flat,Neqn_p_sys,tnow);
 
         /*
         printfCUDA<<<1,1>>>(d_timestep);
