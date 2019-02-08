@@ -21,7 +21,7 @@ __global__ void addArrayToBatchArrays(float ** single_arr, float ** batch_arrs, 
 
 __global__ void updateTimestep(float * timestep, float * derivatives_flat, float * scale_factor, int * max_index){
     // changes the value of the pointer in global memory on the device without copying back the derivatives
-    float ABSOLUTE_TOLERANCE = 1e-4;
+    //float ABSOLUTE_TOLERANCE = 1e-4;
     // -1 because cublas is 1 index. whyyyy
     /*
     if ( derivatives_flat[*max_index-1] < 1000*ABSOLUTE_TOLERANCE){
@@ -31,7 +31,7 @@ __global__ void updateTimestep(float * timestep, float * derivatives_flat, float
         *timestep = ABSOLUTE_TOLERANCE/derivatives_flat[*max_index-1];
     }
     */
-    *timestep = .001 * (*scale_factor);
+    *timestep = .01 * (*scale_factor);
 
     // TODO fixed timestep because why not?
     //*timestep = 0.25;

@@ -56,9 +56,10 @@ def runIntegratorOutput(
     output_mode=None):
 
     ## initialize integration breakdown variables
+    max_steps = 25
     tcur = tnow
-    dt = (tend-tnow)/10.
-    equations_over_time = np.zeros((11,len(equations)))
+    dt = (tend-tnow)/max_steps
+    equations_over_time = np.zeros((max_steps+1,len(equations)))
     nloops=0
     equations_over_time[nloops]=copy.copy(equations)
     times = []
@@ -66,7 +67,7 @@ def runIntegratorOutput(
     nsteps = []
     walltimes = []
 
-    while tcur < tend:
+    while nloops < max_steps:#while tcur < tend:
         init_time = time.time()
         nsteps+=[
             runCudaIntegrator(
@@ -82,7 +83,7 @@ def runIntegratorOutput(
         equations_over_time[nloops]=copy.copy(equations)
     print(np.round(equations_over_time.astype(float),3))
     if output_mode is not None:
-        with h5py.File("cubic_out.hdf5",output_mode) as handle:
+        with h5py.File("katz96_out.hdf5",output_mode) as handle:
             group = handle.create_group(integrator_name)
             group['equations_over_time'] = equations_over_time
             group['times'] = times
@@ -90,10 +91,12 @@ def runIntegratorOutput(
             group['walltimes'] = walltimes
    
 ####### Test for y' = ct #######
-tnow = 1.0
+tnow = 0
 tend = 2
 Nsystems = 2
 Nequations_per_system = 5
+TEMP = 1e2 ## K
+DENSITY = 1e2 ## 1/cm^-3
 
 constants_dict = {}
 
@@ -137,18 +140,22 @@ def get_constants(TEMP,Nsystems):
         constants_dict['alpha_(He+)'],
         constants_dict['alpha_(d)'],
         constants_dict['alpha_(He++)']]*Nsystems)
-    return constants*3.15e7*1e4 ## convert to 1/10kyr
 
-constants = get_constants(1e5,Nsystems)
-print(constants)
+    ##return np.array(list(range(10))*Nsystems).astype(np.float32)
+    return (constants*3.15e7).astype(np.float32) ## convert to 1/yr
+
+def initialize_equations(density,Nsystems):
+    return np.array([
+    0.25, ## H0
+    0.25, ## H+
+    0.25, ## He0
+    0.125,## He+
+    0.125 ## He++
+    ]*Nsystems).astype(np.float32)*density
+
 """
-equations = np.array([
-    0.5, ## H0
-    0.5, ## H+
-    0.5, ## He0
-    0.25,## He+
-    0.25 ## He++
-]*Nsystems)
+constants = get_constants(TEMP,Nsystems)
+equations = initialize_equations(DENSITY,Nsystems)
 
 runIntegratorOutput(
     c_cudaIntegrateEuler,'RK2',
@@ -162,14 +169,9 @@ runIntegratorOutput(
 print("---------------------------------------------------")
 """
 
-constants = get_constants(1e5,Nsystems)
-equations = np.array([
-    0.5, ## H0
-    0.5, ## H+
-    0.5, ## He0
-    0.25,## He+
-    0.25 ## He++
-]*Nsystems)
+constants = get_constants(TEMP,Nsystems)
+equations = initialize_equations(DENSITY,Nsystems)
+
 runIntegratorOutput(
     c_cudaSIE_integrate,'SIE',
     tnow,tend,
@@ -177,19 +179,13 @@ runIntegratorOutput(
     equations,
     Nsystems,
     Nequations_per_system,
-    output_mode = 'a')
+    output_mode = 'w')
+#print(constants)
 
 print("---------------------------------------------------")
 
-constants = get_constants(1e5,Nsystems)
-
-equations = np.array([
-    0.5, ## H0
-    0.5, ## H+
-    0.5, ## He0
-    0.25,## He+
-    0.25 ## He++
-]*Nsystems)
+constants = get_constants(TEMP,Nsystems)
+equations = initialize_equations(DENSITY,Nsystems)
 
 runIntegratorOutput(
     c_cudaBDF2_integrate,'BDF2',

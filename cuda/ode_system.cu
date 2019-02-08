@@ -1,4 +1,5 @@
 #include "ode.h"
+#include <stdio.h>
 
 __global__ void calculateDerivatives(
     float * d_derivatives_flat, 
@@ -24,20 +25,36 @@ __global__ void calculateDerivatives(
         alpha_(He++)
         ] 
     */
+    /*
+    if (threadIdx.x == 0 && blockIdx.x == 0){
+        for (int i = 0; i<10; i++){
+            printf("%d - %.2e\t",i,constants[i]);
+        }
+        printf("\n");
+    }
+    */
+
 
     // H0 : alpha_(H+) ne nH+ - (Gamma_(e,H0)ne + Gamma_(gamma,H0))*nH0
-    this_block_derivatives[0] = constants[2]*ne*this_block_state[1]-(constants[0]*ne + constants[1])*this_block_state[0]; 
+    this_block_derivatives[0] = constants[2]*ne*this_block_state[1]
+        -(constants[0]*ne + constants[1])*this_block_state[0]; 
 
     // H+ : (Gamma_(e,H0)ne + Gamma_(gamma,H0))*nH0 - alpha_(H+) ne nH+
     this_block_derivatives[1] = -this_block_derivatives[0];
 
-    // He0 :(alpha_(He+)+alpha_(d)) ne nH+ - (Gamma_(e,He0)ne + Gamma_(gamma,He0)) nHe0
-    this_block_derivatives[2] = (constants[7]+constants[8])*ne*this_block_state[3] - (constants[3]*ne+constants[4])*this_block_state[2];
+    // He0 :(alpha_(He+)+alpha_(d)) ne nHe+ - (Gamma_(e,He0)ne + Gamma_(gamma,He0)) nHe0
+    this_block_derivatives[2] = (constants[7]+constants[8])*ne*this_block_state[3] 
+        - (constants[3]*ne+constants[4])*this_block_state[2];
 
-    // He+ : alpha_(He++) ne nHe++ + (Gamma_(e,He0)ne + Gamma_(gamma,He0)) nHe0
-    // - (alpha_(He+)+alpha_(d)) ne nH+ - (Gamma_(e,He+)ne + Gamma_(gamma,He+)) nH+
-    this_block_derivatives[3] = constants[9]*ne*this_block_state[4] + (constants[3]*ne+constants[4])*this_block_state[2] - 
-        -(constants[7]+constants[8])*ne*this_block_state[3] - (constants[5]*ne+constants[6])*this_block_state[3];
+    // He+ : 
+    //  alpha_(He++) ne nHe++ 
+    //  + (Gamma_(e,He0)ne + Gamma_(gamma,He0)) nHe0
+    //  - (alpha_(He+)+alpha_(d)) ne nHe+ 
+    //  - (Gamma_(e,He+)ne + Gamma_(gamma,He+)) nHe+
+    this_block_derivatives[3] = constants[9]*ne*this_block_state[4] 
+        + (constants[3]*ne+constants[4])*this_block_state[2]  
+        - (constants[7]+constants[8])*ne*this_block_state[3] 
+        - (constants[5]*ne+constants[6])*this_block_state[3];
 
     // He++ : -alpha_(He++) ne nHe++
     this_block_derivatives[4] = -constants[9]*ne*this_block_state[4]; 

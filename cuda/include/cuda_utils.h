@@ -5,3 +5,5 @@ __global__ void cudaRoutine(int, float **,int);
 
 __global__ void printfCUDA(float *);
 
+__global__ void printFloatArrayCUDA(float *, int);
+

@@ -246,6 +246,7 @@ int cudaIntegrateSIE(
         
         // evaluate the derivative function at tnow
         calculateDerivatives<<<Nsystems,1>>>(d_derivatives_flat,d_constants,d_out_flat,Neqn_p_sys,tnow);
+        //printFloatArrayCUDA<<<1,1>>>(d_derivatives_flat,Nsystems*Neqn_p_sys);
         //printf("t - %.4f\n",tnow);
 
         // reset the jacobian, which has been replaced by (I-hJ)^-1
@@ -257,9 +258,11 @@ int cudaIntegrateSIE(
         }
         calculateJacobians<<<Nsystems,1>>>(d_Jacobianss,d_constants,d_out_flat,Neqn_p_sys,tnow);
 
+
         /*
         printfCUDA<<<1,1>>>(d_timestep);
         cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys*Neqn_p_sys>>>(5,d_Jacobianss_flat);
+
         cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(5,d_derivatives_flat);
         cudaRoutine<<<1,Neqn_p_sys*Neqn_p_sys>>>(5,d_identity,0);
         cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(5,d_out_flat);
