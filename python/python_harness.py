@@ -9,6 +9,7 @@ import time
 ## find that shared object library 
 curdir = os.path.split(os.getcwd())[0]
 exec_call = os.path.join(curdir,"cuda","lib","wind.so")
+print(exec_call)
 c_obj = ctypes.CDLL(exec_call)
 
 #print(dir(c_obj))
@@ -98,40 +99,49 @@ constants_dict = {}
 
 
 
+## From Alex R
+#H0: 4.4e-11 s^-1
+#He0: 3.7e-12 s^-1
+#He+: 1.7e-14
 
-constants_dict['Gamma_(e,H0)'] = 5.85e-11 * np.sqrt(T)
-constants_dict['Gamma_(gamma,H0)'] = 
-constants_dict['alpha_(H+)'] = 
-constants_dict['Gamma_(e,He0)'] = 
-constants_dict['Gamma_(gamma,He0)'] = 
-constants_dict['Gamma_(e,He+)'] = 
-constants_dict['Gamma_(gamma,He+)'] = 
-constants_dict['alpha_(He+)'] = 
-constants_dict['alpha_(d)'] = 
-constants_dict['alpha_(He++)'] = 
+def get_constants(TEMP,Nsystems):
+    constants_dict['Gamma_(e,H0)'] = 5.85e-11 * np.sqrt(TEMP)/(1+(TEMP/1e5)) * np.exp(-157809.1/TEMP)
+    constants_dict['Gamma_(gamma,H0)'] = 4.4e-11
+    constants_dict['alpha_(H+)'] = 8.4e-11 * np.sqrt(TEMP) * (TEMP/1e3)**-0.2 / (1+(TEMP/1e6)**0.7)
+    constants_dict['Gamma_(e,He0)'] =  2.38e-11 * np.sqrt(TEMP)/(1+(TEMP/1e5)) * np.exp(-285335.4/TEMP)
+    constants_dict['Gamma_(gamma,He0)'] = 3.7e-12
+    constants_dict['Gamma_(e,He+)'] =  5.68e-12 * np.sqrt(TEMP)/(1+(TEMP/1e5)) * np.exp(-631515.0/TEMP) 
+    constants_dict['Gamma_(gamma,He+)'] = 1.7e-14
+    constants_dict['alpha_(He+)'] = 1.5e-10 * TEMP**-0.6353
+    constants_dict['alpha_(d)'] =  1.9e-3 * TEMP**-1.5 * np.exp(-470000.0/TEMP) * (1+0.3*np.exp(-94000.0/TEMP))
+    constants_dict['alpha_(He++)'] = 3.36e-10 * TEMP**-0.5 * (TEMP/1e3)**-0.2 / (1+(TEMP/1e6)**0.7)
 
-## /* constants = [
-##  Gamma_(e,H0), Gamma_(gamma,H0), 
-##  alpha_(H+),
-##  Gamma_(e,He0), Gamma_(gamma,He0),
-##  Gamma_(e,He+), Gamma_(gamma,He+),
-##      alpha_(He+), alpha_(d),
-##  alpha_(He++)
-##  ] 
-## */
+    ## /* constants = [
+    ##  Gamma_(e,H0), Gamma_(gamma,H0), 
+    ##  alpha_(H+),
+    ##  Gamma_(e,He0), Gamma_(gamma,He0),
+    ##  Gamma_(e,He+), Gamma_(gamma,He+),
+    ##      alpha_(He+), alpha_(d),
+    ##  alpha_(He++)
+    ##  ] 
+    ## */
 
-constants = np.array([
-    constants_dict['Gamma_(e,H0)'],
-    constants_dict['Gamma_(gamma,H0)'],
-    constants_dict['alpha_(H+)'],
-    constants_dict['Gamma_(e,He0)'],
-    constants_dict['Gamma_(gamma,He0)'],
-    constants_dict['Gamma_(e,He+)'],
-    constants_dict['Gamma_(gamma,He+)'],
-    constants_dict['alpha_(He+)'],
-    constants_dict['alpha_(d)'],
-    constants_dict['alpha_(He++)']])
+    constants = np.array([
+        constants_dict['Gamma_(e,H0)'],
+        constants_dict['Gamma_(gamma,H0)'],
+        constants_dict['alpha_(H+)'],
+        constants_dict['Gamma_(e,He0)'],
+        constants_dict['Gamma_(gamma,He0)'],
+        constants_dict['Gamma_(e,He+)'],
+        constants_dict['Gamma_(gamma,He+)'],
+        constants_dict['alpha_(He+)'],
+        constants_dict['alpha_(d)'],
+        constants_dict['alpha_(He++)']]*Nsystems)
+    return constants*3.15e7*1e4 ## convert to 1/10kyr
 
+constants = get_constants(1e5,Nsystems)
+print(constants)
+"""
 equations = np.array([
     0.5, ## H0
     0.5, ## H+
@@ -150,8 +160,9 @@ runIntegratorOutput(
     output_mode = 'w')
 
 print("---------------------------------------------------")
+"""
 
-constants = np.array([1,2,3,1,2,3]).astype(np.float32)
+constants = get_constants(1e5,Nsystems)
 equations = np.array([
     0.5, ## H0
     0.5, ## H+
@@ -170,17 +181,7 @@ runIntegratorOutput(
 
 print("---------------------------------------------------")
 
-constants = np.array([
-    constants_dict['Gamma_(e,H0)'],
-    constants_dict['Gamma_(gamma,H0)'],
-    constants_dict['alpha_(H+)'],
-    constants_dict['Gamma_(e,He0)'],
-    constants_dict['Gamma_(gamma,He0)'],
-    constants_dict['Gamma_(e,He+)'],
-    constants_dict['Gamma_(gamma,He+)'],
-    constants_dict['alpha_(He+)'],
-    constants_dict['alpha_(d)'],
-    constants_dict['alpha_(He++)']])
+constants = get_constants(1e5,Nsystems)
 
 equations = np.array([
     0.5, ## H0
@@ -202,10 +203,6 @@ runIntegratorOutput(
 ### LEGACY
 """
 import h5py
-"""
-
-
-"""
 ############### SNe Functions ############### 
 class SupernovaCluster(ctypes.Structure):
     pass
