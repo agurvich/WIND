@@ -8,12 +8,54 @@ __device__ float calculate_dydt(
     float tnow,
     float * constants,
     float * equations){
-    // assumes that constant and equation are pointers that start 
-    //  at the beginning of the block's values.
-    int tid = blockIdx.x*blockDim.x+threadIdx.x;
+    // constraint equation, ne = nH+ + nHe+ + 2*nHe++
+    float ne = equations[1]+equations[3]+equations[4]*2.0;
 
-    return constants[tid]*tnow*tnow;
-} // calculate_dydyt
+    /* constants = [
+        Gamma_(e,H0), Gamma_(gamma,H0), 
+        alpha_(H+),
+        Gamma_(e,He0), Gamma_(gamma,He0), 
+        Gamma_(e,He+), Gamma_(gamma,He+),
+        alpha_(He+),
+        alpha_(d),
+        alpha_(He++)
+        ] 
+    */
+
+    if (threadIdx.x == 0){
+        // H0 : alpha_(H+) ne nH+ - (Gamma_(e,H0)ne + Gamma_(gamma,H0))*nH0
+        return constants[2]*ne*equations[1]
+            -(constants[0]*ne + constants[1])*equations[0]; 
+    }
+    else if (threadIdx.x == 1){
+        // H+ : (Gamma_(e,H0)ne + Gamma_(gamma,H0))*nH0 - alpha_(H+) ne nH+
+        return -constants[2]*ne*equations[1]
+            +(constants[0]*ne + constants[1])*equations[0]; 
+    }
+    else if (threadIdx.x == 2){
+        // He0 :(alpha_(He+)+alpha_(d)) ne nHe+ - (Gamma_(e,He0)ne + Gamma_(gamma,He0)) nHe0
+        return (constants[7]+constants[8])*ne*equations[3] 
+            - (constants[3]*ne+constants[4])*equations[2];
+    }
+    else if (threadIdx.x == 3){
+        // He+ : 
+        //  alpha_(He++) ne nHe++ 
+        //  + (Gamma_(e,He0)ne + Gamma_(gamma,He0)) nHe0
+        //  - (alpha_(He+)+alpha_(d)) ne nHe+ 
+        //  - (Gamma_(e,He+)ne + Gamma_(gamma,He+)) nHe+
+        return constants[9]*ne*equations[4] 
+            + (constants[3]*ne+constants[4])*equations[2]  
+            - (constants[7]+constants[8])*ne*equations[3] 
+            - (constants[5]*ne+constants[6])*equations[3];
+    }
+    else if (threadIdx.x == 4){
+        // He++ : -alpha_(He++) ne nHe++
+        return -constants[9]*ne*equations[4];
+    }
+    else{
+        return NULL;
+    }
+} // calculate_dydt
 
 __device__ float euler_innerstep(
     float tnow, // the current time

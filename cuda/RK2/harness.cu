@@ -30,7 +30,7 @@ int cudaIntegrateEuler(
 
     float *constantsDevice;
     cudaMalloc((void**)&constantsDevice, equations_size); 
-    cudaMemcpy( constantsDevice, constants, equations_size, cudaMemcpyHostToDevice ); 
+    cudaMemcpy( constantsDevice, constants, NUM_CONST*sizeof(float), cudaMemcpyHostToDevice ); 
 
     float *equationsDevice;
     cudaMalloc((void**)&equationsDevice, equations_size); 
