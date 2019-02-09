@@ -1,6 +1,6 @@
                  w _Jv_RegisterClasses
 000000000000b3ce T _Z10addVectorsfPffS_S_
-0000000000008c58 T _Z10printArrayPii
+0000000000008c57 T _Z10printArrayPii
 000000000000aa57 T _Z10printfCUDAPf
 000000000000aafc T _Z11cudaRoutineiPPfi
 000000000000ae60 T _Z11printFArrayPfi
@@ -35,7 +35,7 @@
 00000000000090dc T _Z8SIE_stepPfS_PS_S0_S0_S0_S_S_ii
 0000000000009a84 T _Z9BDF2_stepPfS_PS_S0_S0_S0_S_S_S_S0_S_ii
 0000000000008caa W _ZN4dim3C1Ejjj
-00000000002816b8 B __bss_start
+00000000002826b8 B __bss_start
                  U __cxa_atexit
                  w __cxa_finalize
                  U __errno_location
@@ -44,8 +44,8 @@
                  U __gxx_personality_v0
                  U __strtol_internal
                  U __xstat
-00000000002816b8 D _edata
-0000000000282868 B _end
+00000000002826b8 D _edata
+0000000000283868 B _end
 0000000000062118 T _fini
 0000000000007d48 T _init
                  U bind

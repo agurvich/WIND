@@ -18,8 +18,8 @@ def get_eqm_densities(DENSITY,TEMP,y_helium):
     ne = DENSITY
     for i in range(1000):
         ne = sub_get_densities(constants_dict,DENSITY,TEMP,densities,ne,y_helium) 
-        if (not i%100):
-            print(densities)
+        #if (not i%100):
+            #print(densities)
     return densities
 
 
@@ -39,7 +39,7 @@ def sub_get_densities(constants_dict,DENSITY,TEMP,densities,ne,y_helium):
 
     ## He+
     densities[3] = (
-        DENSITY * y_helium  / 
+        DENSITY * y_helium/4  / 
         (1 + (
             (constants_dict['alpha_(He+)'] + constants_dict['alpha_(d)']) / 
             (constants_dict['Gamma_(e,He0)']+constants_dict['Gamma_(gamma,He0)']/ne)

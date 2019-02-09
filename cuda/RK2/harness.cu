@@ -6,6 +6,7 @@
  
 #include <stdio.h>
 #include "explicit_solver.h"
+#include "ode.h"
   
 void printArray(int * arr,int N){
     for (int i = 0; i<N;i++){

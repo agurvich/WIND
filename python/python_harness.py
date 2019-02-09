@@ -84,7 +84,7 @@ def runIntegratorOutput(
         times+=[tcur]
         nloops+=1
         equations_over_time[nloops]=copy.copy(equations)
-    print(np.round(equations_over_time.astype(float),3))
+    print('final:',np.round(equations_over_time.astype(float),3)[-1][:5])
     if output_mode is not None:
         with h5py.File("katz96_out.hdf5",output_mode) as handle:
             group = handle.create_group(integrator_name)
@@ -95,7 +95,7 @@ def runIntegratorOutput(
    
 ####### Test for y' = ct #######
 tnow = 0
-tend = 2
+tend = 25
 Nsystems = 2
 Nequations_per_system = 5
 TEMP = 1e2 ## K
@@ -158,7 +158,6 @@ def initialize_equations(density,Nsystems,y_helium):
     0.25*y_helium/4. ## He++
     ]*Nsystems).astype(np.float32)*density
 
-"""
 constants = get_constants(TEMP,Nsystems)
 equations = initialize_equations(DENSITY,Nsystems,y_helium)
 
@@ -172,7 +171,6 @@ runIntegratorOutput(
     output_mode = 'w')
 
 print("---------------------------------------------------")
-"""
 
 constants = get_constants(TEMP,Nsystems)
 equations = initialize_equations(DENSITY,Nsystems,y_helium)
@@ -184,7 +182,7 @@ runIntegratorOutput(
     equations,
     Nsystems,
     Nequations_per_system,
-    output_mode = 'w')
+    output_mode = 'a')
 #print(constants)
 
 print("---------------------------------------------------")
@@ -201,8 +199,8 @@ runIntegratorOutput(
     Nequations_per_system,
     output_mode = 'a')
 
-print(y_helium)
 eqm_densities = get_eqm_densities(DENSITY,TEMP,y_helium)
+print('eqm:',[float('%.3f'%den) for den in eqm_densities])
 with h5py.File("katz96_out.hdf5",'a') as handle:
     group = handle.attrs['eqm_densities'] = eqm_densities
 
