@@ -6,6 +6,9 @@ import copy
 import h5py
 import time
 
+from eqm_eqns import get_eqm_densities
+
+
 ## find that shared object library 
 curdir = os.path.split(os.getcwd())[0]
 exec_call = os.path.join(curdir,"cuda","lib","wind.so")
@@ -108,6 +111,7 @@ constants_dict = {}
 #He+: 1.7e-14
 
 def get_constants(TEMP,Nsystems):
+    constants_dict = {}
     constants_dict['Gamma_(e,H0)'] = 5.85e-11 * np.sqrt(TEMP)/(1+(TEMP/1e5)) * np.exp(-157809.1/TEMP)
     constants_dict['Gamma_(gamma,H0)'] = 4.4e-11
     constants_dict['alpha_(H+)'] = 8.4e-11 * np.sqrt(TEMP) * (TEMP/1e3)**-0.2 / (1+(TEMP/1e6)**0.7)
@@ -186,6 +190,8 @@ print("---------------------------------------------------")
 
 constants = get_constants(TEMP,Nsystems)
 equations = initialize_equations(DENSITY,Nsystems)
+print(1-np.sum(equations[:5])/DENSITY)
+eqm_densities = get_eqm_densities(DENSITY,TEMP,1-np.sum(equations[:5])/DENSITY)
 
 runIntegratorOutput(
     c_cudaBDF2_integrate,'BDF2',
@@ -195,6 +201,9 @@ runIntegratorOutput(
     Nsystems,
     Nequations_per_system,
     output_mode = 'a')
+
+with h5py.File("katz96_out.hdf5",'a') as handle:
+    group = handle.attrs['eqm_densities'] = eqm_densities
 
 ### LEGACY
 """
