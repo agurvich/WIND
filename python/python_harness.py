@@ -100,6 +100,7 @@ Nsystems = 2
 Nequations_per_system = 5
 TEMP = 1e2 ## K
 DENSITY = 1e2 ## 1/cm^-3
+y_helium = 0.25
 
 constants_dict = {}
 
@@ -148,18 +149,18 @@ def get_constants(TEMP,Nsystems):
     ##return np.array(list(range(10))*Nsystems).astype(np.float32)
     return (constants*3.15e7).astype(np.float32) ## convert to 1/yr
 
-def initialize_equations(density,Nsystems):
+def initialize_equations(density,Nsystems,y_helium):
     return np.array([
-    0.25, ## H0
-    0.25, ## H+
-    0.25, ## He0
-    0.125,## He+
-    0.125 ## He++
+    0.5, ## H0
+    0.5, ## H+
+    0.5*y_helium/4., ## He0
+    0.25*y_helium/4.,## He+
+    0.25*y_helium/4. ## He++
     ]*Nsystems).astype(np.float32)*density
 
 """
 constants = get_constants(TEMP,Nsystems)
-equations = initialize_equations(DENSITY,Nsystems)
+equations = initialize_equations(DENSITY,Nsystems,y_helium)
 
 runIntegratorOutput(
     c_cudaIntegrateEuler,'RK2',
@@ -174,7 +175,7 @@ print("---------------------------------------------------")
 """
 
 constants = get_constants(TEMP,Nsystems)
-equations = initialize_equations(DENSITY,Nsystems)
+equations = initialize_equations(DENSITY,Nsystems,y_helium)
 
 runIntegratorOutput(
     c_cudaSIE_integrate,'SIE',
@@ -189,9 +190,7 @@ runIntegratorOutput(
 print("---------------------------------------------------")
 
 constants = get_constants(TEMP,Nsystems)
-equations = initialize_equations(DENSITY,Nsystems)
-print(1-np.sum(equations[:5])/DENSITY)
-eqm_densities = get_eqm_densities(DENSITY,TEMP,1-np.sum(equations[:5])/DENSITY)
+equations = initialize_equations(DENSITY,Nsystems,y_helium)
 
 runIntegratorOutput(
     c_cudaBDF2_integrate,'BDF2',
@@ -202,6 +201,8 @@ runIntegratorOutput(
     Nequations_per_system,
     output_mode = 'a')
 
+print(y_helium)
+eqm_densities = get_eqm_densities(DENSITY,TEMP,y_helium)
 with h5py.File("katz96_out.hdf5",'a') as handle:
     group = handle.attrs['eqm_densities'] = eqm_densities
 

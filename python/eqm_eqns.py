@@ -1,6 +1,6 @@
-import numpy
+import numpy as np
 
-def get_eqm_densities(DENSITY,TEMP,helium_fraction):
+def get_eqm_densities(DENSITY,TEMP,y_helium):
     constants_dict = {}
     constants_dict['Gamma_(e,H0)'] = 5.85e-11 * np.sqrt(TEMP)/(1+(TEMP/1e5)) * np.exp(-157809.1/TEMP)
     constants_dict['Gamma_(gamma,H0)'] = 4.4e-11
@@ -16,12 +16,14 @@ def get_eqm_densities(DENSITY,TEMP,helium_fraction):
 
     densities = np.zeros(5)
     ne = DENSITY
-    for i in range(10):
-        ne = sub_get_densities(constants_dict,DENSITY,TEMP,densities,ne,helium_fraction) 
+    for i in range(1000):
+        ne = sub_get_densities(constants_dict,DENSITY,TEMP,densities,ne,y_helium) 
+        if (not i%100):
+            print(densities)
     return densities
 
 
-def sub_get_densities(constants_dict,DENSITY,TEMP,densities,ne,helium_fraction):
+def sub_get_densities(constants_dict,DENSITY,TEMP,densities,ne,y_helium):
     """ from eqns 33 - 38 of Katz96"""
     
     ## H0
@@ -30,13 +32,14 @@ def sub_get_densities(constants_dict,DENSITY,TEMP,densities,ne,helium_fraction):
         (constants_dict['alpha_(H+)'] + 
             constants_dict['Gamma_(e,H0)'] + 
             constants_dict['Gamma_(gamma,H0)']/ne)
+    )
 
     ## H+
     densities[1] = DENSITY - densities[0]
 
     ## He+
     densities[3] = (
-        DENSITY * helium_fraction  / 
+        DENSITY * y_helium  / 
         (1 + (
             (constants_dict['alpha_(He+)'] + constants_dict['alpha_(d)']) / 
             (constants_dict['Gamma_(e,He0)']+constants_dict['Gamma_(gamma,He0)']/ne)
