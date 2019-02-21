@@ -192,7 +192,7 @@ int solveSystem(
         tnow+=*timestep;
 
     }
-    printf("nsteps taken: %d - tnow: %.2f\n",nsteps,tnow);
+    //printf("nsteps taken: %d - tnow: %.2f\n",nsteps,tnow);
     return nsteps;
 }
 
@@ -275,42 +275,76 @@ int cudaIntegrateSIE(
     float * timestep = (float *) malloc(sizeof(float));
     *timestep = (tend-tnow);
     //cudaMemcpy(d_timestep,temp_timestep,sizeof(float),cudaMemcpyHostToDevice);
+
+    int * error_flag = (int *) malloc(sizeof(int));
+    int * d_error_flag;
+    cudaMalloc(&d_error_flag,sizeof(int));
+    *error_flag = 0;
+    cudaMemcpy(d_error_flag,error_flag,sizeof(int),cudaMemcpyHostToDevice);
     
-    int nsteps = solveSystem(
-        tnow,
-        tend,
-        timestep,
-        d_Jacobianss,
-        d_Jacobianss_flat,
-        jacobian_zeros,
-        d_identity,
-        d_derivatives,
-        d_derivatives_flat,
-        d_equations_flat,
-        d_constants,
-        Nsystems,
-        Neqn_p_sys);
+    // use a flag as a counter, why not
+    int unsolved = 1;
+    int nsteps=0;
+    int half_nsteps=0;
+    //*timestep=0.125;
 
-    *timestep = *timestep/2.0;
+    while (unsolved){
+        nsteps = solveSystem(
+            tnow,
+            tend,
+            timestep,
+            d_Jacobianss,
+            d_Jacobianss_flat,
+            jacobian_zeros,
+            d_identity,
+            d_derivatives,
+            d_derivatives_flat,
+            d_equations_flat,
+            d_constants,
+            Nsystems,
+            Neqn_p_sys);
 
+        *timestep = *timestep/2.0;
 
-    int half_nsteps = solveSystem(
-        tnow,
-        tend,
-        timestep,
-        d_Jacobianss,
-        d_Jacobianss_flat,
-        jacobian_zeros,
-        d_identity,
-        d_derivatives,
-        d_derivatives_flat,
-        d_half_equations_flat,
-        d_constants,
-        Nsystems,
-        Neqn_p_sys);
+        half_nsteps = solveSystem(
+            tnow,
+            tend,
+            timestep,
+            d_Jacobianss,
+            d_Jacobianss_flat,
+            jacobian_zeros,
+            d_identity,
+            d_derivatives,
+            d_derivatives_flat,
+            d_half_equations_flat,
+            d_constants,
+            Nsystems,
+            Neqn_p_sys);
 
-    // TODO:  check error, resolve the systems if tolerance is too large. 
+        checkError<<<Nsystems,Neqn_p_sys>>>(d_equations_flat,d_half_equations_flat,d_error_flag);
+        // TODO:  check error, resolve the systems if tolerance is too large. 
 
+        // copy back the bool flag and determine if we done did it
+        cudaMemcpy(error_flag,d_error_flag,sizeof(int),cudaMemcpyDeviceToHost);
+        //*error_flag = 0;
+        
+        if (*error_flag){
+            //printf("refining...%d\n",unsolved);
+            *error_flag = 0;
+            cudaMemcpy(d_error_flag,error_flag,sizeof(int),cudaMemcpyHostToDevice);
+            unsolved++;
+            //printf("new timestep: %.2e\n",*timestep);
+            // reset the equations
+            cudaMemcpy(d_equations_flat,equations,Nsystems*Neqn_p_sys*sizeof(float),cudaMemcpyHostToDevice);
+            cudaMemcpy(d_half_equations_flat,equations,Nsystems*Neqn_p_sys*sizeof(float),cudaMemcpyHostToDevice);
+        }
+        else{
+            unsolved=0;
+        }
+        if (unsolved > 15){
+            break;
+        }
+    }// while unsolved
 /* ----------------------------------------------- */
 
 /* -------------- copy data to host -------------- */
@@ -329,5 +363,6 @@ int cudaIntegrateSIE(
     free(identity_flat);
 /* ----------------------------------------------- */
     //return how many steps were taken
-    return nsteps;
+    printf("nsteps taken: %d - tnow: %.2f\n",half_nsteps,tnow);
+    return half_nsteps;
 }

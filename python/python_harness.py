@@ -59,7 +59,7 @@ def runIntegratorOutput(
     print_flag = 0):
 
     ## initialize integration breakdown variables
-    max_steps = tend#tend-tnow
+    max_steps = tend//20#tend-tnow
     tcur = tnow
     dt = (tend-tnow)/max_steps
     equations_over_time = np.zeros((max_steps+1,len(equations)))
@@ -194,7 +194,7 @@ SIE = True#tend <=25
 BDF2 = False#tend <=25 
 
 output_mode = 'a'
-print_flag = True 
+print_flag = False
 
 if RK2:
     constants = get_constants(nH,TEMP,Nsystems)

@@ -1,6 +1,7 @@
 #include <stdio.h>
-#include "explicit_solver.h"
+#include <math.h>
 
+#include "explicit_solver.h"
 
 #define ABSOLUTE_TOLERANCE 1e-6
 #define RELATIVE_TOLERANCE 1e-6
@@ -104,19 +105,18 @@ __global__ void integrate_rk2(
     //  memory. If we want to use multiple shared memory arrays we must
     //  manually offset them within that block and allocate enough memory
     //  when initializing the kernel (<<dimGrid,dimBlock,sbytes>>)
-    int * shared_error_flags = (int *) &total_shared[0];
-    float * shared_equations = (float *) &shared_error_flags[Nequations_per_system];
+    int * shared_error_flag = (int *) &total_shared[0];
+    float * shared_equations = (float *) &total_shared[1];
     float * shared_temp_equations = (float *) &shared_equations[Nequations_per_system];
 
     float y1,y2;
     float h = (tend-tnow);
-    int my_error_flag;
 
     // ensure thread within limit
     if (tid < Nsystems*Nequations_per_system ) {
         // copy the y values to shared memory
         shared_equations[threadIdx.x] = equations[tid];
-        shared_error_flags[threadIdx.x] = 0;
+        *shared_error_flag = 0;
         __syncthreads();
 
         //printf("%d thread %d block\n",threadIdx.x,blockIdx.x);
@@ -147,21 +147,16 @@ __global__ void integrate_rk2(
                 Nsystems, Nequations_per_system );
 
             // determine if any equation is above the absolute or relative tolerances
-            shared_error_flags[threadIdx.x] = y2 - y1 > ABSOLUTE_TOLERANCE || 
-                (y2-y1)/(2*y2-y1+1e-12) > RELATIVE_TOLERANCE;
+            if(fabs(y2 - y1) > ABSOLUTE_TOLERANCE || fabs((y2-y1)/(2*y2-y1+1e-12)) > RELATIVE_TOLERANCE){
+                *shared_error_flag = 1;
+                }
             __syncthreads();
 
-            // reduce the flag array and find if one is bad
-            for (int i = 0; i<Nequations_per_system; i++){
-                my_error_flag = my_error_flag || shared_error_flags[i];
-            }
-            __syncthreads();
-
-            if (my_error_flag){
+            if (*shared_error_flag){
                 // refine and start over
                 h/=2;
-                my_error_flag = 0;
-            } // if my_error_flag
+                *shared_error_flag = 0;
+            } // if shared_error_flag
             else{
                 (*nsteps)++;
                 // accept this step and update the shared array
@@ -171,7 +166,7 @@ __global__ void integrate_rk2(
 
                 // let's get a little more optimistic
                 h*=2;
-            }// if my_error_flag -> else
+            }// if shared_error_flag -> else
 
             __syncthreads();
 

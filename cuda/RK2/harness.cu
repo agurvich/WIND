@@ -66,10 +66,10 @@ int cudaIntegrateRK2(
     dim3 dimBlock( blocksize, 1 );
     dim3 dimGrid( gridsize, 1 );
 
-    //shared mem -> 2 float arrays for each system and 1 int array
+    //shared mem -> 2 float arrays for each system and 1 shared flag
     integrate_rk2<<<dimGrid,dimBlock,
-        Nequations_per_system*(2*sizeof(float)+ sizeof(int))
-         >>> (
+        Nequations_per_system*(2*sizeof(float))+ sizeof(int)
+        >>> (
         tnow, tend,
         constantsDevice,equationsDevice,
         Nsystems,Nequations_per_system,
