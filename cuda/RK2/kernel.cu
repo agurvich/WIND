@@ -2,8 +2,8 @@
 #include "explicit_solver.h"
 
 
-#define ABSOLUTE_TOLERANCE 1e-3
-#define RELATIVE_TOLERANCE 1e-3
+#define ABSOLUTE_TOLERANCE 1e-6
+#define RELATIVE_TOLERANCE 1e-6
 
 __device__ float calculate_dydt(
     float tnow,
@@ -58,7 +58,7 @@ __device__ float calculate_dydt(
     }
 } // calculate_dydt
 
-__device__ float euler_innerstep(
+__device__ float rk2_innerstep(
     float tnow, // the current time
     float tstop, // the time we want to stop
     float h, // the timestep to take
@@ -85,9 +85,9 @@ __device__ float euler_innerstep(
 
     } // while(tnow < tstop)
     return shared_temp_equations[threadIdx.x];
-}// euler_innerstep
+}// rk2_innerstep
 
-__global__ void integrate_euler(
+__global__ void integrate_rk2(
     float tnow, // the current time
     float tend, // the time we integrating the system to
     float * constants, // the constants for each system
@@ -104,18 +104,19 @@ __global__ void integrate_euler(
     //  memory. If we want to use multiple shared memory arrays we must
     //  manually offset them within that block and allocate enough memory
     //  when initializing the kernel (<<dimGrid,dimBlock,sbytes>>)
-    int * shared_error_flag = (int *) &total_shared[0];
-    float * shared_equations = (float *) &total_shared[1];
+    int * shared_error_flags = (int *) &total_shared[0];
+    float * shared_equations = (float *) &shared_error_flags[Nequations_per_system];
     float * shared_temp_equations = (float *) &shared_equations[Nequations_per_system];
 
     float y1,y2;
     float h = (tend-tnow);
+    int my_error_flag;
 
     // ensure thread within limit
     if (tid < Nsystems*Nequations_per_system ) {
         // copy the y values to shared memory
         shared_equations[threadIdx.x] = equations[tid];
-        *shared_error_flag = 0;
+        shared_error_flags[threadIdx.x] = 0;
         __syncthreads();
 
         //printf("%d thread %d block\n",threadIdx.x,blockIdx.x);
@@ -127,7 +128,7 @@ __global__ void integrate_euler(
             shared_temp_equations[threadIdx.x] = shared_equations[threadIdx.x];
             __syncthreads();
 
-            y1 = euler_innerstep(
+            y1 = rk2_innerstep(
                 tnow, tnow+h,
                 h,
                 constants,
@@ -138,22 +139,31 @@ __global__ void integrate_euler(
             shared_temp_equations[threadIdx.x] = shared_equations[threadIdx.x];
             __syncthreads();
 
-            y2 = euler_innerstep(
+            y2 = rk2_innerstep(
                 tnow, tnow+h,
                 h/2,
                 constants,
                 shared_temp_equations,
                 Nsystems, Nequations_per_system );
 
-            *shared_error_flag = y2 - y1 > ABSOLUTE_TOLERANCE || (y2-y1)/(2*y2-y1) > RELATIVE_TOLERANCE;
+            // determine if any equation is above the absolute or relative tolerances
+            shared_error_flags[threadIdx.x] = y2 - y1 > ABSOLUTE_TOLERANCE || 
+                (y2-y1)/(2*y2-y1+1e-12) > RELATIVE_TOLERANCE;
             __syncthreads();
 
-            (*nsteps)++;
-            if (*shared_error_flag){
+            // reduce the flag array and find if one is bad
+            for (int i = 0; i<Nequations_per_system; i++){
+                my_error_flag = my_error_flag || shared_error_flags[i];
+            }
+            __syncthreads();
+
+            if (my_error_flag){
                 // refine and start over
                 h/=2;
-            } // if shared_error_flag
+                my_error_flag = 0;
+            } // if my_error_flag
             else{
+                (*nsteps)++;
                 // accept this step and update the shared array
                 //  using local extrapolation (see NR e:17.2.3)
                 shared_equations[threadIdx.x] = 2*y2-y1;
@@ -161,7 +171,7 @@ __global__ void integrate_euler(
 
                 // let's get a little more optimistic
                 h*=2;
-            }// if shared_error_flag -> else
+            }// if my_error_flag -> else
 
             __syncthreads();
 
@@ -173,4 +183,4 @@ __global__ void integrate_euler(
             printf("nsteps taken: %d - tnow: %.2f\n",*nsteps,tnow);
         }
     } // if tid < nequations
-} //integrate_euler
+} //integrate_rk2
