@@ -176,14 +176,6 @@ int solveSystem(
 
         calculateJacobians<<<Nsystems,1>>>(d_Jacobianss,d_constants,d_equations_flat,Neqn_p_sys,tnow);
 
-/*
-        // literally just change what the pointer is pointing to on the device
-        updateTimestep<<<1,1>>>(
-            d_timestep,
-            d_derivatives_flat,
-            d_alpha,
-            d_max_index);
-*/
         //printf("stepping...\n");
         SIE_step(
             timestep, // Nsystems length vector for timestep to use
@@ -301,26 +293,29 @@ int cudaIntegrateSIE(
 
     *timestep = *timestep/2.0;
 
-    /*
-    nsteps_half = solveSystem(
+
+    int half_nsteps = solveSystem(
         tnow,
         tend,
         timestep,
         d_Jacobianss,
+        d_Jacobianss_flat,
+        jacobian_zeros,
         d_identity,
         d_derivatives,
         d_derivatives_flat,
-        d_equations_flat,
+        d_half_equations_flat,
         d_constants,
         Nsystems,
         Neqn_p_sys);
-    */
+
+    // TODO:  check error, resolve the systems if tolerance is too large. 
 
 /* ----------------------------------------------- */
 
 /* -------------- copy data to host -------------- */
     // retrieve the output
-    cudaMemcpy(dest, d_equations_flat, Neqn_p_sys*Nsystems*sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(dest, d_half_equations_flat, Neqn_p_sys*Nsystems*sizeof(float), cudaMemcpyDeviceToHost);
 /* ----------------------------------------------- */
 
 /* -------------- shutdown by freeing memory   --- */
