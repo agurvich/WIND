@@ -189,11 +189,12 @@ TEMP = 1e2 ## K
 nH = 1e2 ## cm^-3
 y_helium = 0.4
 
-RK2 = True
-SIE = False#tend <=25
+RK2 = False#True
+SIE = True#tend <=25
 BDF2 = False#tend <=25 
 
 output_mode = 'a'
+print_flag = True 
 
 if RK2:
     constants = get_constants(nH,TEMP,Nsystems)
@@ -207,7 +208,7 @@ if RK2:
         Nsystems,
         Nequations_per_system,
         output_mode = output_mode,
-        print_flag = 1)
+        print_flag = print_flag)
 
     print("---------------------------------------------------")
     output_mode = 'a'
@@ -223,7 +224,8 @@ if SIE:
         equations,
         Nsystems,
         Nequations_per_system,
-        output_mode = output_mode)
+        output_mode = output_mode,
+        print_flag = print_flag)
 
     print("---------------------------------------------------")
     output_mdoe = 'a'
@@ -239,7 +241,8 @@ if BDF2:
         equations,
         Nsystems,
         Nequations_per_system,
-        output_mode = output_mode)
+        output_mode = output_mode,
+        print_flag = print_flag)
 
 eqm_abundances = get_eqm_abundances(nH,TEMP,y_helium)
 print('eqm:',[float('%.3f'%abundance) for abundance in eqm_abundances])

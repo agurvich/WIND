@@ -1,40 +1,41 @@
                  w _Jv_RegisterClasses
-000000000000b3ce T _Z10addVectorsfPffS_S_
-0000000000008c57 T _Z10printArrayPii
-000000000000aa57 T _Z10printfCUDAPf
-000000000000aafc T _Z11cudaRoutineiPPfi
-000000000000ae60 T _Z11printFArrayPfi
-000000000000b47f T _Z11scaleVectorPfS_
-0000000000008fb6 T _Z14calculate_dydtfPfS_
-000000000000b1a3 T _Z14updateTimestepPfS_S_Pi
-000000000000ab8b T _Z15cudaRoutineFlatiPf
-0000000000008f82 T _Z15euler_innerstepfffPfS_ii
-0000000000008ef8 T _Z15integrate_eulerffPfS_iiPi
-000000000000b50b T _Z15overwriteVectorPfS_
-0000000000009469 T _Z16cudaIntegrateSIEffPfS_ii
-000000000000a0f9 T _Z17cudaIntegrateBDF2ffPfS_ii
-000000000000abf5 T _Z17setIdentityMatrixPfi
-000000000000b77e T _Z18calculateJacobiansPPfS_S_if
-0000000000008a38 T _Z18cudaIntegrateEulerffPfS_ii
-000000000000a9f0 T _Z19printFloatArrayCUDAPfi
-000000000000b88f T _Z20calculateDerivativesPfS_S_if
-000000000000b2ae T _Z21addArrayToBatchArraysPPfS0_ffS_
-000000000000ad52 T _Z22initializeDeviceMatrixPfPS_ii
-000000000000aa0d T _Z30__device_stub__Z10printfCUDAPfPf
-000000000000b412 T _Z33__device_stub__Z11scaleVectorPfS_PfS_
-000000000000aa6e T _Z34__device_stub__Z11cudaRoutineiPPfiiPPfi
-000000000000b2f2 T _Z36__device_stub__Z10addVectorsfPffS_S_fPffS_S_
-000000000000ab1f T _Z36__device_stub__Z15cudaRoutineFlatiPfiPf
-000000000000b49e T _Z37__device_stub__Z15overwriteVectorPfS_PfS_
-000000000000b0f0 T _Z40__device_stub__Z14updateTimestepPfS_S_PiPfS_S_Pi
-000000000000a984 T _Z40__device_stub__Z19printFloatArrayCUDAPfiPfi
-0000000000008dd0 T _Z43__device_stub__Z15integrate_eulerffPfS_iiPiffPfS_iiPi
-000000000000b6a4 T _Z45__device_stub__Z18calculateJacobiansPPfS_S_ifPPfS_S_if
-000000000000b7b5 T _Z46__device_stub__Z20calculateDerivativesPfS_S_ifPfS_S_if
-000000000000b1d2 T _Z49__device_stub__Z21addArrayToBatchArraysPPfS0_ffS_PPfS0_ffS_
-00000000000090dc T _Z8SIE_stepPfS_PS_S0_S0_S0_S_S_ii
-0000000000009a84 T _Z9BDF2_stepPfS_PS_S0_S0_S0_S_S_S_S0_S_ii
-0000000000008caa W _ZN4dim3C1Ejjj
+000000000000b305 T _Z10addVectorsfPffS_S_
+0000000000008cba T _Z10printArrayPii
+000000000000a98b T _Z10printfCUDAPf
+000000000000aa30 T _Z11cudaRoutineiPPfi
+000000000000ad94 T _Z11printFArrayPfi
+000000000000b3b6 T _Z11scaleVectorPfS_
+000000000000934a T _Z11solveSystemffPfPS_S_S_S0_S0_S_S_S_ii
+0000000000008f58 T _Z13integrate_rk2ffPfS_iiPi
+0000000000008fe2 T _Z13rk2_innerstepfffPfS_ii
+0000000000009016 T _Z14calculate_dydtfPfS_
+000000000000b0d7 T _Z14updateTimestepPfS_S_Pi
+000000000000aabf T _Z15cudaRoutineFlatiPf
+000000000000b442 T _Z15overwriteVectorPfS_
+0000000000008a98 T _Z16cudaIntegrateRK2ffPfS_ii
+000000000000950d T _Z16cudaIntegrateSIEffPfS_ii
+000000000000a038 T _Z17cudaIntegrateBDF2ffPfS_ii
+000000000000ab29 T _Z17setIdentityMatrixPfi
+000000000000b6b6 T _Z18calculateJacobiansPPfS_S_if
+000000000000a924 T _Z19printFloatArrayCUDAPfi
+000000000000b7c7 T _Z20calculateDerivativesPfS_S_if
+000000000000b1e3 T _Z21addArrayToBatchArraysPPfS0_fff
+000000000000ac86 T _Z22initializeDeviceMatrixPfPS_ii
+000000000000a941 T _Z30__device_stub__Z10printfCUDAPfPf
+000000000000b349 T _Z33__device_stub__Z11scaleVectorPfS_PfS_
+000000000000a9a2 T _Z34__device_stub__Z11cudaRoutineiPPfiiPPfi
+000000000000b229 T _Z36__device_stub__Z10addVectorsfPffS_S_fPffS_S_
+000000000000aa53 T _Z36__device_stub__Z15cudaRoutineFlatiPfiPf
+000000000000b3d5 T _Z37__device_stub__Z15overwriteVectorPfS_PfS_
+000000000000b024 T _Z40__device_stub__Z14updateTimestepPfS_S_PiPfS_S_Pi
+000000000000a8b8 T _Z40__device_stub__Z19printFloatArrayCUDAPfiPfi
+0000000000008e30 T _Z41__device_stub__Z13integrate_rk2ffPfS_iiPiffPfS_iiPi
+000000000000b5dc T _Z45__device_stub__Z18calculateJacobiansPPfS_S_ifPPfS_S_if
+000000000000b6ed T _Z46__device_stub__Z20calculateDerivativesPfS_S_ifPfS_S_if
+000000000000b106 T _Z48__device_stub__Z21addArrayToBatchArraysPPfS0_fffPPfS0_fff
+000000000000913c T _Z8SIE_stepPfPS_S0_S0_S0_S_S_ii
+00000000000099bc T _Z9BDF2_stepPfS_PS_S0_S0_S0_S_S_S_S0_S_ii
+0000000000008d0c W _ZN4dim3C1Ejjj
 00000000002826b8 B __bss_start
                  U __cxa_atexit
                  w __cxa_finalize
@@ -46,8 +47,8 @@
                  U __xstat
 00000000002826b8 D _edata
 0000000000283868 B _end
-0000000000062118 T _fini
-0000000000007d48 T _init
+0000000000062058 T _fini
+0000000000007d98 T _init
                  U bind
                  U calloc
                  U chmod

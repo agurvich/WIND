@@ -13,14 +13,13 @@
 //#define COMMENTSIE
 
 void SIE_step(
-    float * p_time, // pointer to current time
-    float * d_timestep, // device pointer to the current timestep (across all systems, lame!!)
+    float * timestep, // device pointer to the current timestep (across all systems, lame!!)
     float ** d_Jacobianss,  // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array with flattened jacobians
     float ** d_inverse, // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array to store output (same as jacobians to overwrite)
     float ** d_identity, // 1 x Neqn_p_sys*Neqn_p_sys array storing the identity (ideally in constant memory?)
     float ** d_derivatives, // Nsystems x Neqn_p_sys 2d array to store derivatives
     float * d_derivatives_flat, // Nsystems*Neqn_p_sys 1d array (flattened above)
-    float * d_out_flat, // output state vector, iterative calls integrates
+    float * d_equations_flat, // output state vector, iterative calls integrates
     int Nsystems, // number of ODE systems
     int Neqn_p_sys){ // number of equations in each system
 
@@ -36,37 +35,23 @@ void SIE_step(
     cudaMalloc(&P, Neqn_p_sys * Nsystems * sizeof(int));
     cudaMalloc(&INFO,  Nsystems * sizeof(int));
 
-    cublasSetPointerMode(handle,CUBLAS_POINTER_MODE_DEVICE);
+    //NOTE: uncomment this to use device pointers for constants
+    //cublasSetPointerMode(handle,CUBLAS_POINTER_MODE_DEVICE);
 /* ----------------------------------------------- */
 
 
 /* -------------- calculate the timestep --------- */
-    int * d_max_index;
-    cudaMalloc(&d_max_index,sizeof(int));
+    /*
     float * d_alpha, * d_beta;
     cudaMalloc(&d_alpha,sizeof(float));
     cudaMalloc(&d_beta,sizeof(float));
+    cudaMemcpy(d_alpha,&alpha,sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_beta,&beta,sizeof(float),cudaMemcpyHostToDevice);
+    */
 
     // scalars for adding/multiplying
     float alpha = 1.0;
-    cudaMemcpy(d_alpha,&alpha,sizeof(float),cudaMemcpyHostToDevice);
     float beta = 0.0;
-    cudaMemcpy(d_beta,&beta,sizeof(float),cudaMemcpyHostToDevice);
-
-    // TODO don't really understand how this should be working :|
-    cublasIsamax(
-        handle, // cublas handle
-        Nsystems*Neqn_p_sys, // number of elements in the vector
-        d_derivatives_flat, // the vector to take the max of
-        1, // the stride between elements of the vector
-        d_max_index); // the index of the max element of the vector
-
-    // literally just change what the pointer is pointing to on the device
-    updateTimestep<<<1,1>>>(
-        d_timestep,
-        d_derivatives_flat,
-        d_alpha,
-        d_max_index);
 /* ----------------------------------------------- */
 
 
@@ -74,7 +59,7 @@ void SIE_step(
     // compute (I-hJ) with a custom kernel
     // TODO pretty sure i need a multidimensional grid here, 
     // blocks can't be 160x160 threads
-    addArrayToBatchArrays<<<Nsystems,Neqn_p_sys*Neqn_p_sys>>>(d_identity,d_Jacobianss,1.0,-1.0,d_timestep);
+    addArrayToBatchArrays<<<Nsystems,Neqn_p_sys*Neqn_p_sys>>>(d_identity,d_Jacobianss,1.0,-1.0,*timestep);
 
     // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
     // the permutation array seems to be important for some reason
@@ -110,12 +95,12 @@ void SIE_step(
         Neqn_p_sys, //m- number of rows in A (and C)
         1, //n- number of columns in B (and C)
         Neqn_p_sys, //k-number of columns in A and rows in B
-        (const float *) d_alpha, // alpha scalar
+        (const float *) &alpha, // alpha scalar
         (const float **) d_inverse, // A matrix
         Neqn_p_sys, // leading dimension of the 2d array storing A??
         (const float **) d_derivatives, // B matrix (or n x 1 column vector)
         Neqn_p_sys, // leading dimension of the 2d array storing B??
-        (const float *) d_beta, // beta scalar
+        (const float *) &beta, // beta scalar
         (float **) d_derivatives, // output "matrix," let's overwrite B
         Neqn_p_sys, // leading dimension of the 2d array storing C??
         Nsystems); // batch count
@@ -132,33 +117,91 @@ void SIE_step(
     /*
     printfCUDA<<<1,1>>>(d_timestep);
     cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_derivatives_flat);
-    cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_out_flat);
+    cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_equations_flat);
     */
     cublasSaxpy(
         handle, // cublas handle
         Neqn_p_sys*Nsystems, // number of elements in each vector
-        (const float *) d_timestep, // alpha scalar <-- can't use device pointer???
+        (const float *) timestep, // alpha scalar <-- can't use device pointer???
         (const float *) d_derivatives_flat, // vector we are adding, flattened derivative vector
         1, // stride between consecutive elements
-        d_out_flat, // vector we are replacing
+        d_equations_flat, // vector we are replacing
         1); // stride between consecutive elements
-    //cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_out_flat);
+    //cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_equations_flat);
 /* ----------------------------------------------- */
     
     cudaFree(P); cudaFree(INFO); cublasDestroy_v2(handle);
-    cudaFree(d_max_index); cudaFree(d_alpha);cudaFree(d_beta);
+    //cudaFree(d_max_index); cudaFree(d_alpha);cudaFree(d_beta);
 
 #endif
     // increment the timestep by whatever we just stepped by
     // allowing the device to vary/choose what it is (so we have
     // to copy it over). In FIXEDTIMESTEP mode this is silly but 
     // even still necessary.
-    float timestep = 1.0;
-    cudaMemcpy(&timestep,d_timestep,sizeof(float),cudaMemcpyDeviceToHost);
-    *p_time+=timestep;
+    //float timestep = 1.0;
+    //cudaMemcpy(&timestep,d_timestep,sizeof(float),cudaMemcpyDeviceToHost);
+    //*p_time+=*timestep;
 
     // shut down cublas
     //TODO should free more stuff here?
+}
+
+int solveSystem(
+    float tnow,
+    float tend,
+    float * timestep, 
+    float ** d_Jacobianss, // matrix (jacobian) input
+    float * d_Jacobianss_flat,
+    float * jacobian_zeros,
+    float ** d_identity, // pointer to identity (ideally in constant memory?)
+    float ** d_derivatives, // vector (derivatives) input
+    float * d_derivatives_flat, // dy vector output
+    float * d_equations_flat, // y vector output
+    float * d_constants,
+    int Nsystems, // number of systems
+    int Neqn_p_sys){ // number of equations in each system
+
+/* -------------- main integration loop ---------- */
+    int nsteps=0;
+    while (tnow < tend){
+        nsteps++;
+        /* ------- reset the derivatives and jacobian matrix ------ */
+        // evaluate the derivative function at tnow
+        calculateDerivatives<<<Nsystems,1>>>(d_derivatives_flat,d_constants,d_equations_flat,Neqn_p_sys,tnow);
+
+        cudaMemcpy(
+            d_Jacobianss_flat,jacobian_zeros,
+            Nsystems*Neqn_p_sys*Neqn_p_sys*sizeof(float),
+            cudaMemcpyHostToDevice);
+
+        calculateJacobians<<<Nsystems,1>>>(d_Jacobianss,d_constants,d_equations_flat,Neqn_p_sys,tnow);
+
+/*
+        // literally just change what the pointer is pointing to on the device
+        updateTimestep<<<1,1>>>(
+            d_timestep,
+            d_derivatives_flat,
+            d_alpha,
+            d_max_index);
+*/
+        //printf("stepping...\n");
+        SIE_step(
+            timestep, // Nsystems length vector for timestep to use
+            d_Jacobianss, // matrix (jacobian) input
+            d_Jacobianss, // inverse output, overwrite d_Jacobianss
+            d_identity, // pointer to identity (ideally in constant memory?)
+            d_derivatives, // vector (derivatives) input
+            d_derivatives_flat, // dy vector output
+            d_equations_flat, // y vector output
+            Nsystems, // number of systems
+            Neqn_p_sys); // number of equations in each system
+
+        //printf("%.2f %.2f\n",tnow,tend);
+        tnow+=*timestep;
+
+    }
+    printf("nsteps taken: %d - tnow: %.2f\n",nsteps,tnow);
+    return nsteps;
 }
 
 int cudaIntegrateSIE(
@@ -212,8 +255,11 @@ int cudaIntegrateSIE(
     for (int i=0; i<Neqn_p_sys*Nsystems; i++){
         zeros[i]=0;
     }   
-    float *d_out_flat;
-    float **d_out = initializeDeviceMatrix(equations,&d_out_flat,Neqn_p_sys,Nsystems);
+    float *d_equations_flat;
+    float **d_equations = initializeDeviceMatrix(equations,&d_equations_flat,Neqn_p_sys,Nsystems);
+
+    float *d_half_equations_flat;
+    float **d_half_equations = initializeDeviceMatrix(equations,&d_half_equations_flat,Neqn_p_sys,Nsystems);
 
     // initialize derivative vectors
     float *d_derivatives_flat;
@@ -230,75 +276,61 @@ int cudaIntegrateSIE(
     cudaMemcpy(d_constants,constants,NUM_CONST*sizeof(float),cudaMemcpyHostToDevice);
 
     // initialize single global timestep shared across systems
-    float * d_timestep;
-    cudaMalloc(&d_timestep,sizeof(float));
-    float *temp_timestep=(float *) malloc(sizeof(float));
-    *temp_timestep = (tend-tnow)/4.0;
-    cudaMemcpy(d_timestep,temp_timestep,sizeof(float),cudaMemcpyHostToDevice);
+    //float * d_timestep;
+    //cudaMalloc(&d_timestep,sizeof(float));
+    //float *temp_timestep=(float *) malloc(sizeof(float));
+    //*temp_timestep = (tend-tnow)/4.0;
+    float * timestep = (float *) malloc(sizeof(float));
+    *timestep = (tend-tnow);
+    //cudaMemcpy(d_timestep,temp_timestep,sizeof(float),cudaMemcpyHostToDevice);
+    
+    int nsteps = solveSystem(
+        tnow,
+        tend,
+        timestep,
+        d_Jacobianss,
+        d_Jacobianss_flat,
+        jacobian_zeros,
+        d_identity,
+        d_derivatives,
+        d_derivatives_flat,
+        d_equations_flat,
+        d_constants,
+        Nsystems,
+        Neqn_p_sys);
+
+    *timestep = *timestep/2.0;
+
+    /*
+    nsteps_half = solveSystem(
+        tnow,
+        tend,
+        timestep,
+        d_Jacobianss,
+        d_identity,
+        d_derivatives,
+        d_derivatives_flat,
+        d_equations_flat,
+        d_constants,
+        Nsystems,
+        Neqn_p_sys);
+    */
 
 /* ----------------------------------------------- */
 
-    
-/* -------------- main integration loop ---------- */
-    int nsteps=0;
-    while (tnow < tend){
-        nsteps++;
-        
-        // evaluate the derivative function at tnow
-        calculateDerivatives<<<Nsystems,1>>>(d_derivatives_flat,d_constants,d_out_flat,Neqn_p_sys,tnow);
-        //printFloatArrayCUDA<<<1,1>>>(d_derivatives_flat,Nsystems*Neqn_p_sys);
-        //printf("t - %.4f\n",tnow);
-
-        // reset the jacobian, which has been replaced by (I-hJ)^-1
-        if (nsteps > 1){
-            cudaMemcpy(
-                d_Jacobianss_flat,jacobian_zeros,
-                Nsystems*Neqn_p_sys*Neqn_p_sys*sizeof(float),
-                cudaMemcpyHostToDevice);
-        }
-        calculateJacobians<<<Nsystems,1>>>(d_Jacobianss,d_constants,d_out_flat,Neqn_p_sys,tnow);
-
-
-        /*
-        printfCUDA<<<1,1>>>(d_timestep);
-        cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys*Neqn_p_sys>>>(5,d_Jacobianss_flat);
-
-        cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(5,d_derivatives_flat);
-        cudaRoutine<<<1,Neqn_p_sys*Neqn_p_sys>>>(5,d_identity,0);
-        cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(5,d_out_flat);
-        */
-
-        //printf("stepping...\n");
-        SIE_step(
-            &tnow, //the current time
-            d_timestep, // Nsystems length vector for timestep to use
-            d_Jacobianss, // matrix (jacobian) input
-            d_Jacobianss, // inverse output, overwrite d_Jacobianss
-            d_identity, // pointer to identity (ideally in constant memory?)
-            d_derivatives, // vector (derivatives) input
-            d_derivatives_flat, // dy vector output
-            d_out_flat, // y vector output
-            Nsystems, // number of systems
-            Neqn_p_sys); // number of equations in each system
-
-        //printf("%.2f %.2f\n",tnow,tend);
-
-    }
-    printf("nsteps taken: %d - tnow: %.2f\n",nsteps,tnow);
-
 /* -------------- copy data to host -------------- */
     // retrieve the output
-    cudaMemcpy(dest, d_out_flat, Neqn_p_sys*Nsystems*sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(dest, d_equations_flat, Neqn_p_sys*Nsystems*sizeof(float), cudaMemcpyDeviceToHost);
 /* ----------------------------------------------- */
 
 /* -------------- shutdown by freeing memory   --- */
     cudaFree(d_Jacobianss); cudaFree(d_Jacobianss_flat);
-    cudaFree(d_out); cudaFree(d_out_flat);
+    cudaFree(d_equations); cudaFree(d_equations_flat);
     cudaFree(d_identity); cudaFree(d_identity_flat);
     cudaFree(d_derivatives); cudaFree(d_derivatives_flat);
 
     free(zeros); free(jacobian_zeros);
-    free(temp_timestep);
+    //free(temp_timestep);
     free(identity_flat);
 /* ----------------------------------------------- */
     //return how many steps were taken

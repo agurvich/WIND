@@ -86,7 +86,7 @@ void BDF2_step(
         d_Jacobianss,
         1.0,
         -1.0,
-        d_timestep);
+        *d_timestep);
 
     // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
     // the permutation array seems to be important for some reason
@@ -330,7 +330,6 @@ int cudaIntegrateBDF2(
 /* -------------- first integration step --------- */
     int nsteps=1;
     SIE_step(
-        &tnow, //the current time
         d_timestep, // Nsystems length vector for timestep to use
         d_Jacobianss, // matrix (jacobian) input
         d_Jacobianss, // inverse output, overwrite d_Jacobianss

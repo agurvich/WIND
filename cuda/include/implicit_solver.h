@@ -1,6 +1,5 @@
 // SIE_solver (BDF1_solver)
 void SIE_step(
-    float *, // pointer to current time
     float *, // device pointer to the current timestep (across all systems, lame!!)
     float **,  // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array with flattened jacobians
     float **, // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array to store output (same as jacobians to overwrite)
@@ -14,7 +13,6 @@ void SIE_step(
 
 // BDF2_solver
 void BDF2_step(
-    float *, // pointer to current time
     float *, // device pointer to the current timestep (across all systems, lame!!)
     float **,  // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array with flattened jacobians
     float **, // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array to store output (same as jacobians to overwrite)
