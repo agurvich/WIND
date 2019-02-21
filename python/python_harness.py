@@ -6,7 +6,7 @@ import copy
 import h5py
 import time
 
-from eqm_eqns import get_eqm_densities
+from eqm_eqns import get_eqm_abundances
 
 
 ## find that shared object library 
@@ -17,7 +17,7 @@ c_obj = ctypes.CDLL(exec_call)
 
 #print(dir(c_obj))
 #print(c_obj.__dict__)
-c_cudaIntegrateEuler = getattr(c_obj,"_Z18cudaIntegrateEulerffPfS_ii")
+c_cudaIntegrateRK2 = getattr(c_obj,"_Z16cudaIntegrateRK2ffPfS_ii")
 c_cudaSIE_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffPfS_ii")
 c_cudaBDF2_integrate = getattr(c_obj,"_Z17cudaIntegrateBDF2ffPfS_ii")
 
@@ -44,7 +44,6 @@ def runCudaIntegrator(
 
     if print_flag:
         print("equations after %d steps:"%nsteps,equations.astype(np.float32))
-        print("residuals:",equations-(before+constants*(tend**3-tnow**3)/3.))
         print(tnow,tend)
     return nsteps
 
@@ -56,10 +55,11 @@ def runIntegratorOutput(
     equations,
     Nsystems,
     Nequations_per_system,
-    output_mode=None):
+    output_mode=None,
+    print_flag = 0):
 
     ## initialize integration breakdown variables
-    max_steps = 25
+    max_steps = tend#tend-tnow
     tcur = tnow
     dt = (tend-tnow)/max_steps
     equations_over_time = np.zeros((max_steps+1,len(equations)))
@@ -78,7 +78,7 @@ def runIntegratorOutput(
                 tcur,tcur+dt,
                 constants,equations,
                 Nsystems,Nequations_per_system,
-                print_flag = 0)]
+                print_flag = print_flag)]
         walltimes+=[time.time()-init_time]
         tcur+=dt
         times+=[tcur]
@@ -87,42 +87,66 @@ def runIntegratorOutput(
     print('final:',np.round(equations_over_time.astype(float),3)[-1][:5])
     if output_mode is not None:
         with h5py.File("katz96_out.hdf5",output_mode) as handle:
-            group = handle.create_group(integrator_name)
+            try:
+                group = handle.create_group(integrator_name)
+            except:
+                del handle[integrator_name]
+                group = handle.create_group(integrator_name)
+                print("overwriting:",integrator_name)
             group['equations_over_time'] = equations_over_time
             group['times'] = times
             group['nsteps'] = nsteps
             group['walltimes'] = walltimes
    
-####### Test for y' = ct #######
-tnow = 0
-tend = 25
-Nsystems = 2
-Nequations_per_system = 5
-TEMP = 1e2 ## K
-DENSITY = 1e2 ## 1/cm^-3
-y_helium = 0.25
+def calculate_rates(equations,constants):
+    rates = np.zeros(5)
+    equations = equations[:len(equations)//2]
+    constants = constants[:len(constants)//2]
 
-constants_dict = {}
+    ne = equations[1] + equations[3] + 2*equations[4]
+    ## H0 : alpha_(H+) ne nH+ - (Gamma_(e,H0)ne + Gamma_(gamma,H0))*nH0
+    rates[0] = (constants[2]*ne*equations[1]
+        -(constants[0]*ne + constants[1])*equations[0]) 
+    ## H+ : (Gamma_(e,H0)ne + Gamma_(gamma,H0))*nH0 - alpha_(H+) ne nH+
+    rates[1] = (-constants[2]*ne*equations[1]
+            +(constants[0]*ne + constants[1])*equations[0]) 
+    ## He0 :(alpha_(He+)+alpha_(d)) ne nHe+ - (Gamma_(e,He0)ne + Gamma_(gamma,He0)) nHe0
+    rates[2] = ((constants[7]+constants[8])*ne*equations[3] 
+            - (constants[3]*ne+constants[4])*equations[2])
+    ## He+ : 
+    ##  alpha_(He++) ne nHe++ 
+    ##  + (Gamma_(e,He0)ne + Gamma_(gamma,He0)) nHe0
+    ##  - (alpha_(He+)+alpha_(d)) ne nHe+ 
+    ##  - (Gamma_(e,He+)ne + Gamma_(gamma,He+)) nHe+
+    rates[3] = (constants[9]*ne*equations[4] 
+            + (constants[3]*ne+constants[4])*equations[2]  
+            - (constants[7]+constants[8])*ne*equations[3] 
+            - (constants[5]*ne+constants[6])*equations[3])
+    ## He++ : -alpha_(He++) ne nHe++
+    rates[4] = (-constants[9]*ne*equations[4])
 
+    return rates
 
+def get_constants(nH,TEMP,Nsystems):
+  ## From Alex R
+    #H0: 4.4e-11 s^-1
+    #He0: 3.7e-12 s^-1
+    #He+: 1.7e-14
 
-## From Alex R
-#H0: 4.4e-11 s^-1
-#He0: 3.7e-12 s^-1
-#He+: 1.7e-14
-
-def get_constants(TEMP,Nsystems):
     constants_dict = {}
-    constants_dict['Gamma_(e,H0)'] = 5.85e-11 * np.sqrt(TEMP)/(1+(TEMP/1e5)) * np.exp(-157809.1/TEMP)
+    constants_dict['Gamma_(e,H0)'] = 5.85e-11 * np.sqrt(TEMP)/(1+np.sqrt(TEMP/1e5)) * np.exp(-157809.1/TEMP) * nH
     constants_dict['Gamma_(gamma,H0)'] = 4.4e-11
-    constants_dict['alpha_(H+)'] = 8.4e-11 * np.sqrt(TEMP) * (TEMP/1e3)**-0.2 / (1+(TEMP/1e6)**0.7)
-    constants_dict['Gamma_(e,He0)'] =  2.38e-11 * np.sqrt(TEMP)/(1+(TEMP/1e5)) * np.exp(-285335.4/TEMP)
+    constants_dict['alpha_(H+)'] = 8.4e-11 / np.sqrt(TEMP) * (TEMP/1e3)**-0.2 / (1+(TEMP/1e6)**0.7) * nH
+    constants_dict['Gamma_(e,He0)'] =  2.38e-11 * np.sqrt(TEMP)/(1+np.sqrt(TEMP/1e5)) * np.exp(-285335.4/TEMP) * nH
     constants_dict['Gamma_(gamma,He0)'] = 3.7e-12
-    constants_dict['Gamma_(e,He+)'] =  5.68e-12 * np.sqrt(TEMP)/(1+(TEMP/1e5)) * np.exp(-631515.0/TEMP) 
+    constants_dict['Gamma_(e,He+)'] =  5.68e-12 * np.sqrt(TEMP)/(1+np.sqrt(TEMP/1e5)) * np.exp(-631515.0/TEMP) * nH
     constants_dict['Gamma_(gamma,He+)'] = 1.7e-14
-    constants_dict['alpha_(He+)'] = 1.5e-10 * TEMP**-0.6353
-    constants_dict['alpha_(d)'] =  1.9e-3 * TEMP**-1.5 * np.exp(-470000.0/TEMP) * (1+0.3*np.exp(-94000.0/TEMP))
-    constants_dict['alpha_(He++)'] = 3.36e-10 * TEMP**-0.5 * (TEMP/1e3)**-0.2 / (1+(TEMP/1e6)**0.7)
+    constants_dict['alpha_(He+)'] = 1.5e-10 * TEMP**-0.6353 * nH
+    constants_dict['alpha_(d)'] =  (
+        1.9e-3 * TEMP**-1.5 * 
+        np.exp(-470000.0/TEMP) * 
+        (1+0.3*np.exp(-94000.0/TEMP)) * nH )
+    constants_dict['alpha_(He++)'] = 3.36e-10 * TEMP**-0.5 * (TEMP/1e3)**-0.2 / (1+(TEMP/1e6)**0.7) * nH
 
     ## /* constants = [
     ##  Gamma_(e,H0), Gamma_(gamma,H0), 
@@ -146,63 +170,84 @@ def get_constants(TEMP,Nsystems):
         constants_dict['alpha_(d)'],
         constants_dict['alpha_(He++)']]*Nsystems)
 
-    ##return np.array(list(range(10))*Nsystems).astype(np.float32)
     return (constants*3.15e7).astype(np.float32) ## convert to 1/yr
 
-def initialize_equations(density,Nsystems,y_helium):
+def initialize_equations(nH,Nsystems,y_helium):
     return np.array([
-    0.5, ## H0
-    0.5, ## H+
-    0.5*y_helium/4., ## He0
-    0.25*y_helium/4.,## He+
-    0.25*y_helium/4. ## He++
-    ]*Nsystems).astype(np.float32)*density
+    0.0, ## H0
+    1.0, ## H+
+    0.0*y_helium/4., ## He0
+    1.0*y_helium/4.,## He+
+    0.0*y_helium/4. ## He++
+    ]*Nsystems).astype(np.float32)#*nH####### Test for y' = ct #######
 
-constants = get_constants(TEMP,Nsystems)
-equations = initialize_equations(DENSITY,Nsystems,y_helium)
+tnow = 0
+tend = 200
+Nsystems = 2
+Nequations_per_system = 5
+TEMP = 1e2 ## K
+nH = 1e2 ## cm^-3
+y_helium = 0.4
 
-runIntegratorOutput(
-    c_cudaIntegrateEuler,'RK2',
-    tnow,tend,
-    constants,
-    equations,
-    Nsystems,
-    Nequations_per_system,
-    output_mode = 'w')
+RK2 = True
+SIE = False#tend <=25
+BDF2 = False#tend <=25 
 
-print("---------------------------------------------------")
+output_mode = 'a'
 
-constants = get_constants(TEMP,Nsystems)
-equations = initialize_equations(DENSITY,Nsystems,y_helium)
+if RK2:
+    constants = get_constants(nH,TEMP,Nsystems)
+    equations = initialize_equations(nH,Nsystems,y_helium)
 
-runIntegratorOutput(
-    c_cudaSIE_integrate,'SIE',
-    tnow,tend,
-    constants,
-    equations,
-    Nsystems,
-    Nequations_per_system,
-    output_mode = 'a')
-#print(constants)
+    runIntegratorOutput(
+        c_cudaIntegrateRK2,'RK2',
+        tnow,tend,
+        constants,
+        equations,
+        Nsystems,
+        Nequations_per_system,
+        output_mode = output_mode,
+        print_flag = 1)
 
-print("---------------------------------------------------")
+    print("---------------------------------------------------")
+    output_mode = 'a'
 
-constants = get_constants(TEMP,Nsystems)
-equations = initialize_equations(DENSITY,Nsystems,y_helium)
+if SIE:
+    constants = get_constants(nH,TEMP,Nsystems)
+    equations = initialize_equations(nH,Nsystems,y_helium)
 
-runIntegratorOutput(
-    c_cudaBDF2_integrate,'BDF2',
-    tnow,tend,
-    constants,
-    equations,
-    Nsystems,
-    Nequations_per_system,
-    output_mode = 'a')
+    runIntegratorOutput(
+        c_cudaSIE_integrate,'SIE',
+        tnow,tend,
+        constants,
+        equations,
+        Nsystems,
+        Nequations_per_system,
+        output_mode = output_mode)
 
-eqm_densities = get_eqm_densities(DENSITY,TEMP,y_helium)
-print('eqm:',[float('%.3f'%den) for den in eqm_densities])
+    print("---------------------------------------------------")
+    output_mdoe = 'a'
+
+if BDF2:
+    constants = get_constants(nH,TEMP,Nsystems)
+    equations = initialize_equations(nH,Nsystems,y_helium)
+
+    runIntegratorOutput(
+        c_cudaBDF2_integrate,'BDF2',
+        tnow,tend,
+        constants,
+        equations,
+        Nsystems,
+        Nequations_per_system,
+        output_mode = output_mode)
+
+eqm_abundances = get_eqm_abundances(nH,TEMP,y_helium)
+print('eqm:',[float('%.3f'%abundance) for abundance in eqm_abundances])
 with h5py.File("katz96_out.hdf5",'a') as handle:
-    group = handle.attrs['eqm_densities'] = eqm_densities
+    group = handle.attrs['eqm_abundances'] = eqm_abundances
+
+print("Rates:")
+print(calculate_rates(equations,constants))
 
 ### LEGACY
 """
