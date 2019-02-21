@@ -15,7 +15,7 @@ void printArray(int * arr,int N){
     printf("\n");
 }
 
-int cudaIntegrateEuler(
+int cudaIntegrateRK2(
     float tnow, // the current time
     float tend, // the time we integrating the system to
     float * constants, // the constants for each system
@@ -66,9 +66,9 @@ int cudaIntegrateEuler(
     dim3 dimBlock( blocksize, 1 );
     dim3 dimGrid( gridsize, 1 );
 
-    //bar();
-    integrate_euler <<<dimGrid,dimBlock,
-        2*Nequations_per_system*sizeof(float)+ sizeof(int)
+    //shared mem -> 2 float arrays for each system and 1 int array
+    integrate_rk2<<<dimGrid,dimBlock,
+        Nequations_per_system*(2*sizeof(float)+ sizeof(int))
          >>> (
         tnow, tend,
         constantsDevice,equationsDevice,
@@ -86,5 +86,5 @@ int cudaIntegrateEuler(
 
     // return how many steps were taken
     return nloops;
-} // cudaIntegrateEuler
+} // cudaIntegrateRK2
 
