@@ -1,6 +1,6 @@
 // SIE_solver (BDF1_solver)
 void SIE_step(
-    float *, // device pointer to the current timestep (across all systems, lame!!)
+    float, // device pointer to the current timestep (across all systems, lame!!)
     float **,  // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array with flattened jacobians
     float **, // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array to store output (same as jacobians to overwrite)
     float **, // 1 x Neqn_p_sys*Neqn_p_sys array storing the identity (ideally in constant memory?)
@@ -11,9 +11,26 @@ void SIE_step(
     int); // number of equations in each system
 
 
+int SIEErrorLoop(
+    float,
+    float,
+    float **, // matrix (jacobian) input
+    float *,
+    float *,
+    float **, // pointer to identity (ideally in constant memory?)
+    float **, // vector (derivatives) input
+    float *, // dy vector output
+    float *,
+    float *, // y vector output
+    float *,
+    float *,
+    int, // number of systems
+    int);
+
+
 // BDF2_solver
 void BDF2_step(
-    float *, // device pointer to the current timestep (across all systems, lame!!)
+    float, // device pointer to the current timestep (across all systems, lame!!)
     float **,  // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array with flattened jacobians
     float **, // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array to store output (same as jacobians to overwrite)
     float **, // 1 x Neqn_p_sys*Neqn_p_sys array storing the identity (ideally in constant memory?)

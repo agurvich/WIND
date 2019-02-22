@@ -13,7 +13,7 @@
 //#define COMMENTSIE
 
 void SIE_step(
-    float * timestep, // device pointer to the current timestep (across all systems, lame!!)
+    float timestep, // device pointer to the current timestep (across all systems, lame!!)
     float ** d_Jacobianss,  // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array with flattened jacobians
     float ** d_inverse, // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array to store output (same as jacobians to overwrite)
     float ** d_identity, // 1 x Neqn_p_sys*Neqn_p_sys array storing the identity (ideally in constant memory?)
@@ -59,7 +59,7 @@ void SIE_step(
     // compute (I-hJ) with a custom kernel
     // TODO pretty sure i need a multidimensional grid here, 
     // blocks can't be 160x160 threads
-    addArrayToBatchArrays<<<Nsystems,Neqn_p_sys*Neqn_p_sys>>>(d_identity,d_Jacobianss,1.0,-1.0,*timestep);
+    addArrayToBatchArrays<<<Nsystems,Neqn_p_sys*Neqn_p_sys>>>(d_identity,d_Jacobianss,1.0,-1.0,timestep);
 
     // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
     // the permutation array seems to be important for some reason
@@ -122,7 +122,7 @@ void SIE_step(
     cublasSaxpy(
         handle, // cublas handle
         Neqn_p_sys*Nsystems, // number of elements in each vector
-        (const float *) timestep, // alpha scalar <-- can't use device pointer???
+        (const float *) &timestep, // alpha scalar <-- can't use device pointer???
         (const float *) d_derivatives_flat, // vector we are adding, flattened derivative vector
         1, // stride between consecutive elements
         d_equations_flat, // vector we are replacing
@@ -149,7 +149,7 @@ void SIE_step(
 int solveSystem(
     float tnow,
     float tend,
-    float * timestep, 
+    float timestep, 
     float ** d_Jacobianss, // matrix (jacobian) input
     float * d_Jacobianss_flat,
     float * jacobian_zeros,
@@ -189,12 +189,101 @@ int solveSystem(
             Neqn_p_sys); // number of equations in each system
 
         //printf("%.2f %.2f\n",tnow,tend);
-        tnow+=*timestep;
+        tnow+=timestep;
 
     }
     //printf("nsteps taken: %d - tnow: %.2f\n",nsteps,tnow);
     return nsteps;
 }
+
+int SIEErrorLoop(
+    float tnow,
+    float tend,
+    float ** d_Jacobianss, // matrix (jacobian) input
+    float * d_Jacobianss_flat,
+    float * jacobian_zeros,
+    float ** d_identity, // pointer to identity (ideally in constant memory?)
+    float ** d_derivatives, // vector (derivatives) input
+    float * d_derivatives_flat, // dy vector output
+    float * equations,
+    float * d_equations_flat, // y vector output
+    float * d_half_equations_flat,
+    float * d_constants,
+    int Nsystems, // number of systems
+    int Neqn_p_sys){
+
+    float timestep = (tend-tnow);
+
+    int * error_flag = (int *) malloc(sizeof(int));
+    int * d_error_flag;
+    cudaMalloc(&d_error_flag,sizeof(int));
+    *error_flag = 0;
+    cudaMemcpy(d_error_flag,error_flag,sizeof(int),cudaMemcpyHostToDevice);
+    
+    // use a flag as a counter, why not
+    int unsolved = 1;
+    int nsteps=0;
+    //*timestep=0.125;
+    while (unsolved){
+        nsteps+= solveSystem(
+            tnow,
+            tend,
+            timestep,
+            d_Jacobianss,
+            d_Jacobianss_flat,
+            jacobian_zeros,
+            d_identity,
+            d_derivatives,
+            d_derivatives_flat,
+            d_equations_flat,
+            d_constants,
+            Nsystems,
+            Neqn_p_sys);
+
+        timestep = timestep/2.0;
+
+        nsteps+= solveSystem(
+            tnow,
+            tend,
+            timestep,
+            d_Jacobianss,
+            d_Jacobianss_flat,
+            jacobian_zeros,
+            d_identity,
+            d_derivatives,
+            d_derivatives_flat,
+            d_half_equations_flat,
+            d_constants,
+            Nsystems,
+            Neqn_p_sys);
+
+        checkError<<<Nsystems,Neqn_p_sys>>>(d_equations_flat,d_half_equations_flat,d_error_flag);
+        // TODO:  check error, resolve the systems if tolerance is too large. 
+
+        // copy back the bool flag and determine if we done did it
+        cudaMemcpy(error_flag,d_error_flag,sizeof(int),cudaMemcpyDeviceToHost);
+        //*error_flag = 0;
+        
+        if (*error_flag){
+            //printf("refining...%d\n",unsolved);
+            *error_flag = 0;
+            cudaMemcpy(d_error_flag,error_flag,sizeof(int),cudaMemcpyHostToDevice);
+            unsolved++;
+            //printf("new timestep: %.2e\n",*timestep);
+            // reset the equations
+            cudaMemcpy(d_equations_flat,equations,Nsystems*Neqn_p_sys*sizeof(float),cudaMemcpyHostToDevice);
+            cudaMemcpy(d_half_equations_flat,equations,Nsystems*Neqn_p_sys*sizeof(float),cudaMemcpyHostToDevice);
+        }
+        else{
+            unsolved=0;
+        }
+        if (unsolved > 15){
+            break;
+        }
+    }// while unsolved
+    return nsteps;
+}
+
 
 int cudaIntegrateSIE(
     float tnow, // the current time
@@ -272,79 +361,24 @@ int cudaIntegrateSIE(
     //cudaMalloc(&d_timestep,sizeof(float));
     //float *temp_timestep=(float *) malloc(sizeof(float));
     //*temp_timestep = (tend-tnow)/4.0;
-    float * timestep = (float *) malloc(sizeof(float));
-    *timestep = (tend-tnow);
     //cudaMemcpy(d_timestep,temp_timestep,sizeof(float),cudaMemcpyHostToDevice);
 
-    int * error_flag = (int *) malloc(sizeof(int));
-    int * d_error_flag;
-    cudaMalloc(&d_error_flag,sizeof(int));
-    *error_flag = 0;
-    cudaMemcpy(d_error_flag,error_flag,sizeof(int),cudaMemcpyHostToDevice);
-    
-    // use a flag as a counter, why not
-    int unsolved = 1;
-    int nsteps=0;
-    int half_nsteps=0;
-    //*timestep=0.125;
+    int nsteps = SIEErrorLoop(
+        tnow,
+        tend,
+        d_Jacobianss, // matrix (jacobian) input
+        d_Jacobianss_flat,
+        jacobian_zeros,
+        d_identity, // pointer to identity (ideally in constant memory?)
+        d_derivatives, // vector (derivatives) input
+        d_derivatives_flat, // dy vector output
+        equations,
+        d_equations_flat, // y vector output
+        d_half_equations_flat,
+        d_constants,
+        Nsystems, // number of systems
+        Neqn_p_sys);
 
-    while (unsolved){
-        nsteps = solveSystem(
-            tnow,
-            tend,
-            timestep,
-            d_Jacobianss,
-            d_Jacobianss_flat,
-            jacobian_zeros,
-            d_identity,
-            d_derivatives,
-            d_derivatives_flat,
-            d_equations_flat,
-            d_constants,
-            Nsystems,
-            Neqn_p_sys);
-
-        *timestep = *timestep/2.0;
-
-        half_nsteps = solveSystem(
-            tnow,
-            tend,
-            timestep,
-            d_Jacobianss,
-            d_Jacobianss_flat,
-            jacobian_zeros,
-            d_identity,
-            d_derivatives,
-            d_derivatives_flat,
-            d_half_equations_flat,
-            d_constants,
-            Nsystems,
-            Neqn_p_sys);
-
-        checkError<<<Nsystems,Neqn_p_sys>>>(d_equations_flat,d_half_equations_flat,d_error_flag);
-        // TODO:  check error, resolve the systems if tolerance is too large. 
-
-        // copy back the bool flag and determine if we done did it
-        cudaMemcpy(error_flag,d_error_flag,sizeof(int),cudaMemcpyDeviceToHost);
-        //*error_flag = 0;
-        
-        if (*error_flag){
-            //printf("refining...%d\n",unsolved);
-            *error_flag = 0;
-            cudaMemcpy(d_error_flag,error_flag,sizeof(int),cudaMemcpyHostToDevice);
-            unsolved++;
-            //printf("new timestep: %.2e\n",*timestep);
-            // reset the equations
-            cudaMemcpy(d_equations_flat,equations,Nsystems*Neqn_p_sys*sizeof(float),cudaMemcpyHostToDevice);
-            cudaMemcpy(d_half_equations_flat,equations,Nsystems*Neqn_p_sys*sizeof(float),cudaMemcpyHostToDevice);
-        }
-        else{
-            unsolved=0;
-        }
-        if (unsolved > 15){
-            break;
-        }
-    }// while unsolved
 /* ----------------------------------------------- */
 
 /* -------------- copy data to host -------------- */
@@ -363,6 +397,6 @@ int cudaIntegrateSIE(
     free(identity_flat);
 /* ----------------------------------------------- */
     //return how many steps were taken
-    printf("nsteps taken: %d - tnow: %.2f\n",half_nsteps,tnow);
-    return half_nsteps;
+    printf("nsteps taken: %d - tnow: %.2f\n",nsteps,tnow);
+    return nsteps;
 }

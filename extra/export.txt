@@ -1,43 +1,46 @@
                  w _Jv_RegisterClasses
-000000000000b860 T _Z10addVectorsfPffS_S_
-000000000000b75d T _Z10checkErrorPfS_Pi
-0000000000008eb7 T _Z10printArrayPii
-000000000000addf T _Z10printfCUDAPf
-000000000000ae84 T _Z11cudaRoutineiPPfi
-000000000000b1e8 T _Z11printFArrayPfi
-000000000000b911 T _Z11scaleVectorPfS_
-000000000000954a T _Z11solveSystemffPfPS_S_S_S0_S0_S_S_S_ii
-0000000000009158 T _Z13integrate_rk2ffPfS_iiPi
-00000000000091e2 T _Z13rk2_innerstepfffPfS_ii
-0000000000009216 T _Z14calculate_dydtfPfS_
-000000000000b57b T _Z14updateTimestepPfS_S_Pi
-000000000000af13 T _Z15cudaRoutineFlatiPf
-000000000000b99d T _Z15overwriteVectorPfS_
-0000000000008c98 T _Z16cudaIntegrateRK2ffPfS_ii
-00000000000096f1 T _Z16cudaIntegrateSIEffPfS_ii
-000000000000a48c T _Z17cudaIntegrateBDF2ffPfS_ii
-000000000000af7d T _Z17setIdentityMatrixPfi
-000000000000bc12 T _Z18calculateJacobiansPPfS_S_if
-000000000000ad78 T _Z19printFloatArrayCUDAPfi
-000000000000bd23 T _Z20calculateDerivativesPfS_S_if
-000000000000b687 T _Z21addArrayToBatchArraysPPfS0_fff
-000000000000b0da T _Z22initializeDeviceMatrixPfPS_ii
-000000000000ad95 T _Z30__device_stub__Z10printfCUDAPfPf
-000000000000b8a4 T _Z33__device_stub__Z11scaleVectorPfS_PfS_
-000000000000b6cd T _Z34__device_stub__Z10checkErrorPfS_PiPfS_Pi
-000000000000adf6 T _Z34__device_stub__Z11cudaRoutineiPPfiiPPfi
-000000000000b784 T _Z36__device_stub__Z10addVectorsfPffS_S_fPffS_S_
-000000000000aea7 T _Z36__device_stub__Z15cudaRoutineFlatiPfiPf
-000000000000b930 T _Z37__device_stub__Z15overwriteVectorPfS_PfS_
-000000000000b4c8 T _Z40__device_stub__Z14updateTimestepPfS_S_PiPfS_S_Pi
-000000000000ad0c T _Z40__device_stub__Z19printFloatArrayCUDAPfiPfi
-0000000000009030 T _Z41__device_stub__Z13integrate_rk2ffPfS_iiPiffPfS_iiPi
-000000000000bb38 T _Z45__device_stub__Z18calculateJacobiansPPfS_S_ifPPfS_S_if
-000000000000bc49 T _Z46__device_stub__Z20calculateDerivativesPfS_S_ifPfS_S_if
-000000000000b5aa T _Z48__device_stub__Z21addArrayToBatchArraysPPfS0_fffPPfS0_fff
-000000000000933c T _Z8SIE_stepPfPS_S0_S0_S0_S_S_ii
-0000000000009e10 T _Z9BDF2_stepPfS_PS_S0_S0_S0_S_S_S_S0_S_ii
-0000000000008f0a W _ZN4dim3C1Ejjj
+000000000000ba64 T _Z10addVectorsfPffS_S_
+000000000000b961 T _Z10checkErrorPfS_Pi
+0000000000008f47 T _Z10printArrayPii
+000000000000afe3 T _Z10printfCUDAPf
+000000000000b088 T _Z11cudaRoutineiPPfi
+000000000000b3ec T _Z11printFArrayPfi
+000000000000bb15 T _Z11scaleVectorPfS_
+00000000000095df T _Z11solveSystemfffPPfS_S_S0_S0_S_S_S_ii
+0000000000009780 T _Z12SIEErrorLoopffPPfS_S_S0_S0_S_S_S_S_S_ii
+000000000000a60e T _Z13BDF2ErrorLoopffPPfS_S_S0_S0_S_S_S_S_S_S0_S_S_ii
+00000000000091e8 T _Z13integrate_rk2ffPfS_iiPi
+0000000000009272 T _Z13rk2_innerstepfffPfS_ii
+00000000000092a6 T _Z14calculate_dydtfPfS_
+000000000000b77f T _Z14updateTimestepPfS_S_Pi
+000000000000a363 T _Z15BDF2SolveSystemfffPPfS_S_S0_S0_S_S_S_S0_S_S_ii
+000000000000b117 T _Z15cudaRoutineFlatiPf
+000000000000bba1 T _Z15overwriteVectorPfS_
+0000000000008d28 T _Z16cudaIntegrateRK2ffPfS_ii
+0000000000009a26 T _Z16cudaIntegrateSIEffPfS_ii
+000000000000a8fc T _Z17cudaIntegrateBDF2ffPfS_ii
+000000000000b181 T _Z17setIdentityMatrixPfi
+000000000000be16 T _Z18calculateJacobiansPPfS_S_if
+000000000000af7c T _Z19printFloatArrayCUDAPfi
+000000000000bf27 T _Z20calculateDerivativesPfS_S_if
+000000000000b88b T _Z21addArrayToBatchArraysPPfS0_fff
+000000000000b2de T _Z22initializeDeviceMatrixPfPS_ii
+000000000000af99 T _Z30__device_stub__Z10printfCUDAPfPf
+000000000000baa8 T _Z33__device_stub__Z11scaleVectorPfS_PfS_
+000000000000b8d1 T _Z34__device_stub__Z10checkErrorPfS_PiPfS_Pi
+000000000000affa T _Z34__device_stub__Z11cudaRoutineiPPfiiPPfi
+000000000000b988 T _Z36__device_stub__Z10addVectorsfPffS_S_fPffS_S_
+000000000000b0ab T _Z36__device_stub__Z15cudaRoutineFlatiPfiPf
+000000000000bb34 T _Z37__device_stub__Z15overwriteVectorPfS_PfS_
+000000000000b6cc T _Z40__device_stub__Z14updateTimestepPfS_S_PiPfS_S_Pi
+000000000000af10 T _Z40__device_stub__Z19printFloatArrayCUDAPfiPfi
+00000000000090c0 T _Z41__device_stub__Z13integrate_rk2ffPfS_iiPiffPfS_iiPi
+000000000000bd3c T _Z45__device_stub__Z18calculateJacobiansPPfS_S_ifPPfS_S_if
+000000000000be4d T _Z46__device_stub__Z20calculateDerivativesPfS_S_ifPfS_S_if
+000000000000b7ae T _Z48__device_stub__Z21addArrayToBatchArraysPPfS0_fffPPfS0_fff
+00000000000093cc T _Z8SIE_stepfPPfS0_S0_S0_S_S_ii
+0000000000009eb0 T _Z9BDF2_stepfPPfS0_S0_S0_S_S_S_S0_S_ii
+0000000000008f9a W _ZN4dim3C1Ejjj
 00000000002836b8 B __bss_start
                  U __cxa_atexit
                  w __cxa_finalize
@@ -49,8 +52,8 @@
                  U __xstat
 00000000002836b8 D _edata
 0000000000284868 B _end
-00000000000625a8 T _fini
-0000000000007f70 T _init
+00000000000627b8 T _fini
+0000000000008000 T _init
                  U bind
                  U calloc
                  U chmod
@@ -59,9 +62,7 @@
                  U connect
                  U cublasCreate_v2
                  U cublasDestroy_v2
-                 U cublasIsamax_v2
                  U cublasSaxpy_v2
-                 U cublasSetPointerMode_v2
                  U cublasSgemmBatched
                  U cublasSgetrfBatched
                  U cublasSgetriBatched
