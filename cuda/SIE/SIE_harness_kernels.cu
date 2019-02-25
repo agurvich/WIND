@@ -240,7 +240,7 @@ int SIEErrorLoop(
             Nsystems,
             Neqn_p_sys);
 
-        timestep = timestep/2.0;
+        timestep/=2.0;
 
         nsteps+= solveSystem(
             tnow,
@@ -263,13 +263,15 @@ int SIEErrorLoop(
         // copy back the bool flag and determine if we done did it
         cudaMemcpy(error_flag,d_error_flag,sizeof(int),cudaMemcpyDeviceToHost);
         //*error_flag = 0;
-        
+        if (unsolved > 15){
+            break;
+        }
         if (*error_flag){
             //printf("refining...%d\n",unsolved);
             *error_flag = 0;
             cudaMemcpy(d_error_flag,error_flag,sizeof(int),cudaMemcpyHostToDevice);
             unsolved++;
-            //printf("new timestep: %.2e\n",*timestep);
+            //printf("new timestep: %.2e\n",timestep);
             // reset the equations
             cudaMemcpy(d_equations_flat,equations,Nsystems*Neqn_p_sys*sizeof(float),cudaMemcpyHostToDevice);
             cudaMemcpy(d_half_equations_flat,equations,Nsystems*Neqn_p_sys*sizeof(float),cudaMemcpyHostToDevice);
@@ -277,9 +279,7 @@ int SIEErrorLoop(
         else{
             unsolved=0;
         }
-        if (unsolved > 15){
-            break;
-        }
+
     }// while unsolved
     return nsteps;
 }

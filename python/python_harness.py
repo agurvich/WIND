@@ -189,9 +189,9 @@ TEMP = 1e2 ## K
 nH = 1e2 ## cm^-3
 y_helium = 0.4
 
-RK2 = False#True
-SIE = False#tend <=25
-BDF2 = True#tend <=25 
+RK2 = not True
+SIE = True
+BDF2 = not True 
 
 output_mode = 'a'
 print_flag = False
