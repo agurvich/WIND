@@ -59,7 +59,7 @@ def runIntegratorOutput(
     print_flag = 0):
 
     ## initialize integration breakdown variables
-    max_steps = tend//20#tend-tnow
+    max_steps = 1#tend-tnow
     tcur = tnow
     dt = (tend-tnow)/max_steps
     equations_over_time = np.zeros((max_steps+1,len(equations)))
@@ -84,7 +84,7 @@ def runIntegratorOutput(
         times+=[tcur]
         nloops+=1
         equations_over_time[nloops]=copy.copy(equations)
-    print('final:',np.round(equations_over_time.astype(float),3)[-1][:5])
+    print('final (tcur=%.2f):'%tcur,np.round(equations_over_time.astype(float),3)[-1][:5])
     if output_mode is not None:
         with h5py.File("katz96_out.hdf5",output_mode) as handle:
             try:
@@ -97,6 +97,7 @@ def runIntegratorOutput(
             group['times'] = times
             group['nsteps'] = nsteps
             group['walltimes'] = walltimes
+    print("total nsteps:",np.sum(nsteps))
    
 def calculate_rates(equations,constants):
     rates = np.zeros(5)
@@ -189,9 +190,9 @@ TEMP = 1e2 ## K
 nH = 1e2 ## cm^-3
 y_helium = 0.4
 
-RK2 = not True
+RK2 = True
 SIE = True
-BDF2 = not True 
+BDF2 = True 
 
 output_mode = 'a'
 print_flag = False

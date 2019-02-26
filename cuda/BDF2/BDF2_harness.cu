@@ -523,7 +523,7 @@ int cudaIntegrateBDF2(
         Nsystems, // number of systems
         Neqn_p_sys);
     
-    printf("nsteps taken: %d - tnow: %.2f\n",nsteps,tnow);
+    printf("nsteps taken: %d - tnow: %.2f\n",nsteps,tend);
 
 
 

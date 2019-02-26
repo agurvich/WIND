@@ -397,6 +397,6 @@ int cudaIntegrateSIE(
     free(identity_flat);
 /* ----------------------------------------------- */
     //return how many steps were taken
-    printf("nsteps taken: %d - tnow: %.2f\n",nsteps,tnow);
+    printf("nsteps taken: %d - tnow: %.2f\n",nsteps,tend);
     return nsteps;
 }

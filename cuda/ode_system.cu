@@ -80,24 +80,25 @@ __global__ void calculateJacobians(
     */
 
     // H0
-    this_block_jacobian[5] = constants[0]*ne + constants[1]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
-    this_block_jacobian[0] = -this_block_jacobian[5]; // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[0] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[1] = -this_block_jacobian[0]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
 
     //H+
-    this_block_jacobian[1] = constants[2]*ne; // H0 : 2-alpha_(H+)ne
-    this_block_jacobian[6] = -this_block_jacobian[1]; // H+ -alpha_(H+)ne
+    this_block_jacobian[6] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[5] = -this_block_jacobian[6]; // H0 : 2-alpha_(H+)ne
+
 
     // He0
-    this_block_jacobian[17] = constants[3]*ne+constants[4]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
-    this_block_jacobian[12] = -this_block_jacobian[17]; //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[12] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[13] = this_block_jacobian[12]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
 
     // He+
-    this_block_jacobian[23] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[13] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[18] = -this_block_jacobian[13] - 
-        this_block_jacobian[23]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[19] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[17] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[18] = -this_block_jacobian[17] - 
+        this_block_jacobian[19]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
 
     // He++
-    this_block_jacobian[19] = constants[9]*ne;//He+ : 9-alpha_(He++)ne
-    this_block_jacobian[24] = -this_block_jacobian[19];//He++ : -alpha_(He++)ne
+    this_block_jacobian[24] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[23] = -this_block_jacobian[24];//He+ : 9-alpha_(He++)ne
 }
