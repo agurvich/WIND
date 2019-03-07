@@ -61,7 +61,7 @@ void SIE_step(
     int y_blocks_per_grid = Nsystems;
 
     dim3 matrix_gridDim(
-        x_blocks_per_grid*x_blocks_per_grid,
+        x_blocks_per_grid*Neqn_p_sys,
         y_blocks_per_grid);
     dim3 vector_gridDim(x_blocks_per_grid,y_blocks_per_grid);
     dim3 blockDim(threads_per_block);
@@ -323,6 +323,11 @@ int cudaIntegrateSIE(
     */
 
     printf("SIE Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
+    int threads_per_block = min(Neqn_p_sys,MAX_THREADS_PER_BLOCK);
+    int x_blocks_per_grid = 1+Neqn_p_sys/MAX_THREADS_PER_BLOCK;
+    int y_blocks_per_grid = Nsystems;
+    printf("yb: %d xb: %d tpb: %d\n",y_blocks_per_grid,x_blocks_per_grid,threads_per_block);
+
     float *dest = equations;
 
     // define the identity matrix on the host
