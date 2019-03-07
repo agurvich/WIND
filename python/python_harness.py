@@ -183,7 +183,7 @@ def initialize_equations(nH,Nsystems,y_helium):
     ]*Nsystems).astype(np.float32)#*nH####### Test for y' = ct #######
 
 tnow = 0
-tend = 2
+tend = 200
 Nsystems = 2
 Nequations_per_system = 5
 TEMP = 1e2 ## K
