@@ -3,7 +3,7 @@ export LD_LIBRARY_PATH=$CRAY_CUDATOOLKIT_DIR
 /lib64:$LD_LIBRARY_PATH
 
 ## flags I've tried
-#--events all 
+# --events all 
 
 NAME=SIE
 
