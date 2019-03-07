@@ -55,11 +55,24 @@ void SIE_step(
 /* ----------------------------------------------- */
 
 
+/* -------------- configure the grid  ------------ */
+    int threads_per_block = min(Neqn_p_sys,MAX_THREADS_PER_BLOCK);
+    int x_blocks_per_grid = 1+Neqn_p_sys/MAX_THREADS_PER_BLOCK;
+    int y_blocks_per_grid = Nsystems;
+
+    dim3 matrix_gridDim(
+        x_blocks_per_grid*x_blocks_per_grid,
+        y_blocks_per_grid);
+    dim3 vector_gridDim(x_blocks_per_grid,y_blocks_per_grid);
+    dim3 blockDim(threads_per_block);
+/* ----------------------------------------------- */
+
+
 /* -------------- invert the matrix -------------- */
     // compute (I-hJ) with a custom kernel
-    // TODO pretty sure i need a multidimensional grid here, 
-    // blocks can't be 160x160 threads
-    addArrayToBatchArrays<<<Nsystems,Neqn_p_sys*Neqn_p_sys>>>(d_identity,d_Jacobianss,1.0,-1.0,timestep);
+    addArrayToBatchArrays<<<matrix_gridDim,blockDim>>>(
+        d_identity,d_Jacobianss,1.0,-1.0,timestep,
+        Neqn_p_sys);
 
     // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
     // the permutation array seems to be important for some reason
@@ -108,17 +121,9 @@ void SIE_step(
 
 /* -------------- perform a vector addition ------ */
     // scale the dy vectors by the timestep size
-    // TODO pretty sure i need a multidimensional grid here, 
-    // blocks can't be 160x160 threads
-    //scaleVector<<<Nsystems,Neqn_p_sys>>>(d_derivatives_flat,d_timesteps);
+    //scaleVector<<<vector_gridDim,blockDim>>>(d_derivatives_flat,d_timesteps);
     
-    //cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_derivatives_flat);
     // add ys + h x dys = ys + h x [(I-h*Js)^-1*fs]
-    /*
-    printfCUDA<<<1,1>>>(d_timestep);
-    cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_derivatives_flat);
-    cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_equations_flat);
-    */
     cublasSaxpy(
         handle, // cublas handle
         Neqn_p_sys*Nsystems, // number of elements in each vector
@@ -127,7 +132,6 @@ void SIE_step(
         1, // stride between consecutive elements
         d_equations_flat, // vector we are replacing
         1); // stride between consecutive elements
-    //cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_equations_flat);
 /* ----------------------------------------------- */
     
     cudaFree(P); cudaFree(INFO); cublasDestroy_v2(handle);
@@ -143,7 +147,6 @@ void SIE_step(
     //*p_time+=*timestep;
 
     // shut down cublas
-    //TODO should free more stuff here?
 }
 
 int solveSystem(
@@ -257,8 +260,18 @@ int SIEErrorLoop(
             Nsystems,
             Neqn_p_sys);
 
-        checkError<<<Nsystems,Neqn_p_sys>>>(d_equations_flat,d_half_equations_flat,d_error_flag);
-        // TODO:  check error, resolve the systems if tolerance is too large. 
+        /* -------------- configure the grid  ------------ */
+        int threads_per_block = min(Neqn_p_sys,MAX_THREADS_PER_BLOCK);
+        int x_blocks_per_grid = 1+Neqn_p_sys/MAX_THREADS_PER_BLOCK;
+        int y_blocks_per_grid = Nsystems;
+
+        dim3 vector_gridDim(x_blocks_per_grid,y_blocks_per_grid);
+        dim3 blockDim(threads_per_block);
+        /* ----------------------------------------------- */
+
+        checkError<<<vector_gridDim,threads_per_block>>>(
+            d_equations_flat,d_half_equations_flat,d_error_flag,
+            Nsystems,Neqn_p_sys);
 
         // copy back the bool flag and determine if we done did it
         cudaMemcpy(error_flag,d_error_flag,sizeof(int),cudaMemcpyDeviceToHost);
