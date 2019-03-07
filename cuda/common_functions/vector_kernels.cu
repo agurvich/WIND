@@ -6,14 +6,18 @@
 #define RELATIVE_TOLERANCE 5e-3
 
 
-__global__ void overwriteVector(float * v1, float * v2, int Nsystems, int Neqn_p_sys){
-    // copies the contents of v1 into v2
+__device__ int get_vector_tid(){
     // assumes gridDim.y = Nsystems and 
     //  and    gridDim.x = 1+Neqn_p_sys/1024
     //  and    blockDim.x = min(Neqn_p_sys,1024)
 
     //        i_system    ~neqn_p_sys           ~this eqn
     int tid = blockIdx.y*(blockDim.x*gridDim.x)+blockIdx.x*blockDim.x+threadIdx.x;
+    return tid;
+}
+__global__ void overwriteVector(float * v1, float * v2, int Nsystems, int Neqn_p_sys){
+    // copies the contents of v1 into v2
+    int tid = get_vector_tid();
     if (tid<(Neqn_p_sys*Nsystems)){
         v2[tid] = v1[tid];
     }
@@ -21,9 +25,7 @@ __global__ void overwriteVector(float * v1, float * v2, int Nsystems, int Neqn_p
 
 __global__ void scaleVector(float * vector, float * scales, int Nsystems, int Neqn_p_sys){
     // assumes gridDim.y = Nsystems and 
-    //  and    gridDim.x = 1+Neqn_p_sys/1024
-    //  and    blockDim.x = min(Neqn_p_sys,1024)
-    int tid = blockIdx.y*(blockDim.x*gridDim.x)+blockIdx.x*blockDim.x+threadIdx.x;
+    int tid = get_vector_tid();
     if (tid<(Neqn_p_sys*Neqn_p_sys)){
         vector[tid]*=scales[blockIdx.y];
     }
@@ -35,10 +37,7 @@ __global__ void addVectors(
     float * v3,
     int Nsystems, int Neqn_p_sys){
     // outputs the result in v3
-    // assumes gridDim.y = Nsystems and 
-    //  and    gridDim.x = 1+Neqn_p_sys/1024
-    //  and    blockDim.x = min(Neqn_p_sys,1024)
-    int tid = blockIdx.y*(blockDim.x*gridDim.x)+blockIdx.x*blockDim.x+threadIdx.x;
+    int tid = get_vector_tid();
     if (tid<(Neqn_p_sys*Nsystems)){
         v3[tid] = alpha * v1[tid] + beta * v2[tid];
     }
@@ -49,10 +48,7 @@ __global__ void checkError(
     int * bool_flag,
     int Nsystems, int Neqn_p_sys){
     // replace the values of v1 with the error
-    // assumes gridDim.y = Nsystems and 
-    //  and    gridDim.x = 1+Neqn_p_sys/1024
-    //  and    blockDim.x = min(Neqn_p_sys,1024)
-    int tid = blockIdx.y*(blockDim.x*gridDim.x)+blockIdx.x*blockDim.x+threadIdx.x;
+    int tid = get_vector_tid();
     if (tid<(Neqn_p_sys*Nsystems)){
         v1[tid] = v1[tid]-v2[tid];
 
