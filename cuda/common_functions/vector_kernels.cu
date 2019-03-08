@@ -5,23 +5,53 @@
 #define ABSOLUTE_TOLERANCE 5e-3
 #define RELATIVE_TOLERANCE 5e-3
 
-__global__ void overwriteVector(float * v1, float * v2){
+
+__device__ int get_vector_tid(){
+    // assumes gridDim.y = Nsystems and 
+    //  and    gridDim.x = 1+Neqn_p_sys/1024
+    //  and    blockDim.x = min(Neqn_p_sys,1024)
+
+    //        i_system    ~neqn_p_sys           ~this eqn
+    int tid = blockIdx.y*(blockDim.x*gridDim.x)+blockIdx.x*blockDim.x+threadIdx.x;
+    if (blockIdx.y == 0 && threadIdx.x ==0){
+        printf("gdy:%d gdx:%d bdx:%d\n",gridDim.y,gridDim.x,blockDim.x);
+    }
+    return tid;
+}
+__global__ void overwriteVector(float * v1, float * v2, int Nsystems, int Neqn_p_sys){
     // copies the contents of v1 into v2
-    v2[blockIdx.x*blockDim.x+threadIdx.x] = v1[blockIdx.x*blockDim.x+threadIdx.x];
+    int tid = get_vector_tid();
+    if (tid<(Neqn_p_sys*Nsystems)){
+        v2[tid] = v1[tid];
+    }
 }
 
-__global__ void scaleVector(float * vector, float * scales){
-    // assumes that gridDim = Nsystems and blockDim = Neqn_p_sys
-    vector[blockIdx.x*blockDim.x+threadIdx.x]*=scales[blockIdx.x];
+__global__ void scaleVector(float * vector, float * scales, int Nsystems, int Neqn_p_sys){
+    // assumes gridDim.y = Nsystems and 
+    int tid = get_vector_tid();
+    if (tid<(Neqn_p_sys*Neqn_p_sys)){
+        vector[tid]*=scales[blockIdx.y];
+    }
 }
-__global__ void addVectors(float alpha, float * v1, float beta, float * v2, float * v3){
+
+__global__ void addVectors(
+    float alpha, float * v1,
+    float beta, float * v2,
+    float * v3,
+    int Nsystems, int Neqn_p_sys){
     // outputs the result in v3
-    v3[blockIdx.x*blockDim.x+threadIdx.x] = alpha * v1[blockIdx.x*blockDim.x+threadIdx.x] + beta * v2[blockIdx.x*blockDim.x+threadIdx.x];
+    int tid = get_vector_tid();
+    if (tid<(Neqn_p_sys*Nsystems)){
+        v3[tid] = alpha * v1[tid] + beta * v2[tid];
+    }
 }
 
-__global__ void checkError(float * v1, float * v2, int * bool_flag){
-    int tid = threadIdx.x+blockDim.x*blockIdx.x;
+__global__ void checkError(
+    float * v1, float * v2,
+    int * bool_flag,
+    int Nsystems, int Neqn_p_sys){
     // replace the values of v1 with the error
+    int tid = get_vector_tid();
     v1[tid] = v1[tid]-v2[tid];
 
     if (fabs(v1[tid]) > ABSOLUTE_TOLERANCE){
@@ -34,12 +64,24 @@ __global__ void checkError(float * v1, float * v2, int * bool_flag){
     }
 }
 
-__global__ void addArrayToBatchArrays(float ** single_arr, float ** batch_arrs, float alpha, float beta, float p_beta){
-    // assumes that gridDim = Nsystems and blockDim = Neqn_p_sys
-    batch_arrs[blockIdx.x][threadIdx.x]=alpha*single_arr[0][threadIdx.x]+ beta*(p_beta)*batch_arrs[blockIdx.x][threadIdx.x];
+__global__ void addArrayToBatchArrays(
+    float ** single_arr,
+    float ** batch_arrs,
+    float alpha, float beta,
+    float p_beta,
+    int Neqn_p_sys){
+    // assumes that gridDim.y = Nsystems, and blockDim.x = Neqn_p_sys
+    int tid = blockIdx.x*blockDim.x+threadIdx.x;
+    if (tid < (Neqn_p_sys*Neqn_p_sys)){
+        batch_arrs[blockIdx.y][tid]=alpha*single_arr[0][tid]+ beta*(p_beta)*batch_arrs[blockIdx.y][tid];
+    }
 }
 
-__global__ void updateTimestep(float * timestep, float * derivatives_flat, float * scale_factor, int * max_index){
+__global__ void updateTimestep(
+    float * timestep,
+    float * derivatives_flat,
+    float * scale_factor,
+    int * max_index){
     // changes the value of the pointer in global memory on the device without copying back the derivatives
     //float ABSOLUTE_TOLERANCE = 1e-4;
     // -1 because cublas is 1 index. whyyyy

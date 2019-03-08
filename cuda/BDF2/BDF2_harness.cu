@@ -67,31 +67,36 @@ void BDF2_step(
         d_max_index); // the index of the max element of the vector
     */
 
-/*
-    // literally just change what the pointer is pointing to on the device
-    updateTimestep<<<1,1>>>(
-        d_timestep,
-        d_derivatives_flat,
-        d_beta,
-        d_max_index);
-*/
-
     // overwrite beta = 2/3 with beta = 0
     beta = 0.0;
     //cudaMemcpy(d_beta,&beta,sizeof(float),cudaMemcpyHostToDevice);
 /* ----------------------------------------------- */
+
+/* -------------- configure the grid  ------------ */
+    int threads_per_block = min(Neqn_p_sys,MAX_THREADS_PER_BLOCK);
+    int x_blocks_per_grid = 1+Neqn_p_sys/MAX_THREADS_PER_BLOCK;
+    int y_blocks_per_grid = Nsystems;
+
+    dim3 matrix_gridDim(
+        x_blocks_per_grid*x_blocks_per_grid,
+        y_blocks_per_grid);
+    dim3 vector_gridDim(x_blocks_per_grid,y_blocks_per_grid);
+    dim3 blockDim(threads_per_block);
+/* ----------------------------------------------- */
+
 
 
 /* -------------- invert the matrix -------------- */
     // compute (I-2/3hJ) with a custom kernel, here d_timestep = 2/3h
     // TODO pretty sure i need a multidimensional grid here, 
     // blocks can't be 160x160 threads
-    addArrayToBatchArrays<<<Nsystems,Neqn_p_sys*Neqn_p_sys>>>(
+    addArrayToBatchArrays<<<matrix_gridDim,blockDim>>>(
         d_identity,
         d_Jacobianss,
         1.0,
         -1.0,
-        timestep);
+        timestep,
+        Neqn_p_sys);
 
     // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
     // the permutation array seems to be important for some reason
@@ -116,24 +121,19 @@ void BDF2_step(
         INFO, // cublas status object
         Nsystems); // number of systems
 /* ----------------------------------------------- */
-    //cudaRoutine<<<1,Neqn_p_sys*Neqn_p_sys>>>(Neqn_p_sys,d_Jacobianss,0);
 
 /* -------------- perform the state switcheroo --- */
     //  (y(n)-y(n-1)) into d_intermediate_flat
-    // TODO pretty sure i need a multidimensional grid here, 
-    // blocks can't be 160x160 threads
-    addVectors<<<1,Nsystems*Neqn_p_sys>>>(
+    addVectors<<<vector_gridDim,blockDim>>>(
         -1.0,d_previous_state_flat,
         1.0, d_current_state_flat,
-        d_intermediate_flat);
+        d_intermediate_flat,Nsystems,Neqn_p_sys);
 
     // copies the values of y(n) -> y(n-1)
     //  now that we don't need the "previous" step
-    // TODO pretty sure i need a multidimensional grid here, 
-    // blocks can't be 160x160 threads
-    overwriteVector<<<1,Nsystems*Neqn_p_sys>>>(
+    overwriteVector<<<vector_gridDim,blockDim>>>(
         d_current_state_flat,
-        d_previous_state_flat);
+        d_previous_state_flat,Nsystems,Neqn_p_sys);
 /* ----------------------------------------------- */
 
 /* -------------- perform two matrix-vector mults  */
@@ -178,40 +178,27 @@ void BDF2_step(
     // add 1/3(I-2/3hJ)^-1(Y(n)-Y(n-1)) 
     //  to Y(n) (from d_previous_state_flat), 
     //  storing the output in d_current_state_flat
-    // TODO pretty sure i need a multidimensional grid here, 
-    // blocks can't be 160x160 threads
-    addVectors<<<1,Nsystems*Neqn_p_sys>>>(
+    addVectors<<<vector_gridDim,blockDim>>>(
         1.0, d_previous_state_flat,
         1.0/3.0, d_intermediate_flat,
-        d_current_state_flat);
+        d_current_state_flat,Nsystems,Neqn_p_sys);
 
     // add [Y(n) + 1/3(I-2/3hJ)^-1(Y(n)-Y(n-1))] 
     //  to [2/3h*(I-2/3hJ)^-1 x f] to get BDF 2 sln,
     //  storing the output in  d_current_state_flat
-    // TODO pretty sure i need a multidimensional grid here, 
-    // blocks can't be 160x160 threads
-    addVectors<<<1,Nsystems*Neqn_p_sys>>>(
+    addVectors<<<vector_gridDim,blockDim>>>(
         1.0, d_current_state_flat, 
         1.0, d_derivatives_flat,  // only need 1.0 here because d_timestep is representing 2/3h
-        d_current_state_flat);
+        d_current_state_flat,Nsystems,Neqn_p_sys);
 
 /* ----------------------------------------------- */
 
 /* -------------- perform a vector addition ------ */
     // scale the dy vectors by the timestep size
-    // TODO pretty sure i need a multidimensional grid here, 
-    // blocks can't be 160x160 threads
-    //scaleVector<<<Nsystems,Neqn_p_sys>>>(d_derivatives_flat,d_timesteps);
+    //scaleVector<<<vector_gridDim,blockDim>>>(d_derivatives_flat,d_timesteps,Nystems,Neqn_p_sys);
     
-    //cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_derivatives_flat);
+    /*
     // add ys + h x dys = ys + h x [(I-h*Js)^-1*fs]
-    /*
-    printfCUDA<<<1,1>>>(d_timestep);
-    cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_derivatives_flat);
-    cudaRoutineFlat<<<1,Nsystems*Neqn_p_sys>>>(Neqn_p_sys,d_out_flat);
-    */
-
-    /*
     cublasSaxpy(
         handle, // cublas handle
         Neqn_p_sys*Nsystems, // number of elements in each vector
@@ -274,13 +261,23 @@ int BDF2SolveSystem(
         Nsystems, // number of systems
         Neqn_p_sys); // number of equations in each system
 
+/* -------------- configure the grid  ------------ */
+    int threads_per_block = min(Neqn_p_sys,MAX_THREADS_PER_BLOCK);
+    int x_blocks_per_grid = 1+Neqn_p_sys/MAX_THREADS_PER_BLOCK;
+    int y_blocks_per_grid = Nsystems;
+
+    dim3 vector_gridDim(x_blocks_per_grid,y_blocks_per_grid);
+    dim3 blockDim(threads_per_block);
+/* ----------------------------------------------- */
+
     // copies the values of y(n) -> y(n-1)
     //  now that we don't need the "previous" step
     // TODO pretty sure i need a multidimensional grid here, 
     // blocks can't be 160x160 threads
-    overwriteVector<<<1,Nsystems*Neqn_p_sys>>>(
+    overwriteVector<<<vector_gridDim,blockDim>>>(
         d_current_state_flat,
-        d_previous_state_flat);
+        d_previous_state_flat,
+        Nsystems,Neqn_p_sys);
     tnow+=timestep;
 
 /* ----------------------------------------------- */
@@ -351,6 +348,15 @@ int BDF2ErrorLoop(
     cudaMalloc(&d_error_flag,sizeof(int));
     *error_flag = 0;
     cudaMemcpy(d_error_flag,error_flag,sizeof(int),cudaMemcpyHostToDevice);
+
+/* -------------- configure the grid  ------------ */
+    int threads_per_block = min(Neqn_p_sys,MAX_THREADS_PER_BLOCK);
+    int x_blocks_per_grid = 1+Neqn_p_sys/MAX_THREADS_PER_BLOCK;
+    int y_blocks_per_grid = Nsystems;
+
+    dim3 vector_gridDim(x_blocks_per_grid,y_blocks_per_grid);
+    dim3 blockDim(threads_per_block);
+/* ----------------------------------------------- */
     
     // use a flag as a counter, why not
     int unsolved = 1;
@@ -394,8 +400,12 @@ int BDF2ErrorLoop(
             Nsystems,
             Neqn_p_sys);
 
-        checkError<<<Nsystems,Neqn_p_sys>>>(d_current_state_flat,d_half_current_state_flat,d_error_flag);
-        // TODO:  check error, resolve the systems if tolerance is too large. 
+        // determine if ANY of the INDEPENDENT systems are above the 
+        //  the tolerance and fail them all. NOTE: this makes them not
+        //  independent... 
+        checkError<<<vector_gridDim,blockDim>>>(
+            d_current_state_flat,d_half_current_state_flat,d_error_flag,
+            Nsystems,Neqn_p_sys);
 
         // copy back the bool flag and determine if we done did it
         cudaMemcpy(error_flag,d_error_flag,sizeof(int),cudaMemcpyDeviceToHost);
@@ -464,7 +474,6 @@ int cudaIntegrateBDF2(
     // allocate memory for Jacobian matrices as a single "batch"
     float *d_Jacobianss_flat;
     float **d_Jacobianss = initializeDeviceMatrix(jacobian_zeros,&d_Jacobianss_flat,Neqn_p_sys*Neqn_p_sys,Nsystems);
-    //calculateJacobians<<<Nsystems,Neqn_p_sys>>>(d_Jacobianss,tnow);
 
     // initialize state-equation vectors
     float * zeros = (float *) malloc(Nsystems*Neqn_p_sys*sizeof(float));
