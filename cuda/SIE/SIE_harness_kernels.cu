@@ -58,19 +58,24 @@ void SIE_step(
 /* -------------- configure the grid  ------------ */
     int threads_per_block = min(Neqn_p_sys,MAX_THREADS_PER_BLOCK);
     int x_blocks_per_grid = 1+Neqn_p_sys/MAX_THREADS_PER_BLOCK;
-    int y_blocks_per_grid = Nsystems;
+    int y_blocks_per_grid = min(Nsystems,MAX_BLOCKS_PER_GRID);
+    int z_blocks_per_grid = 1+Nsystems/MAX_BLOCKS_PER_GRID;
 
     dim3 matrix_gridDim(
         x_blocks_per_grid*Neqn_p_sys,
-        y_blocks_per_grid);
-    dim3 vector_gridDim(x_blocks_per_grid,y_blocks_per_grid);
-    dim3 blockDim(threads_per_block);
+        y_blocks_per_grid,
+        z_blocks_per_grid);
+
+    dim3 vector_gridDim(
+        x_blocks_per_grid,
+        y_blocks_per_grid,
+        z_blocks_per_grid);
 /* ----------------------------------------------- */
 
 
 /* -------------- invert the matrix -------------- */
     // compute (I-hJ) with a custom kernel
-    addArrayToBatchArrays<<<matrix_gridDim,blockDim>>>(
+    addArrayToBatchArrays<<<matrix_gridDim,threads_per_block>>>(
         d_identity,d_Jacobianss,1.0,-1.0,timestep,
         Neqn_p_sys); 
 
@@ -120,7 +125,7 @@ void SIE_step(
 
 /* -------------- perform a vector addition ------ */
     // scale the dy vectors by the timestep size
-    //scaleVector<<<vector_gridDim,blockDim>>>(d_derivatives_flat,d_timesteps);
+    //scaleVector<<<vector_gridDim,threads_per_block>>>(d_derivatives_flat,d_timesteps);
     
     // add ys + h x dys = ys + h x [(I-h*Js)^-1*fs]
     cublasSaxpy(
@@ -259,10 +264,14 @@ int SIEErrorLoop(
         /* -------------- configure the grid  ------------ */
         int threads_per_block = min(Neqn_p_sys,MAX_THREADS_PER_BLOCK);
         int x_blocks_per_grid = 1+Neqn_p_sys/MAX_THREADS_PER_BLOCK;
-        int y_blocks_per_grid = Nsystems;
+        int y_blocks_per_grid = min(Nsystems,MAX_BLOCKS_PER_GRID);
+        int z_blocks_per_grid = 1+Nsystems/MAX_BLOCKS_PER_GRID;
 
-        dim3 vector_gridDim(x_blocks_per_grid,y_blocks_per_grid);
-        dim3 blockDim(threads_per_block);
+        dim3 vector_gridDim(
+            x_blocks_per_grid,
+            y_blocks_per_grid,
+            z_blocks_per_grid);
+
         /* ----------------------------------------------- */
 
         checkError<<<vector_gridDim,threads_per_block>>>(
