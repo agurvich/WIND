@@ -191,8 +191,8 @@ nH = 1e2 ## cm^-3
 y_helium = 0.4
 
 RK2 = not True
-SIE = True
-BDF2 = not True 
+SIE = not True
+BDF2 = True 
 
 output_mode = 'a'
 print_flag = False

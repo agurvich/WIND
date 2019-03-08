@@ -13,9 +13,6 @@ __device__ int get_vector_tid(){
 
     //        i_system    ~neqn_p_sys           ~this eqn
     int tid = blockIdx.y*(blockDim.x*gridDim.x)+blockIdx.x*blockDim.x+threadIdx.x;
-    if (blockIdx.y == 0 && threadIdx.x ==0){
-        printf("gdy:%d gdx:%d bdx:%d\n",gridDim.y,gridDim.x,blockDim.x);
-    }
     return tid;
 }
 __global__ void overwriteVector(float * v1, float * v2, int Nsystems, int Neqn_p_sys){
