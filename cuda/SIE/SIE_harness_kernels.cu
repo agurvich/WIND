@@ -97,7 +97,6 @@ void SIE_step(
         INFO, // cublas status object
         Nsystems); // number of systems
 /* ----------------------------------------------- */
-    //cudaRoutine<<<1,Neqn_p_sys*Neqn_p_sys>>>(Neqn_p_sys,d_Jacobianss,0);
 
 /* -------------- perform a matrix-vector mult --- */
     // multiply (I-h*Js)^-1 x fs
@@ -179,7 +178,6 @@ int solveSystem(
 
         calculateJacobians<<<Nsystems,1>>>(d_Jacobianss,d_constants,d_equations_flat,Neqn_p_sys,tnow);
 
-        //printf("stepping...\n");
         SIE_step(
             timestep, // Nsystems length vector for timestep to use
             d_Jacobianss, // matrix (jacobian) input
@@ -191,11 +189,9 @@ int solveSystem(
             Nsystems, // number of systems
             Neqn_p_sys); // number of equations in each system
 
-        //printf("%.2f %.2f\n",tnow,tend);
         tnow+=timestep;
 
     }
-    //printf("nsteps taken: %d - tnow: %.2f\n",nsteps,tnow);
     return nsteps;
 }
 
@@ -280,11 +276,9 @@ int SIEErrorLoop(
             break;
         }
         if (*error_flag){
-            //printf("refining...%d\n",unsolved);
             *error_flag = 0;
             cudaMemcpy(d_error_flag,error_flag,sizeof(int),cudaMemcpyHostToDevice);
             unsolved++;
-            //printf("new timestep: %.2e\n",timestep);
             // reset the equations
             cudaMemcpy(d_equations_flat,equations,Nsystems*Neqn_p_sys*sizeof(float),cudaMemcpyHostToDevice);
             cudaMemcpy(d_half_equations_flat,equations,Nsystems*Neqn_p_sys*sizeof(float),cudaMemcpyHostToDevice);
@@ -323,11 +317,6 @@ int cudaIntegrateSIE(
     */
 
     printf("SIE Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
-    int threads_per_block = min(Neqn_p_sys,MAX_THREADS_PER_BLOCK);
-    int x_blocks_per_grid = 1+Neqn_p_sys/MAX_THREADS_PER_BLOCK;
-    int y_blocks_per_grid = Nsystems;
-    printf("yb: %d xb*neps: %d tpb: %d\n",y_blocks_per_grid,x_blocks_per_grid*Neqn_p_sys,threads_per_block);
-
     float *dest = equations;
 
     // define the identity matrix on the host
