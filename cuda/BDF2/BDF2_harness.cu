@@ -78,7 +78,7 @@ void BDF2_step(
     int y_blocks_per_grid = Nsystems;
 
     dim3 matrix_gridDim(
-        x_blocks_per_grid*x_blocks_per_grid,
+        x_blocks_per_grid*Neqn_p_sys,
         y_blocks_per_grid);
     dim3 vector_gridDim(x_blocks_per_grid,y_blocks_per_grid);
     dim3 blockDim(threads_per_block);
