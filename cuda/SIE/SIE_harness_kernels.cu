@@ -72,7 +72,7 @@ void SIE_step(
     // compute (I-hJ) with a custom kernel
     addArrayToBatchArrays<<<matrix_gridDim,blockDim>>>(
         d_identity,d_Jacobianss,1.0,-1.0,timestep,
-        Neqn_p_sys);
+        Neqn_p_sys); 
 
     // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
     // the permutation array seems to be important for some reason
@@ -326,7 +326,7 @@ int cudaIntegrateSIE(
     int threads_per_block = min(Neqn_p_sys,MAX_THREADS_PER_BLOCK);
     int x_blocks_per_grid = 1+Neqn_p_sys/MAX_THREADS_PER_BLOCK;
     int y_blocks_per_grid = Nsystems;
-    printf("yb: %d xb: %d tpb: %d\n",y_blocks_per_grid,x_blocks_per_grid,threads_per_block);
+    printf("yb: %d xb*neps: %d tpb: %d\n",y_blocks_per_grid,x_blocks_per_grid*Neqn_p_sys,threads_per_block);
 
     float *dest = equations;
 

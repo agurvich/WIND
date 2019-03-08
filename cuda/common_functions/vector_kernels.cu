@@ -13,6 +13,9 @@ __device__ int get_vector_tid(){
 
     //        i_system    ~neqn_p_sys           ~this eqn
     int tid = blockIdx.y*(blockDim.x*gridDim.x)+blockIdx.x*blockDim.x+threadIdx.x;
+    if (blockIdx.y == 0 && threadIdx.x ==0){
+        printf("gdy:%d gdx:%d bdx:%d\n",gridDim.y,gridDim.x,blockDim.x);
+    }
     return tid;
 }
 __global__ void overwriteVector(float * v1, float * v2, int Nsystems, int Neqn_p_sys){
@@ -49,17 +52,15 @@ __global__ void checkError(
     int Nsystems, int Neqn_p_sys){
     // replace the values of v1 with the error
     int tid = get_vector_tid();
-    if (tid<(Neqn_p_sys*Nsystems)){
-        v1[tid] = v1[tid]-v2[tid];
+    v1[tid] = v1[tid]-v2[tid];
 
-        if (fabs(v1[tid]) > ABSOLUTE_TOLERANCE){
-            //printf("ABSOLUTE %d %.2e v1 %.2e v2 \n",tid,v1[tid],v2[tid]);
-            *bool_flag = 1;
-        }
-        if (fabs(v1[tid]/v2[tid]) > RELATIVE_TOLERANCE && v2[tid] > ABSOLUTE_TOLERANCE){
-            //printf("RELATIVE %d %.2e\n",tid,v1[tid]/v2[tid]);
-            *bool_flag = 1;
-        }
+    if (fabs(v1[tid]) > ABSOLUTE_TOLERANCE){
+        //printf("ABSOLUTE %d %.2e v1 %.2e v2 \n",tid,v1[tid],v2[tid]);
+        *bool_flag = 1;
+    }
+    if (fabs(v1[tid]/v2[tid]) > RELATIVE_TOLERANCE && v2[tid] > ABSOLUTE_TOLERANCE){
+        //printf("RELATIVE %d %.2e\n",tid,v1[tid]/v2[tid]);
+        *bool_flag = 1;
     }
 }
 
@@ -71,7 +72,7 @@ __global__ void addArrayToBatchArrays(
     int Neqn_p_sys){
     // assumes that gridDim.y = Nsystems, and blockDim.x = Neqn_p_sys
     int tid = blockIdx.x*blockDim.x+threadIdx.x;
-    if (tid < Neqn_p_sys){
+    if (tid < (Neqn_p_sys*Neqn_p_sys)){
         batch_arrs[blockIdx.y][tid]=alpha*single_arr[0][tid]+ beta*(p_beta)*batch_arrs[blockIdx.y][tid];
     }
 }
