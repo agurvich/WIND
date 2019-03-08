@@ -184,15 +184,15 @@ def initialize_equations(nH,Nsystems,y_helium):
 
 tnow = 0
 tend = 200
-Nsystems = 2
+Nsystems = 50000
 Nequations_per_system = 5
 TEMP = 1e2 ## K
 nH = 1e2 ## cm^-3
 y_helium = 0.4
 
 RK2 = not True
-SIE = not True
-BDF2 = True 
+SIE = True
+BDF2 = not True 
 
 output_mode = 'a'
 print_flag = False
