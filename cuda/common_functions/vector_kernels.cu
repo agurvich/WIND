@@ -12,7 +12,11 @@ __device__ int get_vector_tid(){
     //  and    blockDim.x = min(Neqn_p_sys,1024)
 
     //        i_system    ~neqn_p_sys           ~this eqn
-    int tid = blockIdx.y*(blockDim.x*gridDim.x)+blockIdx.x*blockDim.x+threadIdx.x;
+    int tid =  
+                blockIdx.z*(blockDim.x*gridDim.x*gridDim.y) +
+                blockIdx.y*(blockDim.x*gridDim.x) + 
+                blockIdx.x*blockDim.x +
+                threadIdx.x;
     return tid;
 }
 __global__ void overwriteVector(float * v1, float * v2, int Nsystems, int Neqn_p_sys){
@@ -66,11 +70,14 @@ __global__ void addArrayToBatchArrays(
     float ** batch_arrs,
     float alpha, float beta,
     float p_beta,
+    int Nsystems,
     int Neqn_p_sys){
     // assumes that gridDim.y = Nsystems, and blockDim.x = Neqn_p_sys
+    int bid = blockIdx.z*gridDim.y + blockIdx.y;
     int tid = blockIdx.x*blockDim.x+threadIdx.x;
-    if (tid < (Neqn_p_sys*Neqn_p_sys)){
-        batch_arrs[blockIdx.y][tid]=alpha*single_arr[0][tid]+ beta*(p_beta)*batch_arrs[blockIdx.y][tid];
+
+    if (tid < (Neqn_p_sys*Neqn_p_sys) && bid < Nsystems){
+        batch_arrs[bid][tid]=alpha*single_arr[0][tid]+ beta*(p_beta)*batch_arrs[bid][tid];
     }
 }
 
