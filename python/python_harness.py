@@ -184,7 +184,7 @@ def initialize_equations(nH,Nsystems,y_helium):
 
 tnow = 0
 tend = 200
-Nsystems = 10000
+Nsystems = 100000
 Nequations_per_system = 5
 TEMP = 1e2 ## K
 nH = 1e2 ## cm^-3

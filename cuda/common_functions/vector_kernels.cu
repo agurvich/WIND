@@ -70,12 +70,13 @@ __global__ void addArrayToBatchArrays(
     float ** batch_arrs,
     float alpha, float beta,
     float p_beta,
+    int Nsystems,
     int Neqn_p_sys){
     // assumes that gridDim.y = Nsystems, and blockDim.x = Neqn_p_sys
     int bid = blockIdx.z*gridDim.y + blockIdx.y;
     int tid = blockIdx.x*blockDim.x+threadIdx.x;
 
-    if (tid < (Neqn_p_sys*Neqn_p_sys)){
+    if (tid < (Neqn_p_sys*Neqn_p_sys) && bid < Nsystems){
         batch_arrs[bid][tid]=alpha*single_arr[0][tid]+ beta*(p_beta)*batch_arrs[bid][tid];
     }
 }

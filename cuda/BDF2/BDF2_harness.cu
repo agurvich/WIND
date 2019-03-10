@@ -96,7 +96,7 @@ void BDF2_step(
         1.0,
         -1.0,
         timestep,
-        Neqn_p_sys);
+        Nsystems,Neqn_p_sys);
 
     // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
     // the permutation array seems to be important for some reason
