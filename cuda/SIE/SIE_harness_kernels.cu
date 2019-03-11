@@ -11,6 +11,7 @@
 //#include "magmablas.h"
 
 //#define COMMENTSIE
+//fflush(stdout);
 
 void SIE_step(
     float timestep, // device pointer to the current timestep (across all systems, lame!!)
@@ -25,15 +26,22 @@ void SIE_step(
 
 #ifndef COMMENTSIE
 /* -------------- initialize cublas -------------- */
+
     // initialize cublas status tracking pointers
     cublasHandle_t handle;
-    int *P, *INFO;
+    int *P, *INFO, *d_INFO_bool;
+    int INFO_bool = 0;
+
     // handle is something that connects cublas calls within a stream... something about v2 and 
     // being able to pass scalars by reference instead of by value. I don't really understand it
     // place to store cublas status stuff. 
     cublasCreate_v2(&handle);
     cudaMalloc(&P, Neqn_p_sys * Nsystems * sizeof(int));
     cudaMalloc(&INFO,  Nsystems * sizeof(int));
+    cudaMalloc(&d_INFO_bool,sizeof(int));
+
+    // set the initial value of the INFO_bool check
+    cudaMemcpy(&d_INFO_bool,&INFO_bool,sizeof(int),cudaMemcpyHostToDevice);
 
     //NOTE: uncomment this to use device pointers for constants
     //cublasSetPointerMode(handle,CUBLAS_POINTER_MODE_DEVICE);
@@ -70,6 +78,11 @@ void SIE_step(
         x_blocks_per_grid,
         y_blocks_per_grid,
         z_blocks_per_grid);
+
+    dim3 ode_gridDim(
+        1,
+        y_blocks_per_grid,
+        z_blocks_per_grid);
 /* ----------------------------------------------- */
 
 
@@ -81,7 +94,7 @@ void SIE_step(
 
     // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
     // the permutation array seems to be important for some reason
-    cublasSgetrfBatched(
+    cublasStatus_t error = cublasSgetrfBatched(
         handle, // cublas handle
         Neqn_p_sys, // leading dimension of A??
         d_Jacobianss, // matrix to factor, here I-hs*Js
@@ -121,6 +134,7 @@ void SIE_step(
         (float **) d_derivatives, // output "matrix," let's overwrite B
         Neqn_p_sys, // leading dimension of the 2d array storing C??
         Nsystems); // batch count
+
 /* ----------------------------------------------- */
 
 /* -------------- perform a vector addition ------ */
@@ -138,7 +152,9 @@ void SIE_step(
         1); // stride between consecutive elements
 /* ----------------------------------------------- */
     
+    // shut down cublas
     cudaFree(P); cudaFree(INFO); cublasDestroy_v2(handle);
+    cudaFree(d_INFO_bool);
     //cudaFree(d_max_index); cudaFree(d_alpha);cudaFree(d_beta);
 
 #endif
@@ -149,8 +165,6 @@ void SIE_step(
     //float timestep = 1.0;
     //cudaMemcpy(&timestep,d_timestep,sizeof(float),cudaMemcpyDeviceToHost);
     //*p_time+=*timestep;
-
-    // shut down cublas
 }
 
 int solveSystem(
@@ -168,20 +182,40 @@ int solveSystem(
     int Nsystems, // number of systems
     int Neqn_p_sys){ // number of equations in each system
 
+
+    int y_blocks_per_grid = min(Nsystems,MAX_BLOCKS_PER_GRID);
+    int z_blocks_per_grid = 1+Nsystems/MAX_BLOCKS_PER_GRID;
+    
+    dim3 ode_gridDim(
+        1,
+        y_blocks_per_grid,
+        z_blocks_per_grid);
 /* -------------- main integration loop ---------- */
     int nsteps=0;
     while (tnow < tend){
         nsteps++;
         /* ------- reset the derivatives and jacobian matrix ------ */
         // evaluate the derivative function at tnow
-        calculateDerivatives<<<Nsystems,1>>>(d_derivatives_flat,d_constants,d_equations_flat,Neqn_p_sys,tnow);
+        calculateDerivatives<<<ode_gridDim,1>>>(
+            d_derivatives_flat,
+            d_constants,
+            d_equations_flat,
+            Nsystems,
+            Neqn_p_sys,
+            tnow);
 
         cudaMemcpy(
             d_Jacobianss_flat,jacobian_zeros,
             Nsystems*Neqn_p_sys*Neqn_p_sys*sizeof(float),
             cudaMemcpyHostToDevice);
 
-        calculateJacobians<<<Nsystems,1>>>(d_Jacobianss,d_constants,d_equations_flat,Neqn_p_sys,tnow);
+        calculateJacobians<<<ode_gridDim,1>>>(
+            d_Jacobianss,
+            d_constants,
+            d_equations_flat,
+            Nsystems,
+            Neqn_p_sys,
+            tnow);
 
         SIE_step(
             timestep, // Nsystems length vector for timestep to use
@@ -281,10 +315,11 @@ int SIEErrorLoop(
         // copy back the bool flag and determine if we done did it
         cudaMemcpy(error_flag,d_error_flag,sizeof(int),cudaMemcpyDeviceToHost);
         //*error_flag = 0;
-        if (unsolved > 15){
+        if (unsolved > 9){
             break;
         }
         if (*error_flag){
+            printf("refining...%d\n",unsolved);
             *error_flag = 0;
             cudaMemcpy(d_error_flag,error_flag,sizeof(int),cudaMemcpyHostToDevice);
             unsolved++;
@@ -299,7 +334,6 @@ int SIEErrorLoop(
     }// while unsolved
     return nsteps;
 }
-
 
 int cudaIntegrateSIE(
     float tnow, // the current time
