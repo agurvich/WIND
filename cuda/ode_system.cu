@@ -1,14 +1,25 @@
 #include "ode.h"
 #include <stdio.h>
 
+__device__ int get_system_index(){
+    return blockIdx.z*gridDim.y + blockIdx.y; 
+}
 __global__ void calculateDerivatives(
     float * d_derivatives_flat, 
     float * constants, 
     float * equations,
+    int Nsystems,
     int Neqn_p_sys,
     float time){
     // isolate this system 
-    int eqn_offset = blockIdx.x*Neqn_p_sys;
+
+    int bid = get_system_index();
+    // don't need to do anything, no system corresponds to this thread-block
+    if (bid >= Nsystems){
+        return;
+    }
+
+    int eqn_offset = bid*Neqn_p_sys;
     float * this_block_state = equations+eqn_offset;
     float * this_block_derivatives = d_derivatives_flat+eqn_offset;
 
@@ -57,13 +68,21 @@ __global__ void calculateJacobians(
     float **d_Jacobianss, 
     float * constants,
     float * equations,
+    int Nsystems,
     int Neqn_p_sys,
     float time){
 
     // isolate this system 
-    int eqn_offset = blockIdx.x*Neqn_p_sys;
+    int bid = get_system_index();
+
+    // don't need to do anything, no system corresponds to this thread-block
+    if (bid >= Nsystems){
+        return;
+    }
+
+    int eqn_offset = bid*Neqn_p_sys;
     float * this_block_state = equations+eqn_offset;
-    float * this_block_jacobian = d_Jacobianss[blockIdx.x];
+    float * this_block_jacobian = d_Jacobianss[bid];
 
     // constraint equation, ne = nH+ + nHe+ + 2*nHe++
     float ne = this_block_state[1]+this_block_state[3]+this_block_state[4]*2.0;

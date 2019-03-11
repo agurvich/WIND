@@ -30,8 +30,9 @@ __global__ void overwriteVector(float * v1, float * v2, int Nsystems, int Neqn_p
 __global__ void scaleVector(float * vector, float * scales, int Nsystems, int Neqn_p_sys){
     // assumes gridDim.y = Nsystems and 
     int tid = get_vector_tid();
-    if (tid<(Neqn_p_sys*Neqn_p_sys)){
-        vector[tid]*=scales[blockIdx.y];
+    int bid = blockIdx.z*gridDim.y + blockIdx.y;
+    if (tid<(Neqn_p_sys*Neqn_p_sys) && bid < Nsystems){
+        vector[tid]*=scales[bid];
     }
 }
 

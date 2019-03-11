@@ -75,22 +75,25 @@ void BDF2_step(
 /* -------------- configure the grid  ------------ */
     int threads_per_block = min(Neqn_p_sys,MAX_THREADS_PER_BLOCK);
     int x_blocks_per_grid = 1+Neqn_p_sys/MAX_THREADS_PER_BLOCK;
-    int y_blocks_per_grid = Nsystems;
+    int y_blocks_per_grid = min(Nsystems,MAX_BLOCKS_PER_GRID);
+    int z_blocks_per_grid = 1+Nsystems/MAX_BLOCKS_PER_GRID;
 
     dim3 matrix_gridDim(
         x_blocks_per_grid*Neqn_p_sys,
-        y_blocks_per_grid);
-    dim3 vector_gridDim(x_blocks_per_grid,y_blocks_per_grid);
-    dim3 blockDim(threads_per_block);
+        y_blocks_per_grid,
+        z_blocks_per_grid);
+
+    dim3 vector_gridDim(
+        x_blocks_per_grid,
+        y_blocks_per_grid,
+        z_blocks_per_grid);
 /* ----------------------------------------------- */
 
 
 
 /* -------------- invert the matrix -------------- */
     // compute (I-2/3hJ) with a custom kernel, here d_timestep = 2/3h
-    // TODO pretty sure i need a multidimensional grid here, 
-    // blocks can't be 160x160 threads
-    addArrayToBatchArrays<<<matrix_gridDim,blockDim>>>(
+    addArrayToBatchArrays<<<matrix_gridDim,threads_per_block>>>(
         d_identity,
         d_Jacobianss,
         1.0,
@@ -124,14 +127,14 @@ void BDF2_step(
 
 /* -------------- perform the state switcheroo --- */
     //  (y(n)-y(n-1)) into d_intermediate_flat
-    addVectors<<<vector_gridDim,blockDim>>>(
+    addVectors<<<vector_gridDim,threads_per_block>>>(
         -1.0,d_previous_state_flat,
         1.0, d_current_state_flat,
         d_intermediate_flat,Nsystems,Neqn_p_sys);
 
     // copies the values of y(n) -> y(n-1)
     //  now that we don't need the "previous" step
-    overwriteVector<<<vector_gridDim,blockDim>>>(
+    overwriteVector<<<vector_gridDim,threads_per_block>>>(
         d_current_state_flat,
         d_previous_state_flat,Nsystems,Neqn_p_sys);
 /* ----------------------------------------------- */
@@ -178,7 +181,7 @@ void BDF2_step(
     // add 1/3(I-2/3hJ)^-1(Y(n)-Y(n-1)) 
     //  to Y(n) (from d_previous_state_flat), 
     //  storing the output in d_current_state_flat
-    addVectors<<<vector_gridDim,blockDim>>>(
+    addVectors<<<vector_gridDim,threads_per_block>>>(
         1.0, d_previous_state_flat,
         1.0/3.0, d_intermediate_flat,
         d_current_state_flat,Nsystems,Neqn_p_sys);
@@ -186,7 +189,7 @@ void BDF2_step(
     // add [Y(n) + 1/3(I-2/3hJ)^-1(Y(n)-Y(n-1))] 
     //  to [2/3h*(I-2/3hJ)^-1 x f] to get BDF 2 sln,
     //  storing the output in  d_current_state_flat
-    addVectors<<<vector_gridDim,blockDim>>>(
+    addVectors<<<vector_gridDim,threads_per_block>>>(
         1.0, d_current_state_flat, 
         1.0, d_derivatives_flat,  // only need 1.0 here because d_timestep is representing 2/3h
         d_current_state_flat,Nsystems,Neqn_p_sys);
@@ -195,7 +198,7 @@ void BDF2_step(
 
 /* -------------- perform a vector addition ------ */
     // scale the dy vectors by the timestep size
-    //scaleVector<<<vector_gridDim,blockDim>>>(d_derivatives_flat,d_timesteps,Nystems,Neqn_p_sys);
+    //scaleVector<<<vector_gridDim,threads_per_block>>>(d_derivatives_flat,d_timesteps,Nystems,Neqn_p_sys);
     
     /*
     // add ys + h x dys = ys + h x [(I-h*Js)^-1*fs]
@@ -264,22 +267,28 @@ int BDF2SolveSystem(
 /* -------------- configure the grid  ------------ */
     int threads_per_block = min(Neqn_p_sys,MAX_THREADS_PER_BLOCK);
     int x_blocks_per_grid = 1+Neqn_p_sys/MAX_THREADS_PER_BLOCK;
-    int y_blocks_per_grid = Nsystems;
+    int y_blocks_per_grid = min(Nsystems,MAX_BLOCKS_PER_GRID);
+    int z_blocks_per_grid = 1+Nsystems/MAX_BLOCKS_PER_GRID;
 
-    dim3 vector_gridDim(x_blocks_per_grid,y_blocks_per_grid);
-    dim3 blockDim(threads_per_block);
+    dim3 vector_gridDim(
+        x_blocks_per_grid,
+        y_blocks_per_grid,
+        z_blocks_per_grid);
+
+    dim3 ode_gridDim(
+        1,
+        y_blocks_per_grid,
+        z_blocks_per_grid);
+
 /* ----------------------------------------------- */
 
     // copies the values of y(n) -> y(n-1)
     //  now that we don't need the "previous" step
-    // TODO pretty sure i need a multidimensional grid here, 
-    // blocks can't be 160x160 threads
-    overwriteVector<<<vector_gridDim,blockDim>>>(
+    overwriteVector<<<vector_gridDim,threads_per_block>>>(
         d_current_state_flat,
         d_previous_state_flat,
         Nsystems,Neqn_p_sys);
     tnow+=timestep;
-
 /* ----------------------------------------------- */
 
 /* -------------- main integration loop ---------- */
@@ -287,10 +296,11 @@ int BDF2SolveSystem(
         nsteps++;
         
         // evaluate the derivative function at tnow
-        calculateDerivatives<<<Nsystems,1>>>(
+        calculateDerivatives<<<ode_gridDim,1>>>(
             d_derivatives_flat,
             d_constants,
             d_current_state_flat,
+            Nsystems,
             Neqn_p_sys,
             tnow);
 
@@ -299,7 +309,14 @@ int BDF2SolveSystem(
             d_Jacobianss_flat,jacobian_zeros,
             Nsystems*Neqn_p_sys*Neqn_p_sys*sizeof(float),
             cudaMemcpyHostToDevice);
-        calculateJacobians<<<Nsystems,1>>>(d_Jacobianss,d_constants,d_current_state_flat,Neqn_p_sys,tnow);
+
+        calculateJacobians<<<ode_gridDim,1>>>(
+            d_Jacobianss,
+            d_constants,
+            d_current_state_flat,
+            Nsystems,
+            Neqn_p_sys,
+            tnow);
 
         BDF2_step(
             2.0/3.0*timestep, // Nsystems length vector for timestep to use
@@ -352,10 +369,18 @@ int BDF2ErrorLoop(
 /* -------------- configure the grid  ------------ */
     int threads_per_block = min(Neqn_p_sys,MAX_THREADS_PER_BLOCK);
     int x_blocks_per_grid = 1+Neqn_p_sys/MAX_THREADS_PER_BLOCK;
-    int y_blocks_per_grid = Nsystems;
+    int y_blocks_per_grid = min(Nsystems,MAX_BLOCKS_PER_GRID);
+    int z_blocks_per_grid = 1+Nsystems/MAX_BLOCKS_PER_GRID;
 
-    dim3 vector_gridDim(x_blocks_per_grid,y_blocks_per_grid);
-    dim3 blockDim(threads_per_block);
+    dim3 vector_gridDim(
+        x_blocks_per_grid,
+        y_blocks_per_grid,
+        z_blocks_per_grid);
+
+    dim3 ode_gridDim(
+        1,
+        y_blocks_per_grid,
+        z_blocks_per_grid);
 /* ----------------------------------------------- */
     
     // use a flag as a counter, why not
@@ -403,7 +428,7 @@ int BDF2ErrorLoop(
         // determine if ANY of the INDEPENDENT systems are above the 
         //  the tolerance and fail them all. NOTE: this makes them not
         //  independent... 
-        checkError<<<vector_gridDim,blockDim>>>(
+        checkError<<<vector_gridDim,threads_per_block>>>(
             d_current_state_flat,d_half_current_state_flat,d_error_flag,
             Nsystems,Neqn_p_sys);
 
@@ -415,11 +440,11 @@ int BDF2ErrorLoop(
             // increase the refinement level
             unsolved++;
             // put an upper limit on the refinement
-            if (unsolved > 15){
+            if (unsolved > 9){
                 break;
             }
 
-            //printf("refining...%d\n",unsolved);
+            printf("refining...%d\n",unsolved);
             *error_flag = 0;
 
             // reset the error flag on the device
