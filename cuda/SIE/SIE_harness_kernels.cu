@@ -315,7 +315,7 @@ int SIEErrorLoop(
         // copy back the bool flag and determine if we done did it
         cudaMemcpy(error_flag,d_error_flag,sizeof(int),cudaMemcpyDeviceToHost);
         //*error_flag = 0;
-        if (unsolved > 2){
+        if (unsolved > 7){
             break;
         }
         if (*error_flag){

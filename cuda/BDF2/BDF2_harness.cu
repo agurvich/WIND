@@ -440,7 +440,7 @@ int BDF2ErrorLoop(
             // increase the refinement level
             unsolved++;
             // put an upper limit on the refinement
-            if (unsolved > 9){
+            if (unsolved > 7){
                 break;
             }
 
