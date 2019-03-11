@@ -12,6 +12,6 @@ __global__ void printFloatArrayCUDA(float *, int);
 
 __global__ void checkCublasINFO(int *, int *, int);
 
-static const char *_cudaGetErrorEnum(cublasStatus_t);
+const char *_cudaGetErrorEnum(cublasStatus_t);
 
 void checkCublasErrorState(int *,int *,int,int, dim3);

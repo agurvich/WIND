@@ -53,7 +53,7 @@ void checkCublasErrorState(int * INFO,int * d_INFO_bool,int INFO_bool,int Nsyste
     cudaMemcpy(d_INFO_bool,&INFO_bool,sizeof(int),cudaMemcpyHostToDevice);
 }
 
-static const char *_cudaGetErrorEnum(cublasStatus_t error)
+const char *_cudaGetErrorEnum(cublasStatus_t error)
 {
     switch (error)
     {

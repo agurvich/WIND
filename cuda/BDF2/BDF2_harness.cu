@@ -30,13 +30,20 @@ void BDF2_step(
 /* -------------- initialize cublas -------------- */
     // initialize cublas status tracking pointers
     cublasHandle_t handle;
-    int *P, *INFO;
+    cublasStatus_t error;
+    int *P, *INFO,*d_INFO_bool;
+    int INFO_bool = 0;
+
+    //checkCublasErrorState(INFO,d_INFO_bool,INFO_bool,Nsystems, ode_gridDim);
+
     // handle is something that connects cublas calls within a stream... something about v2 and 
     // being able to pass scalars by reference instead of by value. I don't really understand it
     // place to store cublas status stuff. 
     cublasCreate_v2(&handle);
     cudaMalloc(&P, Neqn_p_sys * Nsystems * sizeof(int));
     cudaMalloc(&INFO,  Nsystems * sizeof(int));
+    cudaMalloc(&d_INFO_bool,sizeof(int));
+    cudaMemcpy(d_INFO_bool,&INFO_bool,sizeof(int),cudaMemcpyHostToDevice);
 
     //cublasSetPointerMode(handle,CUBLAS_POINTER_MODE_DEVICE);
 /* ----------------------------------------------- */
@@ -60,8 +67,8 @@ void BDF2_step(
     /*
     // TODO don't really understand how this should be working :|
     cublasIsamax(
-        handle, // cublas handle
-        Nsystems*Neqn_p_sys, // number of elements in the vector
+        handle, // cublas handle error;
+        Nsystemr*Neqn_p_sys, // number of elements in the vector
         d_derivatives_flat, // the vector to take the max of
         1, // the stride between elements of the vector
         d_max_index); // the index of the max element of the vector
@@ -87,9 +94,12 @@ void BDF2_step(
         x_blocks_per_grid,
         y_blocks_per_grid,
         z_blocks_per_grid);
+
+    dim3 ode_gridDim(
+        1,
+        y_blocks_per_grid,
+        z_blocks_per_grid);
 /* ----------------------------------------------- */
-
-
 
 /* -------------- invert the matrix -------------- */
     // compute (I-2/3hJ) with a custom kernel, here d_timestep = 2/3h
@@ -103,7 +113,7 @@ void BDF2_step(
 
     // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
     // the permutation array seems to be important for some reason
-    cublasSgetrfBatched(
+    error = cublasSgetrfBatched(
         handle, // cublas handle
         Neqn_p_sys, // leading dimension of A??
         d_Jacobianss, // matrix to factor, here I-hs*Js
@@ -112,8 +122,9 @@ void BDF2_step(
         INFO, // cublas status object
         Nsystems); // number of systems
 
+
     // second cublas call, this one solves AX=B with B the identity. It puts X in d_inverse
-    cublasSgetriBatched(
+    error = cublasSgetriBatched(
         handle, // cublas handle
         Neqn_p_sys, // leading dimension of A??
         (const float **)d_Jacobianss, // matrix to inverse, here I-hs*Js
@@ -123,6 +134,7 @@ void BDF2_step(
         Neqn_p_sys, // 
         INFO, // cublas status object
         Nsystems); // number of systems
+
 /* ----------------------------------------------- */
 
 /* -------------- perform the state switcheroo --- */
@@ -142,7 +154,7 @@ void BDF2_step(
 /* -------------- perform two matrix-vector mults  */
     // multiply (I-2/3h*Js)^-1 x (y(n)-y(n-1)), 
     //  overwrite the output into d_intermediate
-    cublasSgemmBatched(
+    error = cublasSgemmBatched(
         handle,// cublas handle
         CUBLAS_OP_N,// no transformation
         CUBLAS_OP_N,// no transformation
@@ -161,7 +173,7 @@ void BDF2_step(
 
     // multiply 2/3h*(I-2/3h*Js)^-1 x fs
     //  store the output in d_derivatives
-    cublasSgemmBatched(
+    error = cublasSgemmBatched(
         handle,// cublas handle
         CUBLAS_OP_N,// no transformation
         CUBLAS_OP_N,// no transformation
@@ -214,7 +226,7 @@ void BDF2_step(
     */
 /* ----------------------------------------------- */
     
-    cudaFree(P); cudaFree(INFO); cublasDestroy_v2(handle);
+    cudaFree(P); cudaFree(INFO); cublasDestroy_v2(handle), cudaFree(d_INFO_bool);
     //cudaFree(d_max_index); cudaFree(d_alpha);cudaFree(d_beta);
 
 #endif
@@ -440,7 +452,7 @@ int BDF2ErrorLoop(
             // increase the refinement level
             unsolved++;
             // put an upper limit on the refinement
-            if (unsolved > 7){
+            if (unsolved > 9){
                 break;
             }
 
