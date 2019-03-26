@@ -2,16 +2,23 @@ import numpy as np
 
 def get_eqm_abundances(nH,TEMP,y_helium):
     constants_dict = {}
-    constants_dict['Gamma_(e,H0)'] = 5.85e-11 * np.sqrt(TEMP)/(1+(TEMP/1e5)) * np.exp(-157809.1/TEMP)
+    constants_dict['Gamma_(e,H0)'] = 5.85e-11 * np.sqrt(TEMP)/(1+np.sqrt(TEMP/1e5)) * np.exp(-157809.1/TEMP) * nH
     constants_dict['Gamma_(gamma,H0)'] = 4.4e-11
-    constants_dict['alpha_(H+)'] = 8.4e-11 * np.sqrt(TEMP) * (TEMP/1e3)**-0.2 / (1+(TEMP/1e6)**0.7)
-    constants_dict['Gamma_(e,He0)'] =  2.38e-11 * np.sqrt(TEMP)/(1+(TEMP/1e5)) * np.exp(-285335.4/TEMP)
+    constants_dict['alpha_(H+)'] = 8.4e-11 / np.sqrt(TEMP) * (TEMP/1e3)**-0.2 / (1+(TEMP/1e6)**0.7) * nH
+    constants_dict['Gamma_(e,He0)'] =  2.38e-11 * np.sqrt(TEMP)/(1+np.sqrt(TEMP/1e5)) * np.exp(-285335.4/TEMP) * nH
     constants_dict['Gamma_(gamma,He0)'] = 3.7e-12
-    constants_dict['Gamma_(e,He+)'] =  5.68e-12 * np.sqrt(TEMP)/(1+(TEMP/1e5)) * np.exp(-631515.0/TEMP) 
+    constants_dict['Gamma_(e,He+)'] =  5.68e-12 * np.sqrt(TEMP)/(1+np.sqrt(TEMP/1e5)) * np.exp(-631515.0/TEMP) * nH
     constants_dict['Gamma_(gamma,He+)'] = 1.7e-14
-    constants_dict['alpha_(He+)'] = 1.5e-10 * TEMP**-0.6353
-    constants_dict['alpha_(d)'] =  1.9e-3 * TEMP**-1.5 * np.exp(-470000.0/TEMP) * (1+0.3*np.exp(-94000.0/TEMP))
-    constants_dict['alpha_(He++)'] = 3.36e-10 * TEMP**-0.5 * (TEMP/1e3)**-0.2 / (1+(TEMP/1e6)**0.7)
+    constants_dict['alpha_(He+)'] = 1.5e-10 * TEMP**-0.6353 * nH
+    constants_dict['alpha_(d)'] =  (
+        1.9e-3 * TEMP**-1.5 * 
+        np.exp(-470000.0/TEMP) * 
+        (1+0.3*np.exp(-94000.0/TEMP)) * nH )
+    constants_dict['alpha_(He++)'] = 3.36e-10 * TEMP**-0.5 * (TEMP/1e3)**-0.2 / (1+(TEMP/1e6)**0.7) * nH
+
+    for key in constants_dict:
+        if 'alpha' in key or '(e' in key:
+            constants_dict[key]/=nH
 
 
     densities = np.zeros(5)
