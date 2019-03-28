@@ -479,6 +479,12 @@ int BDF2ErrorLoop(
             unsolved=0;
         }
     }// while unsolved
+
+    // free up memory
+    cudaFree(d_error_flag);
+    free(error_flag);
+
+    // return computations performed
     return nsteps;
 }
 
@@ -579,15 +585,15 @@ int cudaIntegrateBDF2(
 /* ----------------------------------------------- */
 
 /* -------------- shutdown by freeing memory   --- */
+    cudaFree(d_identity); cudaFree(d_identity_flat);
     cudaFree(d_Jacobianss); cudaFree(d_Jacobianss_flat);
     cudaFree(d_current_state); cudaFree(d_current_state_flat);
+    cudaFree(d_half_current_state); cudaFree(d_half_current_state_flat);
     cudaFree(d_previous_state); cudaFree(d_previous_state_flat);
     cudaFree(d_intermediate); cudaFree(d_intermediate_flat);
-    cudaFree(d_identity); cudaFree(d_identity_flat);
     cudaFree(d_derivatives); cudaFree(d_derivatives_flat);
 
     free(zeros); free(jacobian_zeros);
-    //free(temp_timestep);
     free(identity_flat);
 /* ----------------------------------------------- */
     //return how many steps were taken
