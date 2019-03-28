@@ -1,56 +1,56 @@
                  w _Jv_RegisterClasses
-000000000000c5b6 T _Z10addVectorsfPffS_S_ii
-000000000000c456 T _Z10checkErrorPfS_Piii
+000000000000c60e T _Z10addVectorsfPffS_S_ii
+000000000000c4ae T _Z10checkErrorPfS_Piii
 00000000000092c7 T _Z10printArrayPii
-000000000000b8e1 T _Z10printfCUDAPf
-000000000000b986 T _Z11cudaRoutineiPPfi
-000000000000be40 T _Z11printFArrayPfi
-000000000000c6bd T _Z11scaleVectorPfS_ii
+000000000000b939 T _Z10printfCUDAPf
+000000000000b9de T _Z11cudaRoutineiPPfi
+000000000000be98 T _Z11printFArrayPfi
+000000000000c715 T _Z11scaleVectorPfS_ii
 0000000000009a5d T _Z11solveSystemfffPPfS_S_S0_S0_S_S_S_ii
 0000000000009c30 T _Z12SIEErrorLoopffPPfS_S_S0_S0_S_S_S_S_S_ii
-000000000000ac35 T _Z13BDF2ErrorLoopffPPfS_S_S0_S0_S_S_S_S_S_S0_S_S_ii
+000000000000ac69 T _Z13BDF2ErrorLoopffPPfS_S_S0_S0_S_S_S_S_S_S0_S_S_ii
 0000000000009568 T _Z13integrate_rk2ffPfS_iiPi
 00000000000095f2 T _Z13rk2_innerstepfffPfS_ii
 0000000000009626 T _Z14calculate_dydtfPfS_
-000000000000bba9 T _Z14get_system_bidv
-000000000000c7f9 T _Z14get_vector_tidv
-000000000000c1d3 T _Z14updateTimestepPfS_S_Pi
-000000000000a937 T _Z15BDF2SolveSystemfffPPfS_S_S0_S0_S_S_S_S0_S_S_ii
-000000000000b7e9 T _Z15checkCublasINFOPiS_i
-000000000000ba9e T _Z15cudaRoutineFlatiPf
-000000000000c799 T _Z15overwriteVectorPfS_ii
+000000000000bc01 T _Z14get_system_bidv
+000000000000c851 T _Z14get_vector_tidv
+000000000000c22b T _Z14updateTimestepPfS_S_Pi
+000000000000a96b T _Z15BDF2SolveSystemfffPPfS_S_S0_S0_S_S_S_S0_S_S_ii
+000000000000b841 T _Z15checkCublasINFOPiS_i
+000000000000baf6 T _Z15cudaRoutineFlatiPf
+000000000000c7f1 T _Z15overwriteVectorPfS_ii
 00000000000090a8 T _Z16cudaIntegrateRK2ffPfS_ii
-0000000000009f6e T _Z16cudaIntegrateSIEffPfS_ii
-000000000000cc0d T _Z16get_system_indexv
-000000000000b435 T _Z17_cudaGetErrorEnum14cublasStatus_t
-000000000000aff0 T _Z17cudaIntegrateBDF2ffPfS_ii
-000000000000bbd5 T _Z17setIdentityMatrixPfi
-000000000000ca55 T _Z18calculateJacobiansPPfS_S_iif
-000000000000ba15 T _Z18cudaRoutineFlatIntiPi
-000000000000b87a T _Z19printFloatArrayCUDAPfi
-000000000000cb97 T _Z20calculateDerivativesPfS_S_iif
-000000000000c32b T _Z21addArrayToBatchArraysPPfS0_fffii
-000000000000baf0 T _Z21checkCublasErrorStatePiS_ii4dim3
-000000000000bd32 T _Z22initializeDeviceMatrixPfPS_ii
-000000000000b897 T _Z30__device_stub__Z10printfCUDAPfPf
-000000000000b8f8 T _Z34__device_stub__Z11cudaRoutineiPPfiiPPfi
-000000000000c60c T _Z35__device_stub__Z11scaleVectorPfS_iiPfS_ii
-000000000000c37d T _Z36__device_stub__Z10checkErrorPfS_PiiiPfS_Piii
-000000000000ba32 T _Z36__device_stub__Z15cudaRoutineFlatiPfiPf
-000000000000c48d T _Z38__device_stub__Z10addVectorsfPffS_S_iifPffS_S_ii
-000000000000b75a T _Z38__device_stub__Z15checkCublasINFOPiS_iPiS_i
-000000000000c6e8 T _Z39__device_stub__Z15overwriteVectorPfS_iiPfS_ii
-000000000000b9a9 T _Z39__device_stub__Z18cudaRoutineFlatIntiPiiPi
-000000000000c120 T _Z40__device_stub__Z14updateTimestepPfS_S_PiPfS_S_Pi
-000000000000b80e T _Z40__device_stub__Z19printFloatArrayCUDAPfiPfi
+0000000000009f80 T _Z16cudaIntegrateSIEffPfS_ii
+000000000000cc65 T _Z16get_system_indexv
+000000000000b48d T _Z17_cudaGetErrorEnum14cublasStatus_t
+000000000000b036 T _Z17cudaIntegrateBDF2ffPfS_ii
+000000000000bc2d T _Z17setIdentityMatrixPfi
+000000000000caad T _Z18calculateJacobiansPPfS_S_iif
+000000000000ba6d T _Z18cudaRoutineFlatIntiPi
+000000000000b8d2 T _Z19printFloatArrayCUDAPfi
+000000000000cbef T _Z20calculateDerivativesPfS_S_iif
+000000000000c383 T _Z21addArrayToBatchArraysPPfS0_fffii
+000000000000bb48 T _Z21checkCublasErrorStatePiS_ii4dim3
+000000000000bd8a T _Z22initializeDeviceMatrixPfPS_ii
+000000000000b8ef T _Z30__device_stub__Z10printfCUDAPfPf
+000000000000b950 T _Z34__device_stub__Z11cudaRoutineiPPfiiPPfi
+000000000000c664 T _Z35__device_stub__Z11scaleVectorPfS_iiPfS_ii
+000000000000c3d5 T _Z36__device_stub__Z10checkErrorPfS_PiiiPfS_Piii
+000000000000ba8a T _Z36__device_stub__Z15cudaRoutineFlatiPfiPf
+000000000000c4e5 T _Z38__device_stub__Z10addVectorsfPffS_S_iifPffS_S_ii
+000000000000b7b2 T _Z38__device_stub__Z15checkCublasINFOPiS_iPiS_i
+000000000000c740 T _Z39__device_stub__Z15overwriteVectorPfS_iiPfS_ii
+000000000000ba01 T _Z39__device_stub__Z18cudaRoutineFlatIntiPiiPi
+000000000000c178 T _Z40__device_stub__Z14updateTimestepPfS_S_PiPfS_S_Pi
+000000000000b866 T _Z40__device_stub__Z19printFloatArrayCUDAPfiPfi
 0000000000009440 T _Z41__device_stub__Z13integrate_rk2ffPfS_iiPiffPfS_iiPi
-000000000000c954 T _Z46__device_stub__Z18calculateJacobiansPPfS_S_iifPPfS_S_iif
-000000000000ca96 T _Z47__device_stub__Z20calculateDerivativesPfS_S_iifPfS_S_iif
-000000000000c202 T _Z50__device_stub__Z21addArrayToBatchArraysPPfS0_fffiiPPfS0_fffii
+000000000000c9ac T _Z46__device_stub__Z18calculateJacobiansPPfS_S_iifPPfS_S_iif
+000000000000caee T _Z47__device_stub__Z20calculateDerivativesPfS_S_iifPfS_S_iif
+000000000000c25a T _Z50__device_stub__Z21addArrayToBatchArraysPPfS0_fffiiPPfS0_fffii
 000000000000974c T _Z8SIE_stepfPPfS0_S0_S0_S_S_ii
-000000000000a41c T _Z9BDF2_stepfPPfS0_S0_S0_S_S_S_S0_S_ii
+000000000000a450 T _Z9BDF2_stepfPPfS0_S0_S0_S_S_S_S0_S_ii
 000000000000931a W _ZN4dim3C1Ejjj
-00000000002856d8 B __bss_start
+00000000002866d8 B __bss_start
                  U __cxa_atexit
                  w __cxa_finalize
                  U __errno_location
@@ -59,9 +59,9 @@
                  U __gxx_personality_v0
                  U __strtol_internal
                  U __xstat
-00000000002856d8 D _edata
-00000000002868a8 B _end
-0000000000063448 T _fini
+00000000002866d8 D _edata
+00000000002878a8 B _end
+0000000000063498 T _fini
 0000000000008348 T _init
                  U bind
                  U calloc
@@ -115,7 +115,7 @@
                  U malloc
                  U memcpy
                  U memset
-000000000000a2f7 W min
+000000000000a32a W min
                  U mkdir
                  U mkfifo
                  U mmap

@@ -6,6 +6,8 @@ import copy
 import h5py
 import time
 
+import getopt,sys
+
 from eqm_eqns import get_eqm_abundances
 
 
@@ -59,7 +61,7 @@ def runIntegratorOutput(
     print_flag = 0):
 
     ## initialize integration breakdown variables
-    max_steps = 1#tend-tnow
+    max_steps = 20#tend-tnow
     tcur = tnow
     dt = (tend-tnow)/max_steps
     equations_over_time = np.zeros((max_steps+1,len(equations)))
@@ -182,76 +184,100 @@ def initialize_equations(nH,Nsystems,y_helium):
     0.0*y_helium/4. ## He++
     ]*Nsystems).astype(np.float32)#*nH####### Test for y' = ct #######
 
-tnow = 0
-tend = 200
-Nsystems = 65535 +1#100000
-Nequations_per_system = 5
-TEMP = 1e2 ## K
-nH = 1e2 ## cm^-3
-y_helium = 0.4
 
-RK2 = not True
-SIE = True
-BDF2 = True 
+def main(
+    tnow = 0,
+    tend = 200,
+    Nsystems = 100,
+    RK2 = False,
+    SIE = True,
+    BDF2 = False,
+    TEMP = 1e2, ## K
+    nH = 1e2, ## cm^-3
+    y_helium = 0.4,
+    Nequations_per_system = 5,
+    ):
+    
+    Nsystems = int(Nsystems)
 
-output_mode = 'a'
-print_flag = False
-
-if RK2:
-    constants = get_constants(nH,TEMP,Nsystems)
-    equations = initialize_equations(nH,Nsystems,y_helium)
-
-    runIntegratorOutput(
-        c_cudaIntegrateRK2,'RK2',
-        tnow,tend,
-        constants,
-        equations,
-        Nsystems,
-        Nequations_per_system,
-        output_mode = output_mode,
-        print_flag = print_flag)
-
-    print("---------------------------------------------------")
     output_mode = 'a'
+    print_flag = False
 
-if SIE:
-    constants = get_constants(nH,TEMP,Nsystems)
-    equations = initialize_equations(nH,Nsystems,y_helium)
+    if RK2:
+        constants = get_constants(nH,TEMP,Nsystems)
+        equations = initialize_equations(nH,Nsystems,y_helium)
 
-    runIntegratorOutput(
-        c_cudaSIE_integrate,'SIE',
-        tnow,tend,
-        constants,
-        equations,
-        Nsystems,
-        Nequations_per_system,
-        output_mode = output_mode,
-        print_flag = print_flag)
+        runIntegratorOutput(
+            c_cudaIntegrateRK2,'RK2',
+            tnow,tend,
+            constants,
+            equations,
+            Nsystems,
+            Nequations_per_system,
+            output_mode = output_mode,
+            print_flag = print_flag)
 
-    print("---------------------------------------------------")
-    output_mdoe = 'a'
+        print("---------------------------------------------------")
+        output_mode = 'a'
 
-if BDF2:
-    constants = get_constants(nH,TEMP,Nsystems)
-    equations = initialize_equations(nH,Nsystems,y_helium)
+    if SIE:
+        constants = get_constants(nH,TEMP,Nsystems)
+        equations = initialize_equations(nH,Nsystems,y_helium)
 
-    runIntegratorOutput(
-        c_cudaBDF2_integrate,'BDF2',
-        tnow,tend,
-        constants,
-        equations,
-        Nsystems,
-        Nequations_per_system,
-        output_mode = output_mode,
-        print_flag = print_flag)
+        runIntegratorOutput(
+            c_cudaSIE_integrate,'SIE',
+            tnow,tend,
+            constants,
+            equations,
+            Nsystems,
+            Nequations_per_system,
+            output_mode = output_mode,
+            print_flag = print_flag)
 
-eqm_abundances = get_eqm_abundances(nH,TEMP,y_helium)
-print('eqm:',[float('%.3f'%abundance) for abundance in eqm_abundances])
-with h5py.File("katz96_out.hdf5",'a') as handle:
-    group = handle.attrs['eqm_abundances'] = eqm_abundances
+        print("---------------------------------------------------")
+        output_mdoe = 'a'
 
-print("Rates:")
-print(calculate_rates(equations,constants))
+    if BDF2:
+        constants = get_constants(nH,TEMP,Nsystems)
+        equations = initialize_equations(nH,Nsystems,y_helium)
+
+        runIntegratorOutput(
+            c_cudaBDF2_integrate,'BDF2',
+            tnow,tend,
+            constants,
+            equations,
+            Nsystems,
+            Nequations_per_system,
+            output_mode = output_mode,
+            print_flag = print_flag)
+
+    eqm_abundances = get_eqm_abundances(nH,TEMP,y_helium)
+    print('eqm:',[float('%.3f'%abundance) for abundance in eqm_abundances])
+    with h5py.File("katz96_out.hdf5",'a') as handle:
+        group = handle.attrs['eqm_abundances'] = eqm_abundances
+
+    print("Rates:")
+    print(calculate_rates(equations,constants))
+
+if __name__ == '__main__':
+    argv = sys.argv[1:]
+    opts,args = getopt.getopt(argv,'',['tnow=','tend=','Nsystems=','RK2=','SIE=','BDF2='])
+    #options:
+    #--snap(low/high) : snapshot numbers to loop through
+    #--savename : name of galaxy to use
+    #--mps : mps flag, default = 0
+    for i,opt in enumerate(opts):
+        if opt[1]=='':
+            opts[i]=('mode',opt[0].replace('-',''))
+        else:
+            try:
+                ## if it's an int or a float this should work
+                opts[i]=(opt[0].replace('-',''),eval(opt[1]))
+            except:
+                ## if it's a string... not so much
+                opts[i]=(opt[0].replace('-',''),opt[1])
+    main(**dict(opts))
+
 
 ### LEGACY
 """
