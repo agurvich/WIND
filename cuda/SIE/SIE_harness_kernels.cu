@@ -332,6 +332,12 @@ int SIEErrorLoop(
         }
 
     }// while unsolved
+
+    // free up memory
+    cudaFree(d_error_flag);
+    free(error_flag);
+
+    // return computations performed
     return nsteps;
 }
 
@@ -437,13 +443,15 @@ int cudaIntegrateSIE(
 /* ----------------------------------------------- */
 
 /* -------------- shutdown by freeing memory   --- */
+    cudaFree(d_identity); cudaFree(d_identity_flat);
     cudaFree(d_Jacobianss); cudaFree(d_Jacobianss_flat);
     cudaFree(d_equations); cudaFree(d_equations_flat);
-    cudaFree(d_identity); cudaFree(d_identity_flat);
+    cudaFree(d_half_equations); cudaFree(d_half_equations_flat);
     cudaFree(d_derivatives); cudaFree(d_derivatives_flat);
 
+    cudaFree(d_constants);
+
     free(zeros); free(jacobian_zeros);
-    //free(temp_timestep);
     free(identity_flat);
 /* ----------------------------------------------- */
     //return how many steps were taken
