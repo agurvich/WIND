@@ -57,6 +57,7 @@ def runIntegratorOutput(
     equations,
     Nsystems,
     Nequations_per_system,
+    fname,
     output_mode=None,
     print_flag = 0):
 
@@ -88,7 +89,7 @@ def runIntegratorOutput(
         equations_over_time[nloops]=copy.copy(equations)
     print('final (tcur=%.2f):'%tcur,np.round(equations_over_time.astype(float),3)[-1][:5])
     if output_mode is not None:
-        with h5py.File("katz96_out.hdf5",output_mode) as handle:
+        with h5py.File(fname,output_mode) as handle:
             try:
                 group = handle.create_group(integrator_name)
             except:
@@ -196,8 +197,18 @@ def main(
     nH = 1e2, ## cm^-3
     y_helium = 0.4,
     Nequations_per_system = 5,
+    fname=None
     ):
+
+   if fname is None:
+        fname = "katz_96.hdf5"
+
+    ## tack on the suffix if it's not there
+    if fname[-len(".hdf5"):] != '.hdf5':
+        fname+='.hdf5' 
     
+    fname = os.path.join("..",'data',fname)
+
     Nsystems = int(Nsystems)
 
     output_mode = 'a'
@@ -214,6 +225,7 @@ def main(
             equations,
             Nsystems,
             Nequations_per_system,
+            fname,
             output_mode = output_mode,
             print_flag = print_flag)
 
@@ -231,6 +243,7 @@ def main(
             equations,
             Nsystems,
             Nequations_per_system,
+            fname,
             output_mode = output_mode,
             print_flag = print_flag)
 
@@ -253,10 +266,10 @@ def main(
 
     eqm_abundances = get_eqm_abundances(nH,TEMP,y_helium)
     print('eqm:',[float('%.3f'%abundance) for abundance in eqm_abundances])
-    with h5py.File("katz96_out.hdf5",'a') as handle:
+    with h5py.File(fname,'a') as handle:
         handle.attrs['Nsystems'] = Nsystems
         handle.attrs['Nequations_per_system'] = Nequations_per_system
-        handle.attrs['equation_labels'] = ['H0','H+',"He0","He+","He++"]
+        handle.attrs['equation_labels'] = [str.encode('UTF-8') for str in ['H0','H+',"He0","He+","He++"]]
         group = handle.create_group('Equilibrium')
         group['eqmss'] = np.tile(eqm_abundances,Nsystems).reshape(
             Nsystems,Nequations_per_system)
@@ -267,7 +280,7 @@ def main(
 
 if __name__ == '__main__':
     argv = sys.argv[1:]
-    opts,args = getopt.getopt(argv,'',['tnow=','tend=','Nsystems=','RK2=','SIE=','BDF2='])
+    opts,args = getopt.getopt(argv,'',['tnow=','tend=','Nsystems=','RK2=','SIE=','BDF2=','fname='])
     #options:
     #--snap(low/high) : snapshot numbers to loop through
     #--savename : name of galaxy to use
