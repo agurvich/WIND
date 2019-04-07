@@ -254,7 +254,13 @@ def main(
     eqm_abundances = get_eqm_abundances(nH,TEMP,y_helium)
     print('eqm:',[float('%.3f'%abundance) for abundance in eqm_abundances])
     with h5py.File("katz96_out.hdf5",'a') as handle:
-        group = handle.attrs['eqm_abundances'] = eqm_abundances
+        handle.attrs['Nsystems'] = Nsystems
+        handle.attrs['Nequations_per_system'] = Nequations_per_system
+        handle.attrs['equation_labels'] = ['H0','H+',"He0","He+","He++"]
+        group = handle.create_group('Equilibrium')
+        group['eqmss'] = np.tile(eqm_abundances,Nsystems).reshape(
+            Nsystems,Nequations_per_system)
+
 
     print("Rates:")
     print(calculate_rates(equations,constants))
