@@ -1,3 +1,4 @@
+## builtin imports
 import numpy as np 
 import ctypes
 import time
@@ -8,6 +9,15 @@ import time
 
 import getopt,sys
 
+## chimes_driver imports
+from chimes_driver.utils.table_utils import create_table_grid 
+from chimes_driver.driver_config import read_parameters, print_parameters 
+from chimes_driver.driver_class import ChimesDriver
+
+## NOTE hardcoded in parameter file...
+chimes_parameter_file = "/u/sciteam/gurvich/src/CHIMES_repos/chimes-driver/example_parameter_files/eqm_table.param"
+
+## this package imports
 from eqm_eqns import get_eqm_abundances
 
 
@@ -17,12 +27,17 @@ exec_call = os.path.join(curdir,"cuda","lib","wind.so")
 print(exec_call)
 c_obj = ctypes.CDLL(exec_call)
 
-#print(dir(c_obj))
-#print(c_obj.__dict__)
 c_cudaIntegrateRK2 = getattr(c_obj,"_Z16cudaIntegrateRK2ffPfS_ii")
 c_cudaSIE_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffPfS_ii")
 c_cudaBDF2_integrate = getattr(c_obj,"_Z17cudaIntegrateBDF2ffPfS_ii")
 
+
+def get_constants_equations_chimes(nH_arr,temperature_arr,init_chem_arr):
+    constants = np.array([get_constants(nh,temp,1) for (nh,temp) in zip(nH_arr,temperature_arr)]).flatten()
+    ## from chimes_dict
+    ##  "HI": 1,"HII": 2,"Hm": 3,"HeI": 4, "HeII": 5,"HeIII": 6,
+    equations = np.concatenate([init_chem_arr[:,1:3],init_chem_arr[:,4:7]],axis=1).flatten()
+    return constants,equations
 
 def runCudaIntegrator(
     integrator,
@@ -53,6 +68,7 @@ def runIntegratorOutput(
     integrator_fn,
     integrator_name,
     tnow,tend,
+    n_output_steps,
     constants,
     equations,
     Nsystems,
@@ -62,10 +78,9 @@ def runIntegratorOutput(
     print_flag = 0):
 
     ## initialize integration breakdown variables
-    max_steps = 20#tend-tnow
     tcur = tnow
-    dt = (tend-tnow)/max_steps
-    equations_over_time = np.zeros((max_steps+1,len(equations)))
+    dt = (tend-tnow)/n_output_steps
+    equations_over_time = np.zeros((n_output_steps+1,len(equations)))
     nloops=0
     equations_over_time[nloops]=copy.copy(equations)
     times = []
@@ -73,7 +88,7 @@ def runIntegratorOutput(
     nsteps = []
     walltimes = []
 
-    while nloops < max_steps:#while tcur < tend:
+    while nloops < n_output_steps:#while tcur < tend:
         init_time = time.time()
         nsteps+=[
             runCudaIntegrator(
@@ -180,47 +195,66 @@ def initialize_equations(nH,Nsystems,y_helium):
     return np.array([
     0.0, ## H0
     1.0, ## H+
-    0.0*y_helium/4., ## He0
-    1.0*y_helium/4.,## He+
-    0.0*y_helium/4. ## He++
+    0.0*y_helium, ## He0
+    1.0*y_helium,## He+
+    0.0*y_helium ## He++
     ]*Nsystems).astype(np.float32)#*nH####### Test for y' = ct #######
-
 
 def main(
     tnow = 0,
     tend = 200,
-    Nsystems = 100,
     RK2 = False,
-    SIE = True,
+    SIE = False,
     BDF2 = False,
+    CHIMES = True,
     TEMP = 1e2, ## K
     nH = 1e2, ## cm^-3
-    y_helium = 0.4,
+    y_helium = 0.1,
     Nequations_per_system = 5,
+    n_output_steps = 20,
     fname=None
     ):
 
-   if fname is None:
+    ## finish dealing with default arguments
+    if fname is None:
         fname = "katz_96.hdf5"
-
     ## tack on the suffix if it's not there
     if fname[-len(".hdf5"):] != '.hdf5':
         fname+='.hdf5' 
     
     fname = os.path.join("..",'data',fname)
-
-    Nsystems = int(Nsystems)
-
-    output_mode = 'a'
+    output_mode = 'w'
     print_flag = False
 
+    ### read the chimes grid
+    driver_pars, global_variable_pars, gas_variable_pars = read_parameters(chimes_parameter_file)    
+
+    ## overwrite the driver pars
+    driver_pars["driver_mode"] = "noneq_evolution"
+    driver_pars['n_iterations'] = n_output_steps
+
+    (nH_arr,temperature_arr,
+    metallicity_arr,shieldLength_arr,
+    init_chem_arr) = create_table_grid(
+        driver_pars,
+        global_variable_pars)
+    helium_mass_fractions = metallicity_arr[:,1]
+    y_heliums = helium_mass_fractions / (4*(1-helium_mass_fractions))
+
+    ## how many different systems are in the grid?
+    Nsystems = int(nH_arr.shape[0])
+
+    ## use the grid to create flat arrays of rate coefficients and abundance arrays
+    init_constants,init_equations = get_constants_equations_chimes(nH_arr,temperature_arr,init_chem_arr)
+
     if RK2:
-        constants = get_constants(nH,TEMP,Nsystems)
-        equations = initialize_equations(nH,Nsystems,y_helium)
+        constants = copy.copy(init_constants)#get_constants(nH,TEMP,Nsystems)
+        equations = copy.copy(init_equations)#initialize_equations(nH,Nsystems,y_helium)
 
         runIntegratorOutput(
             c_cudaIntegrateRK2,'RK2',
             tnow,tend,
+            n_output_steps,
             constants,
             equations,
             Nsystems,
@@ -233,12 +267,14 @@ def main(
         output_mode = 'a'
 
     if SIE:
-        constants = get_constants(nH,TEMP,Nsystems)
-        equations = initialize_equations(nH,Nsystems,y_helium)
+        constants = copy.copy(init_constants)#get_constants(nH,TEMP,Nsystems)
+        equations = copy.copy(init_equations)#initialize_equations(nH,Nsystems,y_helium)
+ 
 
         runIntegratorOutput(
             c_cudaSIE_integrate,'SIE',
             tnow,tend,
+            n_output_steps,
             constants,
             equations,
             Nsystems,
@@ -248,15 +284,16 @@ def main(
             print_flag = print_flag)
 
         print("---------------------------------------------------")
-        output_mdoe = 'a'
+        output_mode = 'a'
 
     if BDF2:
-        constants = get_constants(nH,TEMP,Nsystems)
-        equations = initialize_equations(nH,Nsystems,y_helium)
+        constants = copy.copy(init_constants)#get_constants(nH,TEMP,Nsystems)
+        equations = copy.copy(init_equations)#initialize_equations(nH,Nsystems,y_helium)
 
         runIntegratorOutput(
             c_cudaBDF2_integrate,'BDF2',
             tnow,tend,
+            n_output_steps,
             constants,
             equations,
             Nsystems,
@@ -264,23 +301,78 @@ def main(
             output_mode = output_mode,
             print_flag = print_flag)
 
-    eqm_abundances = get_eqm_abundances(nH,TEMP,y_helium)
-    print('eqm:',[float('%.3f'%abundance) for abundance in eqm_abundances])
+    if CHIMES:
+        my_driver = ChimesDriver(
+            nH_arr, temperature_arr, metallicity_arr, shieldLength_arr, 
+            init_chem_arr, 
+            driver_pars, global_variable_pars, gas_variable_pars,
+            rank = 0)
+
+        ## initialize the output array
+        equations_over_time = np.zeros((n_output_steps+1,Nequations_per_system))
+        times = np.linspace(tnow,tend,n_output_steps+1,endpoint=True)
+        nsteps = np.zeros(n_output_steps) ## no way to measure this :[ 
+
+        ## change the DT within chimes-driver
+        my_driver.myGasVars.hydro_timestep = (tend - tnow)*3.15e7 ## s
+
+        my_driver.walltimes = []
+        final_output_array, chimes_cumulative_time = my_driver.run()
+        
+        equations_over_time = np.transpose(
+            np.concatenate(
+                np.concatenate(
+                    [final_output_array[:,1:3,:],final_output_array[:,4:7,:]]
+                    ,axis=1) ## get rid of primordial molecular abundances
+                ,axis=0) ## flatten the different systems into one array
+            ) ## swap the time and systems axes to match wind convention
+
+        ## output to the savefile
+        integrator_name = 'CHIMES'
+        if output_mode is not None:
+            with h5py.File(fname,output_mode) as handle:
+                try:
+                    group = handle.create_group(integrator_name)
+                except:
+                    del handle[integrator_name]
+                    group = handle.create_group(integrator_name)
+                    print("overwriting:",integrator_name)
+                group['equations_over_time'] = equations_over_time
+                group['times'] = times
+                group['nsteps'] = nsteps
+                group['walltimes'] = my_driver.walltimes
+
+        output_mode = 'a'
+
+    ## why 4*y_helium? who can say...
+    eqmss = np.array([
+        get_eqm_abundances(nH,T,4*y_helium) 
+        for (nH,T,y_helium) 
+        in zip(nH_arr,temperature_arr,y_heliums)
+    ])
+
     with h5py.File(fname,'a') as handle:
         handle.attrs['Nsystems'] = Nsystems
         handle.attrs['Nequations_per_system'] = Nequations_per_system
         handle.attrs['equation_labels'] = [str.encode('UTF-8') for str in ['H0','H+',"He0","He+","He++"]]
-        group = handle.create_group('Equilibrium')
-        group['eqmss'] = np.tile(eqm_abundances,Nsystems).reshape(
-            Nsystems,Nequations_per_system)
-
-
-    print("Rates:")
-    print(calculate_rates(equations,constants))
+        try:
+            group = handle.create_group('Equilibrium')
+        except:
+            del handle['Equilibrium']
+            group = handle.create_group('Equilibrium')
+            print("overwriting: Equilibrium")
+        group['eqmss'] = eqmss.reshape(Nsystems,Nequations_per_system)
 
 if __name__ == '__main__':
     argv = sys.argv[1:]
-    opts,args = getopt.getopt(argv,'',['tnow=','tend=','Nsystems=','RK2=','SIE=','BDF2=','fname='])
+    opts,args = getopt.getopt(argv,'',[
+        'tnow=','tend=',
+        'n_output_steps='
+        'Nsystems=',
+        'RK2=','SIE=','BDF2=',
+        'PY=','CHIMES=',
+        'fname=',])
+
     #options:
     #--snap(low/high) : snapshot numbers to loop through
     #--savename : name of galaxy to use
