@@ -319,7 +319,9 @@ int SIEErrorLoop(
             break;
         }
         if (*error_flag){
+#ifdef LOUD
             printf("refining...%d\n",unsolved);
+#endif
             *error_flag = 0;
             cudaMemcpy(d_error_flag,error_flag,sizeof(int),cudaMemcpyHostToDevice);
             unsolved++;
@@ -365,7 +367,10 @@ int cudaIntegrateSIE(
     dim3 dimGrid( gridsize, 1 );
     */
 
+#ifdef LOUD
     printf("SIE Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
+#endif
+
     float *dest = equations;
 
     // define the identity matrix on the host
@@ -455,6 +460,8 @@ int cudaIntegrateSIE(
     free(identity_flat);
 /* ----------------------------------------------- */
     //return how many steps were taken
+#ifdef LOUD
     printf("nsteps taken: %d - tnow: %.2f\n",nsteps,tend);
+#endif
     return nsteps;
 }

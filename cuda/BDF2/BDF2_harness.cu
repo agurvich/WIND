@@ -456,7 +456,9 @@ int BDF2ErrorLoop(
                 break;
             }
 
+#ifdef LOUD
             printf("refining...%d\n",unsolved);
+#endif
             *error_flag = 0;
 
             // reset the error flag on the device
@@ -496,7 +498,9 @@ int cudaIntegrateBDF2(
     int Nsystems, // the number of systems
     int Neqn_p_sys){ // the number of equations in each system
 
+#ifdef LOUD
     printf("BDF2 Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
+#endif
     float *dest = equations;
 
     // define the identity matrix on the host
@@ -575,7 +579,9 @@ int cudaIntegrateBDF2(
         Nsystems, // number of systems
         Neqn_p_sys);
     
+#ifdef LOUD
     printf("nsteps taken: %d - tnow: %.2f\n",nsteps,tend);
+#endif
 
 
 

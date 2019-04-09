@@ -23,7 +23,9 @@ int cudaIntegrateRK2(
     int Nsystems, // the number of systems
     int Nequations_per_system){ // the number of equations in each system
 
+#ifdef LOUD
     printf("RK2 Received %d systems, %d equations per system\n",Nsystems,Nequations_per_system);
+#endif
 
     // copy the arrays over to the device
     int Nequations = Nsystems*Nequations_per_system;
