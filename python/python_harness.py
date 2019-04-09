@@ -20,6 +20,8 @@ chimes_parameter_file = "/u/sciteam/gurvich/src/CHIMES_repos/chimes-driver/examp
 ## this package imports
 from eqm_eqns import get_eqm_abundances
 
+## set the solar metallicity 
+WIERSMA_ZSOLAR = 0.0129
 
 ## find that shared object library 
 curdir = os.path.split(os.getcwd())[0]
@@ -207,12 +209,14 @@ def main(
     SIE = False,
     BDF2 = False,
     CHIMES = True,
+    PY = False,
     TEMP = 1e2, ## K
     nH = 1e2, ## cm^-3
     y_helium = 0.1,
     Nequations_per_system = 5,
     n_output_steps = 20,
-    fname=None
+    fname=None,
+    makeplots=False
     ):
 
     ## finish dealing with default arguments
@@ -223,7 +227,7 @@ def main(
         fname+='.hdf5' 
     
     fname = os.path.join("..",'data',fname)
-    output_mode = 'w'
+    output_mode = 'a'
     print_flag = False
 
     ### read the chimes grid
@@ -301,6 +305,29 @@ def main(
             output_mode = output_mode,
             print_flag = print_flag)
 
+    if PY:
+        raise UnimplementedError("SIE not implemented for Katz96 yet")
+        import sie
+        y0 = np.array([1., 0.])
+
+        dt = 0.01
+        tend = 5.
+
+        init = time.time()
+        (t_arr_sol, y_arr_sol) = sie.integrate_sie(y0, dt, tend, sie.f_NR_test, sie.J_NR_test)
+        wall = time.time() - init
+        nsteps = tend/dt
+        with h5py.File(fname,output_mode) as handle:
+            if 'PY' in handle.keys():
+                del handle['PY']
+                print("Overwriting PY")
+            group = handle.create_group('PY')
+            ## not memory efficient but it will jive with ODECache at least
+            group['equations_over_time'] = np.tile(y_arr_sol,Nsystems)
+            group['times'] = t_arr_sol
+            group['nsteps'] = [nsteps]
+            group['walltimes'] = [wall]
+
     if CHIMES:
         my_driver = ChimesDriver(
             nH_arr, temperature_arr, metallicity_arr, shieldLength_arr, 
@@ -362,16 +389,28 @@ def main(
             group = handle.create_group('Equilibrium')
             print("overwriting: Equilibrium")
         group['eqmss'] = eqmss.reshape(Nsystems,Nequations_per_system)
+        group['grid_nHs'] = np.log10(nH_arr)
+        group['grid_temperatures'] = np.log10(temperature_arr)
+        group['grid_solar_metals'] = np.log10(metallicity_arr[:,0]/WIERSMA_ZSOLAR)
+
+    if makeplots:
+        import odecache
+        print("Making plots to ../plots")
+        this_system = odecache.ODECache(fname)
+        this_system.plot_all_systems(
+            subtitle = None,
+            plot_eqm = True,
+            savefig = '../plots/Katz96_out.pdf')
 
 if __name__ == '__main__':
     argv = sys.argv[1:]
     opts,args = getopt.getopt(argv,'',[
         'tnow=','tend=',
-        'n_output_steps='
+        'n_output_steps=',
         'Nsystems=',
         'RK2=','SIE=','BDF2=',
         'PY=','CHIMES=',
-        'fname=',])
+        'fname=','makeplots='])
 
     #options:
     #--snap(low/high) : snapshot numbers to loop through
