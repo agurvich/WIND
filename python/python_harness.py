@@ -302,6 +302,7 @@ def main(
             equations,
             Nsystems,
             Nequations_per_system,
+            fname,
             output_mode = output_mode,
             print_flag = print_flag)
 
