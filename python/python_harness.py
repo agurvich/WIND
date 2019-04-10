@@ -15,7 +15,7 @@ from chimes_driver.driver_config import read_parameters, print_parameters
 from chimes_driver.driver_class import ChimesDriver
 
 ## NOTE hardcoded in parameter file...
-chimes_parameter_file = "/u/sciteam/gurvich/src/CHIMES_repos/chimes-driver/example_parameter_files/eqm_table.param"
+chimes_parameter_file = "/u/sciteam/gurvich/src/CHIMES_repos/chimes-driver/example_parameter_files/eqm_table_wind.param"
 
 ## this package imports
 from eqm_eqns import get_eqm_abundances
@@ -342,7 +342,7 @@ def main(
         nsteps = np.zeros(n_output_steps) ## no way to measure this :[ 
 
         ## change the DT within chimes-driver
-        my_driver.myGasVars.hydro_timestep = (tend - tnow)*3.15e7 ## s
+        my_driver.myGasVars.hydro_timestep = (tend - tnow)*3.15e7/n_output_steps ## s
 
         my_driver.walltimes = []
         final_output_array, chimes_cumulative_time = my_driver.run()
