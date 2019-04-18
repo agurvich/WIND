@@ -10,9 +10,6 @@
 //#include <cusolverDn.h>
 //#include "magmablas.h"
 
-//#define COMMENTSIE
-//fflush(stdout);
-
 void SIE_step(
     float timestep, // device pointer to the current timestep (across all systems, lame!!)
     float ** d_Jacobianss,  // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array with flattened jacobians
@@ -24,7 +21,6 @@ void SIE_step(
     int Nsystems, // number of ODE systems
     int Neqn_p_sys){ // number of equations in each system
 
-#ifndef COMMENTSIE
 /* -------------- initialize cublas -------------- */
 
     // initialize cublas status tracking pointers
@@ -45,17 +41,6 @@ void SIE_step(
 
     //NOTE: uncomment this to use device pointers for constants
     //cublasSetPointerMode(handle,CUBLAS_POINTER_MODE_DEVICE);
-/* ----------------------------------------------- */
-
-
-/* -------------- calculate the timestep --------- */
-    /*
-    float * d_alpha, * d_beta;
-    cudaMalloc(&d_alpha,sizeof(float));
-    cudaMalloc(&d_beta,sizeof(float));
-    cudaMemcpy(d_alpha,&alpha,sizeof(float),cudaMemcpyHostToDevice);
-    cudaMemcpy(d_beta,&beta,sizeof(float),cudaMemcpyHostToDevice);
-    */
 
     // scalars for adding/multiplying
     float alpha = 1.0;
@@ -153,18 +138,8 @@ void SIE_step(
 /* ----------------------------------------------- */
     
     // shut down cublas
-    cudaFree(P); cudaFree(INFO); cublasDestroy_v2(handle);
-    cudaFree(d_INFO_bool);
-    //cudaFree(d_max_index); cudaFree(d_alpha);cudaFree(d_beta);
-
-#endif
-    // increment the timestep by whatever we just stepped by
-    // allowing the device to vary/choose what it is (so we have
-    // to copy it over). In FIXEDTIMESTEP mode this is silly but 
-    // even still necessary.
-    //float timestep = 1.0;
-    //cudaMemcpy(&timestep,d_timestep,sizeof(float),cudaMemcpyDeviceToHost);
-    //*p_time+=*timestep;
+    cublasDestroy_v2(handle);
+    cudaFree(P); cudaFree(INFO); cudaFree(d_INFO_bool);
 }
 
 int solveSystem(
@@ -278,6 +253,7 @@ int SIEErrorLoop(
             Nsystems,
             Neqn_p_sys);
 
+#ifdef ADAPTIVETIMESTEP
         timestep/=2.0;
 
         nsteps+= solveSystem(
@@ -315,6 +291,7 @@ int SIEErrorLoop(
         // copy back the bool flag and determine if we done did it
         cudaMemcpy(error_flag,d_error_flag,sizeof(int),cudaMemcpyDeviceToHost);
         //*error_flag = 0;
+
         if (unsolved > 9){
             break;
         }
@@ -332,8 +309,16 @@ int SIEErrorLoop(
         else{
             unsolved=0;
         }
+#else
+        // take only this one step and call it a day, simplest way to 
+        //  quit early is to copy the values from d_equations_flat to d_half_equations_flat and
+        //  return normally. 
+        cudaMemcpy(d_half_equations_flat,d_equations_flat,Nsystems*Neqn_p_sys*sizeof(float),cudaMemcpyDeviceToDevice);
+        unsolved = 0;
+#endif
 
     }// while unsolved
+
 
     // free up memory
     cudaFree(d_error_flag);
@@ -351,21 +336,6 @@ int cudaIntegrateSIE(
     int Nsystems, // the number of systems
     int Neqn_p_sys// the number of equations in each system
     ){ 
-
-    /*
-    int blocksize,gridsize;
-    if (Neqn_p_sys*Neqn_p_sys*Nsystems < 1024){
-        blocksize = Neqn_p_sys*Neqn_p_sys*Nsystems;
-        gridsize = 1;
-    }
-    else{
-        blocksize = 1024;
-        gridsize = Neqn_p_sys*Neqn_p_sys*Nsystems/1024+1;
-    }
-
-    dim3 dimBlock( blocksize, 1 );
-    dim3 dimGrid( gridsize, 1 );
-    */
 
 #ifdef LOUD
     printf("SIE Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);

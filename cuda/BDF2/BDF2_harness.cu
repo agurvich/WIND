@@ -10,8 +10,6 @@
 //#include <cusolverDn.h>
 //#include "magmablas.h"
 
-//#define COMMENTBDF2
-
 void BDF2_step(
     float timestep, // device pointer to the current timestep (across all systems, lame!!)
     float ** d_Jacobianss,  // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array with flattened jacobians
@@ -26,7 +24,6 @@ void BDF2_step(
     int Nsystems, // number of ODE systems
     int Neqn_p_sys){ // number of equations in each system
 
-#ifndef COMMENTBDF2
 /* -------------- initialize cublas -------------- */
     // initialize cublas status tracking pointers
     cublasHandle_t handle;
@@ -45,38 +42,12 @@ void BDF2_step(
     cudaMalloc(&d_INFO_bool,sizeof(int));
     cudaMemcpy(d_INFO_bool,&INFO_bool,sizeof(int),cudaMemcpyHostToDevice);
 
+    //NOTE: uncomment this to use device pointers for constants
     //cublasSetPointerMode(handle,CUBLAS_POINTER_MODE_DEVICE);
-/* ----------------------------------------------- */
-
-
-/* -------------- calculate the timestep --------- */
-    /*
-    int * d_max_index;
-    cudaMalloc(&d_max_index,sizeof(int));
-    float * d_alpha, * d_beta;
-    cudaMalloc(&d_alpha,sizeof(float));
-    cudaMalloc(&d_beta,sizeof(float));
-    */
 
     // scalars for adding/multiplying
     float alpha = 1.0;
-    //cudaMemcpy(d_alpha,&alpha,sizeof(float),cudaMemcpyHostToDevice);
-    float beta = 2.0/3.0;
-    //cudaMemcpy(d_beta,&beta,sizeof(float),cudaMemcpyHostToDevice);
-
-    /*
-    // TODO don't really understand how this should be working :|
-    cublasIsamax(
-        handle, // cublas handle error;
-        Nsystemr*Neqn_p_sys, // number of elements in the vector
-        d_derivatives_flat, // the vector to take the max of
-        1, // the stride between elements of the vector
-        d_max_index); // the index of the max element of the vector
-    */
-
-    // overwrite beta = 2/3 with beta = 0
-    beta = 0.0;
-    //cudaMemcpy(d_beta,&beta,sizeof(float),cudaMemcpyHostToDevice);
+    float beta = 0;
 /* ----------------------------------------------- */
 
 /* -------------- configure the grid  ------------ */
@@ -226,23 +197,9 @@ void BDF2_step(
     */
 /* ----------------------------------------------- */
     
-    cudaFree(P); cudaFree(INFO); cublasDestroy_v2(handle), cudaFree(d_INFO_bool);
-    //cudaFree(d_max_index); cudaFree(d_alpha);cudaFree(d_beta);
+    cublasDestroy_v2(handle);
+    cudaFree(P); cudaFree(INFO); cudaFree(d_INFO_bool);
 
-#endif
-    // increment the timestep by whatever we just stepped by
-    // allowing the device to vary/choose what it is (so we have
-    // to copy it over). In FIXEDTIMESTEP mode this is silly but 
-    // even still necessary.
-    //float timestep = 1.0;
-    //cudaMemcpy(&timestep,d_timestep,sizeof(float),cudaMemcpyDeviceToHost);
-    
-    // this changes the meaning of timestep to be 2/3 h instead of h 
-    //  without actually changing any code.
-    //*p_time+=3.0/2.0*timestep;
-
-    // shut down cublas
-    //TODO should free more stuff here?
 }
 
 int BDF2SolveSystem(
@@ -417,6 +374,7 @@ int BDF2ErrorLoop(
             Nsystems,
             Neqn_p_sys);
 
+#ifdef ADAPTIVE
         n_integration_steps*=2;
 
         nsteps+= BDF2SolveSystem(
@@ -480,6 +438,14 @@ int BDF2ErrorLoop(
             // we did it, let's exit the loop gracefully
             unsolved=0;
         }
+#else
+        // take only this one step and call it a day, simplest way to 
+        //  quit early is to copy the values from d_equations_flat to d_half_equations_flat and
+        //  return normally. 
+        cudaMemcpy(d_half_current_state_flat,d_current_state_flat,Nsystems*Neqn_p_sys*sizeof(float),cudaMemcpyDeviceToDevice);
+        unsolved=0;
+
+#endif
     }// while unsolved
 
     // free up memory

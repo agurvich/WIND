@@ -4,7 +4,7 @@ EXECUTABLE	:= lib/wind.so
 # Cuda source files (compiled with nvcc)
 CUFILES		:= RK2/* SIE/* BDF2/* common_functions/* ode_system.cu
 
-CFLAGS = --compiler-options '-fPIC' 
+CFLAGS = --compiler-options '-fPIC' -DADAPTIVETIMESTEP -DLOUD 
 
 NVCFLAGS = -g -shared
 
