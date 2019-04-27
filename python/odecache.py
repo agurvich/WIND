@@ -107,7 +107,8 @@ class ODECache(object):
                 ax,
                 **kwargs)
                 
-        scale = grid_dim/4
+
+        scale = grid_dim/4.0
         fig.set_size_inches(32*scale,32*scale)
 
         if savefig is not None:
