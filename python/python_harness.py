@@ -14,8 +14,11 @@ from chimes_driver.utils.table_utils import create_table_grid
 from chimes_driver.driver_config import read_parameters, print_parameters 
 from chimes_driver.driver_class import ChimesDriver
 
+
+home_directory = os.environ['HOME']
 ## NOTE hardcoded in parameter file...
-chimes_parameter_file = "/u/sciteam/gurvich/src/CHIMES_repos/chimes-driver/example_parameter_files/eqm_table_wind.param"
+chimes_parameter_file = "src/CHIMES_repos/chimes-driver/example_parameter_files/eqm_table_wind.param"
+chimes_parameter_file = os.path.join(home_directory,chimes_parameter_file)
 
 ## this package imports
 from eqm_eqns import get_eqm_abundances
@@ -207,8 +210,8 @@ def main(
     tend = 200,
     RK2 = False,
     SIE = False,
-    BDF2 = False,
-    CHIMES = True,
+    BDF2 = True,
+    CHIMES = False,
     PY = False,
     TEMP = 1e2, ## K
     nH = 1e2, ## cm^-3
@@ -216,7 +219,7 @@ def main(
     Nequations_per_system = 5,
     n_output_steps = 20,
     fname=None,
-    makeplots=False
+    makeplots=True
     ):
 
     ## finish dealing with default arguments
