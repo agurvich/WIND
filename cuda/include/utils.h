@@ -7,3 +7,6 @@ void setIdentityMatrix(float *, int);
 
 // allocates a flat and 2d array for a matrix on the device
 float ** initializeDeviceMatrix(float *, float **, int, int);
+
+// just a function call to set a breakpoint on for cuda-gdb
+void GDBbreakpoint();
