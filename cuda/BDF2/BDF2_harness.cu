@@ -239,6 +239,12 @@ int BDF2SolveSystem(
         z_blocks_per_grid);
 
 /* ----------------------------------------------- */
+    // copies the values of y(n) -> y(n-1)
+    //  now that we don't need the "previous" step
+    overwriteVector<<<vector_gridDim,threads_per_block>>>(
+        d_current_state_flat,
+        d_previous_state_flat,
+        Nsystems,Neqn_p_sys);
 
     // evaluate the derivative function at tnow
     calculateDerivatives<<<ode_gridDim,1>>>(
@@ -273,13 +279,6 @@ int BDF2SolveSystem(
         Nsystems, // number of systems
         Neqn_p_sys); // number of equations in each system
 
-
-    // copies the values of y(n) -> y(n-1)
-    //  now that we don't need the "previous" step
-    overwriteVector<<<vector_gridDim,threads_per_block>>>(
-        d_current_state_flat,
-        d_previous_state_flat,
-        Nsystems,Neqn_p_sys);
     tnow+=timestep;
 /* ----------------------------------------------- */
 
@@ -429,9 +428,6 @@ int BDF2ErrorLoop(
         cudaMemcpy(error_flag,d_error_flag,sizeof(int),cudaMemcpyDeviceToHost);
         //*error_flag = 0;
         
-        cudaRoutineFlat<<<1,5>>>(5,d_current_state_flat);
-        cudaDeviceSynchronize();
-        GDBbreakpoint();
         if (*error_flag){
             // increase the refinement level
             unsolved++;
