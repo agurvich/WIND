@@ -209,7 +209,7 @@ def main(
     tnow = 0,
     tend = 200,
     RK2 = False,
-    SIE = True,
+    SIE = False,
     BDF2 = True,
     CHIMES = False,
     PY = False,

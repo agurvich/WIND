@@ -89,7 +89,7 @@ void SIE_step(
         Nsystems); // number of systems
 
     // second cublas call, this one solves AX=B with B the identity. It puts X in d_inverse
-    cublasSgetriBatched(
+    error = cublasSgetriBatched(
         handle, // cublas handle
         Neqn_p_sys, // leading dimension of A??
         (const float **)d_Jacobianss, // matrix to inverse, here I-hs*Js
@@ -103,7 +103,7 @@ void SIE_step(
 
 /* -------------- perform a matrix-vector mult --- */
     // multiply (I-h*Js)^-1 x fs
-    cublasSgemmBatched(
+    error = cublasSgemmBatched(
         handle,// cublas handle
         CUBLAS_OP_N,// no transformation
         CUBLAS_OP_N,// no transformation
