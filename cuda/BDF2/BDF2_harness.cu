@@ -221,18 +221,7 @@ int BDF2SolveSystem(
     int Neqn_p_sys){
 
     
-    int nsteps = 1;
-    SIE_step(
-        timestep, // Nsystems length vector for timestep to use
-        d_Jacobianss, // matrix (jacobian) input
-        d_Jacobianss, // inverse output, overwrite d_Jacobianss
-        d_identity, // pointer to identity (ideally in constant memory?)
-        d_derivatives, // vector (derivatives) input
-        d_derivatives_flat, // dy vector output
-        d_current_state_flat, // y vector output
-        Nsystems, // number of systems
-        Neqn_p_sys); // number of equations in each system
-
+    int nsteps = 1; 
 /* -------------- configure the grid  ------------ */
     int threads_per_block = min(Neqn_p_sys,MAX_THREADS_PER_BLOCK);
     int x_blocks_per_grid = 1+Neqn_p_sys/MAX_THREADS_PER_BLOCK;
@@ -250,6 +239,40 @@ int BDF2SolveSystem(
         z_blocks_per_grid);
 
 /* ----------------------------------------------- */
+
+    // evaluate the derivative function at tnow
+    calculateDerivatives<<<ode_gridDim,1>>>(
+        d_derivatives_flat,
+        d_constants,
+        d_current_state_flat,
+        Nsystems,
+        Neqn_p_sys,
+        tnow);
+    // reset the jacobian, which has been replaced by (I-hJ)^-1
+    cudaMemcpy(
+        d_Jacobianss_flat,jacobian_zeros,
+        Nsystems*Neqn_p_sys*Neqn_p_sys*sizeof(float),
+        cudaMemcpyHostToDevice);
+
+    calculateJacobians<<<ode_gridDim,1>>>(
+        d_Jacobianss,
+        d_constants,
+        d_current_state_flat,
+        Nsystems,
+        Neqn_p_sys,
+        tnow);
+
+    SIE_step(
+        timestep, // Nsystems length vector for timestep to use
+        d_Jacobianss, // matrix (jacobian) input
+        d_Jacobianss, // inverse output, overwrite d_Jacobianss
+        d_identity, // pointer to identity (ideally in constant memory?)
+        d_derivatives, // vector (derivatives) input
+        d_derivatives_flat, // dy vector output
+        d_current_state_flat, // y vector output
+        Nsystems, // number of systems
+        Neqn_p_sys); // number of equations in each system
+
 
     // copies the values of y(n) -> y(n-1)
     //  now that we don't need the "previous" step
@@ -374,7 +397,7 @@ int BDF2ErrorLoop(
             Nsystems,
             Neqn_p_sys);
 
-#ifdef ADAPTIVE
+#ifdef ADAPTIVETIMESTEP 
         n_integration_steps*=2;
 
         nsteps+= BDF2SolveSystem(
@@ -406,6 +429,9 @@ int BDF2ErrorLoop(
         cudaMemcpy(error_flag,d_error_flag,sizeof(int),cudaMemcpyDeviceToHost);
         //*error_flag = 0;
         
+        cudaRoutineFlat<<<1,5>>>(5,d_current_state_flat);
+        cudaDeviceSynchronize();
+        GDBbreakpoint();
         if (*error_flag){
             // increase the refinement level
             unsolved++;

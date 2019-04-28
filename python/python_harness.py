@@ -42,7 +42,7 @@ def get_constants_equations_chimes(nH_arr,temperature_arr,init_chem_arr):
     ## from chimes_dict
     ##  "HI": 1,"HII": 2,"Hm": 3,"HeI": 4, "HeII": 5,"HeIII": 6,
     equations = np.concatenate([init_chem_arr[:,1:3],init_chem_arr[:,4:7]],axis=1).flatten()
-    return constants,equations
+    return constants.astype(np.float32),equations.astype(np.float32)
 
 def runCudaIntegrator(
     integrator,
@@ -209,7 +209,7 @@ def main(
     tnow = 0,
     tend = 200,
     RK2 = False,
-    SIE = False,
+    SIE = True,
     BDF2 = True,
     CHIMES = False,
     PY = False,
