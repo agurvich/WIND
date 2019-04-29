@@ -26,15 +26,18 @@ from eqm_eqns import get_eqm_abundances
 ## set the solar metallicity 
 WIERSMA_ZSOLAR = 0.0129
 
-## find that shared object library 
+## find the first order solver shared object library 
 curdir = os.path.split(os.getcwd())[0]
-exec_call = os.path.join(curdir,"cuda","lib","wind.so")
+exec_call = os.path.join(curdir,"cuda","lib","sie.so")
 print(exec_call)
 c_obj = ctypes.CDLL(exec_call)
-
 c_cudaIntegrateRK2 = getattr(c_obj,"_Z16cudaIntegrateRK2ffPfS_ii")
 c_cudaSIE_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffPfS_ii")
-c_cudaBDF2_integrate = getattr(c_obj,"_Z17cudaIntegrateBDF2ffPfS_ii")
+
+## get the second order library
+exec_call = os.path.join(curdir,"cuda","lib","sie2.so")
+c_obj = ctypes.CDLL(exec_call)
+c_cudaSIE2_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffPfS_ii")
 
 
 def get_constants_equations_chimes(nH_arr,temperature_arr,init_chem_arr):
@@ -210,7 +213,7 @@ def main(
     tend = 200,
     RK2 = False,
     SIE = True,
-    BDF2 = True,
+    SIE2 = True,
     CHIMES = False,
     PY = False,
     TEMP = 1e2, ## K
@@ -293,12 +296,12 @@ def main(
         print("---------------------------------------------------")
         output_mode = 'a'
 
-    if BDF2:
+    if SIE2:
         constants = copy.copy(init_constants)#get_constants(nH,TEMP,Nsystems)
         equations = copy.copy(init_equations)#initialize_equations(nH,Nsystems,y_helium)
 
         runIntegratorOutput(
-            c_cudaBDF2_integrate,'BDF2',
+            c_cudaSIE2_integrate,'SIE2',
             tnow,tend,
             n_output_steps,
             constants,
@@ -412,7 +415,7 @@ if __name__ == '__main__':
         'tnow=','tend=',
         'n_output_steps=',
         'Nsystems=',
-        'RK2=','SIE=','BDF2=',
+        'RK2=','SIE=','SIE2=',
         'PY=','CHIMES=',
         'fname=','makeplots='])
 
