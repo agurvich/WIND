@@ -321,7 +321,7 @@ int errorLoop(
     return nsteps;
 }
 
-int cudaIntegrateBDF2(
+int cudaIntegrateSIE2(
     float tnow, // the current time
     float tend, // the time we integrating the system to
     float * constants, // the constants for each system
@@ -381,7 +381,7 @@ int cudaIntegrateBDF2(
         equations,&d_half_current_state_flat,Neqn_p_sys,Nsystems);
 
 #ifdef ORDER2
-    // saving previous step Y(n-1) because we need that for BDF2
+    // saving previous step Y(n-1) because we need that for SIE2
     float *d_previous_state_flat;
     float **d_previous_state = initializeDeviceMatrix(zeros,&d_previous_state_flat,Neqn_p_sys,Nsystems);
 
