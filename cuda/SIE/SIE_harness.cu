@@ -49,25 +49,19 @@ void SIE_step(
 
 
 /* -------------- configure the grid  ------------ */
-    int threads_per_block = min(Neqn_p_sys,MAX_THREADS_PER_BLOCK);
-    int x_blocks_per_grid = 1+Neqn_p_sys/MAX_THREADS_PER_BLOCK;
-    int y_blocks_per_grid = min(Nsystems,MAX_BLOCKS_PER_GRID);
-    int z_blocks_per_grid = 1+Nsystems/MAX_BLOCKS_PER_GRID;
+    int threads_per_block; // TODO replace this
+    dim3 matrix_gridDim;
+    dim3 vector_gridDim;
+    dim3 ode_gridDim;
 
-    dim3 matrix_gridDim(
-        x_blocks_per_grid*Neqn_p_sys,
-        y_blocks_per_grid,
-        z_blocks_per_grid);
+    configureGrid(
+        Nsystems,Neqn_p_sys,
+        &threads_per_block,
+        &matrix_gridDim,
+        &ode_gridDim,
+        &vector_gridDim);
 
-    dim3 vector_gridDim(
-        x_blocks_per_grid,
-        y_blocks_per_grid,
-        z_blocks_per_grid);
-
-    dim3 ode_gridDim(
-        1,
-        y_blocks_per_grid,
-        z_blocks_per_grid);
+    
 /* ----------------------------------------------- */
 
 
@@ -169,8 +163,8 @@ int solveSystem(
         Nsystems,Neqn_p_sys,
         &threads_per_block,
         NULL,
-        &vector_gridDim,
-        NULL);
+        NULL,
+        &vector_gridDim);
 
 /* ----------------------------------------------- */
     // copies the values of y(n) -> y(n-1)
@@ -342,8 +336,8 @@ int errorLoop(
         Nsystems,Neqn_p_sys,
         &threads_per_block,
         NULL,
-        &vector_gridDim,
-        NULL);
+        NULL,
+        &vector_gridDim);
 
 /* ----------------------------------------------- */
     

@@ -38,11 +38,11 @@ void configureGrid(
         *p_matrix_gridDim = matrix_gridDim;
     }
 
-    if (p_matrix_gridDim != NULL){
+    if (p_ode_gridDim != NULL){
         *p_ode_gridDim = ode_gridDim;
     }
 
-    if (p_matrix_gridDim != NULL){
+    if (p_vector_gridDim != NULL){
         *p_vector_gridDim = vector_gridDim;
     }
 }
@@ -186,8 +186,10 @@ void resetSystem(
     dim3 ode_gridDim;
     configureGrid(
         Nsystems,Neqn_p_sys,
-        NULL,NULL,NULL,
-        &ode_gridDim);
+        NULL,
+        NULL,
+        &ode_gridDim,
+        NULL);
 
 
     // evaluate the derivative function at tnow
