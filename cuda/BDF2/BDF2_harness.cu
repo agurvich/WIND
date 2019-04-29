@@ -10,6 +10,26 @@
 //#include <cusolverDn.h>
 //#include "magmablas.h"
 
+int SIESolveSystem(
+    float tnow,
+    float tend,
+    float timestep,
+    float ** d_Jacobianss, // matrix (jacobian) input
+    float * d_Jacobianss_flat,
+    float * jacobian_zeros,
+    float ** d_identity, // pointer to identity (ideally in constant memory?)
+    float ** d_derivatives, // vector (derivatives) input
+    float * d_derivatives_flat, // dy vector output
+    float * d_current_state_flat, // y vector output
+    float * d_previous_state_flat,
+    float ** d_intermediate, // matrix memory for intermediate calculation
+    float * d_intermediate_flat,// flattened memory for intermediate calculation
+    float * d_constants,
+    int Nsystems, // number of systems
+    int Neqn_p_sys){
+
+}
+
 int BDF2SolveSystem(
     float tnow,
     float tend,
@@ -32,15 +52,14 @@ int BDF2SolveSystem(
     int nsteps = 1; 
     cudaError_t cuda_error_code;
 /* -------------- configure the grid  ------------ */
-    int threads_per_block = min(Neqn_p_sys,MAX_THREADS_PER_BLOCK);
-    int x_blocks_per_grid = 1+Neqn_p_sys/MAX_THREADS_PER_BLOCK;
-    int y_blocks_per_grid = min(Nsystems,MAX_BLOCKS_PER_GRID);
-    int z_blocks_per_grid = 1+Nsystems/MAX_BLOCKS_PER_GRID;
-
-    dim3 vector_gridDim(
-        x_blocks_per_grid,
-        y_blocks_per_grid,
-        z_blocks_per_grid);
+    int threads_per_block;
+    dim3 vector_gridDim;
+    configureGrid(
+        Nsystems,Neqn_p_sys,
+        &threads_per_block,
+        NULL,
+        &vector_gridDim,
+        NULL);
 
 /* ----------------------------------------------- */
     // copies the values of y(n) -> y(n-1)
@@ -193,15 +212,14 @@ int BDF2ErrorLoop(
     cudaMemcpy(d_error_flag,error_flag,sizeof(int),cudaMemcpyHostToDevice);
 
 /* -------------- configure the grid  ------------ */
-    int threads_per_block = min(Neqn_p_sys,MAX_THREADS_PER_BLOCK);
-    int x_blocks_per_grid = 1+Neqn_p_sys/MAX_THREADS_PER_BLOCK;
-    int y_blocks_per_grid = min(Nsystems,MAX_BLOCKS_PER_GRID);
-    int z_blocks_per_grid = 1+Nsystems/MAX_BLOCKS_PER_GRID;
-
-    dim3 vector_gridDim(
-        x_blocks_per_grid,
-        y_blocks_per_grid,
-        z_blocks_per_grid);
+    int threads_per_block;
+    dim3 vector_gridDim;
+    configureGrid(
+        Nsystems,Neqn_p_sys,
+        &threads_per_block,
+        NULL,
+        &vector_gridDim,
+        NULL);
 
 /* ----------------------------------------------- */
     
