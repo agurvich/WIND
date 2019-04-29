@@ -10,27 +10,9 @@
 //#include <cusolverDn.h>
 //#include "magmablas.h"
 
-int SIESolveSystem(
-    float tnow,
-    float tend,
-    float timestep,
-    float ** d_Jacobianss, // matrix (jacobian) input
-    float * d_Jacobianss_flat,
-    float * jacobian_zeros,
-    float ** d_identity, // pointer to identity (ideally in constant memory?)
-    float ** d_derivatives, // vector (derivatives) input
-    float * d_derivatives_flat, // dy vector output
-    float * d_current_state_flat, // y vector output
-    float * d_previous_state_flat,
-    float ** d_intermediate, // matrix memory for intermediate calculation
-    float * d_intermediate_flat,// flattened memory for intermediate calculation
-    float * d_constants,
-    int Nsystems, // number of systems
-    int Neqn_p_sys){
+#define ORDER2
 
-}
-
-int BDF2SolveSystem(
+int solveSystem(
     float tnow,
     float tend,
     float timestep,
@@ -50,7 +32,6 @@ int BDF2SolveSystem(
 
     
     int nsteps = 1; 
-    cudaError_t cuda_error_code;
 /* -------------- configure the grid  ------------ */
     int threads_per_block;
     dim3 vector_gridDim;
@@ -64,10 +45,12 @@ int BDF2SolveSystem(
 /* ----------------------------------------------- */
     // copies the values of y(n) -> y(n-1)
     //  now that we don't need the "previous" step
+#ifdef ORDER2
     overwriteVector<<<vector_gridDim,threads_per_block>>>(
         d_current_state_flat,
         d_previous_state_flat,
         Nsystems,Neqn_p_sys);
+#endif
 
     // evaluate the derivative and jacobian at 
     //  the current state
@@ -119,6 +102,7 @@ int BDF2SolveSystem(
             Neqn_p_sys,
             tnow);
 
+#ifdef ORDER2
     /* -------------- perform the state switcheroo --- */
         
         //  (y(n)-y(n-1)) into d_intermediate_flat
@@ -133,10 +117,12 @@ int BDF2SolveSystem(
             d_current_state_flat,
             d_previous_state_flat,Nsystems,Neqn_p_sys);
     /* ----------------------------------------------- */
-
-
         SIE_step(
             2.0/3.0*timestep, // Nsystems length vector for timestep to use
+#else
+        SIE_step(
+            timestep,
+#endif
             d_Jacobianss, // matrix (jacobian) input
             d_Jacobianss, // inverse output, overwrite d_Jacobianss
             d_identity, // pointer to identity (ideally in constant memory?)
@@ -147,6 +133,7 @@ int BDF2SolveSystem(
             Neqn_p_sys); // number of equations in each system
 
 
+#ifdef ORDER2
     /* -------------- perform two matrix-vector mults  */
         // multiply (I-2/3h*Js)^-1 x (y(n)-y(n-1)), 
         //  overwrite the output into d_intermediate
@@ -176,6 +163,7 @@ int BDF2SolveSystem(
             1.0, d_current_state_flat,
             d_current_state_flat,Nsystems,Neqn_p_sys);
 
+#endif
         tnow+=timestep;
 
     }
@@ -183,7 +171,7 @@ int BDF2SolveSystem(
     return nsteps;
 }
 
-int BDF2ErrorLoop(
+int errorLoop(
     float tnow,
     float tend,
     float ** d_Jacobianss, // matrix (jacobian) input
@@ -203,7 +191,13 @@ int BDF2ErrorLoop(
     int Neqn_p_sys){
 
     float timestep = tend-tnow;
+
+    // what is our first attempt to solve the system?
+#ifdef ORDER2
     int n_integration_steps = 2;
+#else
+    int n_integration_steps = 1;
+#endif
 
     int * error_flag = (int *) malloc(sizeof(int));
     int * d_error_flag;
@@ -227,7 +221,7 @@ int BDF2ErrorLoop(
     int unsolved = 1;
     int nsteps=0;
     while (unsolved){
-        nsteps+= BDF2SolveSystem(
+        nsteps+= solveSystem(
             tnow,
             tend,
             timestep/n_integration_steps,
@@ -248,7 +242,7 @@ int BDF2ErrorLoop(
 #ifdef ADAPTIVETIMESTEP 
         n_integration_steps*=2;
 
-        nsteps+= BDF2SolveSystem(
+        nsteps+= solveSystem(
             tnow,
             tend,
             timestep/n_integration_steps,
@@ -336,7 +330,11 @@ int cudaIntegrateBDF2(
     int Neqn_p_sys){ // the number of equations in each system
 
 #ifdef LOUD
-    printf("BDF2 Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
+#ifdef ORDER2
+    printf("SIE2 Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
+#else
+    printf("SIE Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
+#endif
 #endif
     float *dest = equations;
 
@@ -382,6 +380,7 @@ int cudaIntegrateBDF2(
     float **d_half_current_state = initializeDeviceMatrix(
         equations,&d_half_current_state_flat,Neqn_p_sys,Nsystems);
 
+#ifdef ORDER2
     // saving previous step Y(n-1) because we need that for BDF2
     float *d_previous_state_flat;
     float **d_previous_state = initializeDeviceMatrix(zeros,&d_previous_state_flat,Neqn_p_sys,Nsystems);
@@ -390,6 +389,12 @@ int cudaIntegrateBDF2(
     //  and deallocating memory, NOTE can we remove this??
     float *d_intermediate_flat;
     float **d_intermediate = initializeDeviceMatrix(zeros,&d_intermediate_flat,Neqn_p_sys,Nsystems);
+#else
+    float * d_previous_state_flat = NULL;
+    float **d_previous_state = NULL;
+    float *d_intermediate_flat= NULL;
+    float **d_intermediate = NULL;
+#endif
 
     // initialize derivative vectors
     float *d_derivatives_flat;
@@ -397,7 +402,7 @@ int cudaIntegrateBDF2(
 
 /* ----------------------------------------------- */
 
-    int nsteps = BDF2ErrorLoop(
+    int nsteps = errorLoop(
         tnow,
         tend,
         d_Jacobianss, // matrix (jacobian) input
@@ -420,8 +425,6 @@ int cudaIntegrateBDF2(
     printf("nsteps taken: %d - tnow: %.2f\n",nsteps,tend);
 #endif
 
-
-
 /* -------------- copy data to host -------------- */
     // retrieve the output
     cudaMemcpy(dest, d_half_current_state_flat, Neqn_p_sys*Nsystems*sizeof(float), cudaMemcpyDeviceToHost);
@@ -432,8 +435,10 @@ int cudaIntegrateBDF2(
     cudaFree(d_Jacobianss); cudaFree(d_Jacobianss_flat);
     cudaFree(d_current_state); cudaFree(d_current_state_flat);
     cudaFree(d_half_current_state); cudaFree(d_half_current_state_flat);
+#ifdef ORDER2
     cudaFree(d_previous_state); cudaFree(d_previous_state_flat);
     cudaFree(d_intermediate); cudaFree(d_intermediate_flat);
+#endif 
     cudaFree(d_derivatives); cudaFree(d_derivatives_flat);
 
     free(zeros); free(jacobian_zeros);

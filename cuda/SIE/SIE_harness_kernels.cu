@@ -149,37 +149,20 @@ int solveSystem(
     int Nsystems, // number of systems
     int Neqn_p_sys){ // number of equations in each system
 
-
-    int y_blocks_per_grid = min(Nsystems,MAX_BLOCKS_PER_GRID);
-    int z_blocks_per_grid = 1+Nsystems/MAX_BLOCKS_PER_GRID;
-    
-    dim3 ode_gridDim(
-        1,
-        y_blocks_per_grid,
-        z_blocks_per_grid);
 /* -------------- main integration loop ---------- */
     int nsteps=0;
     while (tnow < tend){
         nsteps++;
         /* ------- reset the derivatives and jacobian matrix ------ */
         // evaluate the derivative function at tnow
-        calculateDerivatives<<<ode_gridDim,1>>>(
+        resetSystem(
+            d_derivatives,
             d_derivatives_flat,
-            d_constants,
-            d_equations_flat,
-            Nsystems,
-            Neqn_p_sys,
-            tnow);
-
-        cudaMemcpy(
-            d_Jacobianss_flat,jacobian_zeros,
-            Nsystems*Neqn_p_sys*Neqn_p_sys*sizeof(float),
-            cudaMemcpyHostToDevice);
-
-        calculateJacobians<<<ode_gridDim,1>>>(
             d_Jacobianss,
+            d_Jacobianss_flat,
             d_constants,
             d_equations_flat,
+            jacobian_zeros,
             Nsystems,
             Neqn_p_sys,
             tnow);
