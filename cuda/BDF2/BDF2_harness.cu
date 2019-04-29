@@ -30,6 +30,7 @@ int BDF2SolveSystem(
 
     
     int nsteps = 1; 
+    cudaError_t cuda_error_code;
 /* -------------- configure the grid  ------------ */
     int threads_per_block = min(Neqn_p_sys,MAX_THREADS_PER_BLOCK);
     int x_blocks_per_grid = 1+Neqn_p_sys/MAX_THREADS_PER_BLOCK;
@@ -41,11 +42,6 @@ int BDF2SolveSystem(
         y_blocks_per_grid,
         z_blocks_per_grid);
 
-    dim3 ode_gridDim(
-        1,
-        y_blocks_per_grid,
-        z_blocks_per_grid);
-
 /* ----------------------------------------------- */
     // copies the values of y(n) -> y(n-1)
     //  now that we don't need the "previous" step
@@ -54,24 +50,16 @@ int BDF2SolveSystem(
         d_previous_state_flat,
         Nsystems,Neqn_p_sys);
 
-    // evaluate the derivative function at tnow
-    calculateDerivatives<<<ode_gridDim,1>>>(
+    // evaluate the derivative and jacobian at 
+    //  the current state
+    resetSystem(
+        d_derivatives,
         d_derivatives_flat,
-        d_constants,
-        d_current_state_flat,
-        Nsystems,
-        Neqn_p_sys,
-        tnow);
-    // reset the jacobian, which has been replaced by (I-hJ)^-1
-    cudaMemcpy(
-        d_Jacobianss_flat,jacobian_zeros,
-        Nsystems*Neqn_p_sys*Neqn_p_sys*sizeof(float),
-        cudaMemcpyHostToDevice);
-
-    calculateJacobians<<<ode_gridDim,1>>>(
         d_Jacobianss,
+        d_Jacobianss_flat,
         d_constants,
         d_current_state_flat,
+        jacobian_zeros,
         Nsystems,
         Neqn_p_sys,
         tnow);
@@ -98,25 +86,16 @@ int BDF2SolveSystem(
     while (tnow < tend){
         nsteps++;
         
-        // evaluate the derivative function at tnow
-        calculateDerivatives<<<ode_gridDim,1>>>(
+        // evaluate the derivative and jacobian at 
+        //  the current state
+        resetSystem(
+            d_derivatives,
             d_derivatives_flat,
-            d_constants,
-            d_current_state_flat,
-            Nsystems,
-            Neqn_p_sys,
-            tnow);
-
-        // reset the jacobian, which has been replaced by (I-hJ)^-1
-        cudaMemcpy(
-            d_Jacobianss_flat,jacobian_zeros,
-            Nsystems*Neqn_p_sys*Neqn_p_sys*sizeof(float),
-            cudaMemcpyHostToDevice);
-
-        calculateJacobians<<<ode_gridDim,1>>>(
             d_Jacobianss,
+            d_Jacobianss_flat,
             d_constants,
             d_current_state_flat,
+            jacobian_zeros,
             Nsystems,
             Neqn_p_sys,
             tnow);
@@ -224,10 +203,6 @@ int BDF2ErrorLoop(
         y_blocks_per_grid,
         z_blocks_per_grid);
 
-    dim3 ode_gridDim(
-        1,
-        y_blocks_per_grid,
-        z_blocks_per_grid);
 /* ----------------------------------------------- */
     
     // use a flag as a counter, why not

@@ -1,4 +1,5 @@
 #include "ode.h"
+#include "vector_kernels.h"
 #include <stdio.h>
 
 __device__ int get_system_index(){
@@ -120,4 +121,49 @@ __global__ void calculateJacobians(
     // He++
     this_block_jacobian[24] = -constants[9]*ne;//He++ : -alpha_(He++)ne
     this_block_jacobian[23] = -this_block_jacobian[24];//He+ : 9-alpha_(He++)ne
+}
+
+void resetSystem(
+    float ** d_derivatives,
+    float * d_derivatives_flat,
+    float ** d_Jacobianss,
+    float * d_Jacobianss_flat,
+    float * d_constants,
+    float * d_current_state_flat,
+    float * jacobian_zeros,
+    int Nsystems,
+    int Neqn_p_sys,
+    float tnow){
+
+    int y_blocks_per_grid = min(Nsystems,MAX_BLOCKS_PER_GRID);
+    int z_blocks_per_grid = 1+Nsystems/MAX_BLOCKS_PER_GRID;
+
+
+    dim3 ode_gridDim(
+        1,
+        y_blocks_per_grid,
+        z_blocks_per_grid);
+
+    // evaluate the derivative function at tnow
+    calculateDerivatives<<<ode_gridDim,1>>>(
+        d_derivatives_flat,
+        d_constants,
+        d_current_state_flat,
+        Nsystems,
+        Neqn_p_sys,
+        tnow);
+
+    // reset the jacobian, which has been replaced by (I-hJ)^-1
+    cudaMemcpy(
+        d_Jacobianss_flat,jacobian_zeros,
+        Nsystems*Neqn_p_sys*Neqn_p_sys*sizeof(float),
+        cudaMemcpyHostToDevice);
+
+    calculateJacobians<<<ode_gridDim,1>>>(
+        d_Jacobianss,
+        d_constants,
+        d_current_state_flat,
+        Nsystems,
+        Neqn_p_sys,
+        tnow);
 }
