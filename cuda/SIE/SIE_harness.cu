@@ -10,7 +10,137 @@
 //#include <cusolverDn.h>
 //#include "magmablas.h"
 
-#define ORDER2
+void SIE_step(
+    float timestep, // device pointer to the current timestep (across all systems, lame!!)
+    float ** d_Jacobianss,  // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array with flattened jacobians
+    float ** d_inverse, // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array to store output (same as jacobians to overwrite)
+    float ** d_identity, // 1 x Neqn_p_sys*Neqn_p_sys array storing the identity (ideally in constant memory?)
+    float ** d_derivatives, // Nsystems x Neqn_p_sys 2d array to store derivatives
+    float * d_derivatives_flat, // Nsystems*Neqn_p_sys 1d array (flattened above)
+    float * d_equations_flat, // output state vector, iterative calls integrates
+    int Nsystems, // number of ODE systems
+    int Neqn_p_sys){ // number of equations in each system
+
+/* -------------- initialize cublas -------------- */
+
+    // initialize cublas status tracking pointers
+    cublasHandle_t handle;
+    int *P, *INFO, *d_INFO_bool;
+    int INFO_bool = 0;
+
+    // handle is something that connects cublas calls within a stream... something about v2 and 
+    // being able to pass scalars by reference instead of by value. I don't really understand it
+    // place to store cublas status stuff. 
+    cublasCreate_v2(&handle);
+    cudaMalloc(&P, Neqn_p_sys * Nsystems * sizeof(int));
+    cudaMalloc(&INFO,  Nsystems * sizeof(int));
+    cudaMalloc(&d_INFO_bool,sizeof(int));
+
+    // set the initial value of the INFO_bool check
+    cudaMemcpy(&d_INFO_bool,&INFO_bool,sizeof(int),cudaMemcpyHostToDevice);
+
+    //NOTE: uncomment this to use device pointers for constants
+    //cublasSetPointerMode(handle,CUBLAS_POINTER_MODE_DEVICE);
+
+    // scalars for adding/multiplying
+    float alpha = 1.0;
+    float beta = 0.0;
+/* ----------------------------------------------- */
+
+
+/* -------------- configure the grid  ------------ */
+    int threads_per_block = min(Neqn_p_sys,MAX_THREADS_PER_BLOCK);
+    int x_blocks_per_grid = 1+Neqn_p_sys/MAX_THREADS_PER_BLOCK;
+    int y_blocks_per_grid = min(Nsystems,MAX_BLOCKS_PER_GRID);
+    int z_blocks_per_grid = 1+Nsystems/MAX_BLOCKS_PER_GRID;
+
+    dim3 matrix_gridDim(
+        x_blocks_per_grid*Neqn_p_sys,
+        y_blocks_per_grid,
+        z_blocks_per_grid);
+
+    dim3 vector_gridDim(
+        x_blocks_per_grid,
+        y_blocks_per_grid,
+        z_blocks_per_grid);
+
+    dim3 ode_gridDim(
+        1,
+        y_blocks_per_grid,
+        z_blocks_per_grid);
+/* ----------------------------------------------- */
+
+
+/* -------------- invert the matrix -------------- */
+    // compute (I-hJ) with a custom kernel
+    addArrayToBatchArrays<<<matrix_gridDim,threads_per_block>>>(
+        d_identity,d_Jacobianss,1.0,-1.0,timestep,
+        Nsystems,Neqn_p_sys); 
+
+    // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
+    // the permutation array seems to be important for some reason
+    cublasStatus_t error = cublasSgetrfBatched(
+        handle, // cublas handle
+        Neqn_p_sys, // leading dimension of A??
+        d_Jacobianss, // matrix to factor, here I-hs*Js
+        Neqn_p_sys, // 
+        P, // permutation matrix
+        INFO, // cublas status object
+        Nsystems); // number of systems
+
+    // second cublas call, this one solves AX=B with B the identity. It puts X in d_inverse
+    cublasSgetriBatched(
+        handle, // cublas handle
+        Neqn_p_sys, // leading dimension of A??
+        (const float **)d_Jacobianss, // matrix to inverse, here I-hs*Js
+        Neqn_p_sys, // leading dimension of B??
+        P, // permutation matrix
+        d_inverse, // output matrix
+        Neqn_p_sys, // 
+        INFO, // cublas status object
+        Nsystems); // number of systems
+/* ----------------------------------------------- */
+
+/* -------------- perform a matrix-vector mult --- */
+    // multiply (I-h*Js)^-1 x fs
+    cublasSgemmBatched(
+        handle,// cublas handle
+        CUBLAS_OP_N,// no transformation
+        CUBLAS_OP_N,// no transformation
+        Neqn_p_sys, //m- number of rows in A (and C)
+        1, //n- number of columns in B (and C)
+        Neqn_p_sys, //k-number of columns in A and rows in B
+        (const float *) &alpha, // alpha scalar
+        (const float **) d_inverse, // A matrix
+        Neqn_p_sys, // leading dimension of the 2d array storing A??
+        (const float **) d_derivatives, // B matrix (or n x 1 column vector)
+        Neqn_p_sys, // leading dimension of the 2d array storing B??
+        (const float *) &beta, // beta scalar
+        (float **) d_derivatives, // output "matrix," let's overwrite B
+        Neqn_p_sys, // leading dimension of the 2d array storing C??
+        Nsystems); // batch count
+
+/* ----------------------------------------------- */
+
+/* -------------- perform a vector addition ------ */
+    // scale the dy vectors by the timestep size
+    //scaleVector<<<vector_gridDim,threads_per_block>>>(d_derivatives_flat,d_timesteps);
+    
+    // add ys + h x dys = ys + h x [(I-h*Js)^-1*fs]
+    cublasSaxpy(
+        handle, // cublas handle
+        Neqn_p_sys*Nsystems, // number of elements in each vector
+        (const float *) &timestep, // alpha scalar <-- can't use device pointer???
+        (const float *) d_derivatives_flat, // vector we are adding, flattened derivative vector
+        1, // stride between consecutive elements
+        d_equations_flat, // vector we are replacing
+        1); // stride between consecutive elements
+/* ----------------------------------------------- */
+    
+    // shut down cublas
+    cublasDestroy_v2(handle);
+    cudaFree(P); cudaFree(INFO); cudaFree(d_INFO_bool);
+}
 
 int solveSystem(
     float tnow,
@@ -321,7 +451,7 @@ int errorLoop(
     return nsteps;
 }
 
-int cudaIntegrateSIE2(
+int cudaIntegrateSIE(
     float tnow, // the current time
     float tend, // the time we integrating the system to
     float * constants, // the constants for each system

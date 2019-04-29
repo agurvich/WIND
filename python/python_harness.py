@@ -26,15 +26,18 @@ from eqm_eqns import get_eqm_abundances
 ## set the solar metallicity 
 WIERSMA_ZSOLAR = 0.0129
 
-## find that shared object library 
+## find the first order solver shared object library 
 curdir = os.path.split(os.getcwd())[0]
-exec_call = os.path.join(curdir,"cuda","lib","wind.so")
+exec_call = os.path.join(curdir,"cuda","lib","sie.so")
 print(exec_call)
 c_obj = ctypes.CDLL(exec_call)
-
 c_cudaIntegrateRK2 = getattr(c_obj,"_Z16cudaIntegrateRK2ffPfS_ii")
 c_cudaSIE_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffPfS_ii")
-c_cudaSIE2_integrate = getattr(c_obj,"_Z17cudaIntegrateSIE2ffPfS_ii")
+
+## get the second order library
+exec_call = os.path.join(curdir,"cuda","lib","sie2.so")
+c_obj = ctypes.CDLL(exec_call)
+c_cudaSIE2_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffPfS_ii")
 
 
 def get_constants_equations_chimes(nH_arr,temperature_arr,init_chem_arr):
