@@ -3,9 +3,6 @@
 
 #include "explicit_solver.h"
 
-#define ABSOLUTE_TOLERANCE 1e-6
-#define RELATIVE_TOLERANCE 1e-6
-
 __device__ float calculate_dydt(
     float tnow,
     float * constants,
@@ -62,7 +59,7 @@ __device__ float calculate_dydt(
 __device__ float rk2_innerstep(
     float tnow, // the current time
     float tstop, // the time we want to stop
-    float h, // the timestep to take
+    float timestep, // the timestep to take
     float * constants, // the constants for each system
     float * shared_temp_equations, // place to store temporary equations
     int Nsystems, // the number of systems
@@ -72,7 +69,7 @@ __device__ float rk2_innerstep(
 
     while (tnow < tstop){
         // limit step size based on remaining time
-        h = fmin(tstop - tnow, h);
+        timestep = fmin(tstop - tnow, timestep);
 
         //calculate the derivative for this equation
         dydt = calculate_dydt(
@@ -81,8 +78,8 @@ __device__ float rk2_innerstep(
             shared_temp_equations);
 
         // update value of temporary equations
-        shared_temp_equations[threadIdx.x] += h*dydt;
-        tnow+=h;
+        shared_temp_equations[threadIdx.x] += timestep*dydt;
+        tnow+=timestep;
 
     } // while(tnow < tstop)
     return shared_temp_equations[threadIdx.x];
@@ -91,6 +88,7 @@ __device__ float rk2_innerstep(
 __global__ void integrate_rk2(
     float tnow, // the current time
     float tend, // the time we integrating the system to
+    float timestep,
     float * constants, // the constants for each system
     float * equations, // a flattened array containing the y value for each equation in each system
     int Nsystems, // the number of systems
@@ -110,7 +108,6 @@ __global__ void integrate_rk2(
     float * shared_temp_equations = (float *) &shared_equations[Nequations_per_system];
 
     float y1,y2;
-    float h = (tend-tnow);
 
     // ensure thread within limit
     if (tid < Nsystems*Nequations_per_system ) {
@@ -122,15 +119,15 @@ __global__ void integrate_rk2(
         //printf("%d thread %d block\n",threadIdx.x,blockIdx.x);
         while (tnow < tend){
             // make sure we don't overintegrate
-            h = fmin(tend-tnow,h);
+            timestep = fmin(tend-tnow,timestep);
 
             // now reset the temporary equations
             shared_temp_equations[threadIdx.x] = shared_equations[threadIdx.x];
             __syncthreads();
 
             y1 = rk2_innerstep(
-                tnow, tnow+h,
-                h,
+                tnow, tnow+timestep,
+                timestep,
                 constants,
                 shared_temp_equations,
                 Nsystems, Nequations_per_system );
@@ -140,8 +137,8 @@ __global__ void integrate_rk2(
             __syncthreads();
 
             y2 = rk2_innerstep(
-                tnow, tnow+h,
-                h/2,
+                tnow, tnow+timestep,
+                timestep/2,
                 constants,
                 shared_temp_equations,
                 Nsystems, Nequations_per_system );
@@ -154,7 +151,7 @@ __global__ void integrate_rk2(
 
             if (*shared_error_flag){
                 // refine and start over
-                h/=2;
+                timestep/=2;
                 *shared_error_flag = 0;
             } // if shared_error_flag
             else{
@@ -162,10 +159,10 @@ __global__ void integrate_rk2(
                 // accept this step and update the shared array
                 //  using local extrapolation (see NR e:17.2.3)
                 shared_equations[threadIdx.x] = 2*y2-y1;
-                tnow+=h;
+                tnow+=timestep;
 
                 // let's get a little more optimistic
-                h*=2;
+                timestep*=2;
             }// if shared_error_flag -> else
 
             __syncthreads();
@@ -174,8 +171,10 @@ __global__ void integrate_rk2(
 
         // copy the y values back to global memory
         equations[tid]=shared_equations[threadIdx.x];
+#ifdef LOUD
         if (threadIdx.x == 1 && blockIdx.x == 0){
             printf("nsteps taken: %d - tnow: %.2f\n",*nsteps,tnow);
         }
+#endif
     } // if tid < nequations
 } //integrate_rk2

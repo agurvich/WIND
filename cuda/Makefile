@@ -1,23 +1,35 @@
-# Add source files here
+## WIND Configuration Options
+ABSOLUTE_TOLERANCE=5e-3
+RELATIVE_TOLERANCE=5e-3
+
+WINDCONFIG= -DADAPTIVETIMESTEP #-DLOUD
+
+WINDCONFIG+=-DABSOLUTE_TOLERANCE=$(ABSOLUTE_TOLERANCE)
+WINDCONFIG+=-DRELATIVE_TOLERANCE=$(RELATIVE_TOLERANCE)
+
+## Library names
 EXECUTABLE	:= lib/sie.so
 ORDER2EXECUTABLE:= lib/sie2.so
 
 
-BUILDDIR = $(shell pwd)
 
-# Cuda source files (compiled with nvcc)
-CUFILES		:= $(wildcard RK2/* common_functions/* ode_system.cu)
+## Cuda source files (compiled with nvcc)
+CUFILES		:= $(wildcard RK2/*.cu common_functions/*.cu ode_system.cu)
 
+## objects
 OBJS = $(CUFILES:%.cu=%.o)
 SIEOBJS = SIE/SIE.o SIE/SIE2.o
 
-CFLAGS = --compiler-options '-fPIC' -DADAPTIVETIMESTEP #-DLOUD 
 
+## compiler flags
+CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG)
 NVCFLAGS = -g -shared
 
+## libraries to include
 INCLUDE = -Iinclude -IRK2 -Icommon_functions##-I/sw/xe/magma/1.5.0/cnl5.2_gnu4.8.2/include
-
 LIB = -lcublas -lcusolver
+
+BUILDDIR = $(shell pwd)
 
 make: $(CUFILES) $(OBJS) $(SIEOBJS)
 

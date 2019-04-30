@@ -2,10 +2,6 @@
 #include <math.h>
 #include <stdio.h>
 
-#define ABSOLUTE_TOLERANCE 5e-3
-#define RELATIVE_TOLERANCE 5e-3
-
-
 __device__ int get_vector_tid(){
     // assumes gridDim.y = Nsystems and 
     //  and    gridDim.x = 1+Neqn_p_sys/1024

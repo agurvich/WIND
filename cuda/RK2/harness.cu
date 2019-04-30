@@ -18,6 +18,7 @@ void printArray(int * arr,int N){
 int cudaIntegrateRK2(
     float tnow, // the current time
     float tend, // the time we integrating the system to
+    float timestep,
     float * constants, // the constants for each system
     float * equations, // a flattened array containing the y value for each equation in each system
     int Nsystems, // the number of systems
@@ -73,6 +74,7 @@ int cudaIntegrateRK2(
         Nequations_per_system*(2*sizeof(float))+ sizeof(int)
         >>> (
         tnow, tend,
+        timestep,
         constantsDevice,equationsDevice,
         Nsystems,Nequations_per_system,
         nloopsDevice);

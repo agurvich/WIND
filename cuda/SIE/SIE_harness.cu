@@ -154,6 +154,8 @@ int solveSystem(
     int Nsystems, // number of systems
     int Neqn_p_sys){
 
+    // make sure we don't overintegrate
+    timestep = fmin(timestep,tend-tnow);
     
     int nsteps = 1; 
 /* -------------- configure the grid  ------------ */
@@ -210,6 +212,8 @@ int solveSystem(
     cublasCreate_v2(&handle);
 /* -------------- main integration loop ---------- */
     while (tnow < tend){
+        // make sure we don't overintegrate
+        timestep = fmin(timestep,tend-tnow);
         nsteps++;
         
         // evaluate the derivative and jacobian at 
@@ -298,6 +302,7 @@ int solveSystem(
 int errorLoop(
     float tnow,
     float tend,
+    float timestep,
     float ** d_Jacobianss, // matrix (jacobian) input
     float * d_Jacobianss_flat,
     float * jacobian_zeros,
@@ -314,14 +319,8 @@ int errorLoop(
     int Nsystems, // number of systems
     int Neqn_p_sys){
 
-    float timestep = tend-tnow;
-
     // what is our first attempt to solve the system?
-#ifdef ORDER2
-    int n_integration_steps = 2;
-#else
     int n_integration_steps = 1;
-#endif
 
     int * error_flag = (int *) malloc(sizeof(int));
     int * d_error_flag;
@@ -339,13 +338,9 @@ int errorLoop(
         NULL,
         &vector_gridDim);
 
-/* ----------------------------------------------- */
-    
-    // use a flag as a counter, why not
-    int unsolved = 1;
     int nsteps=0;
-    while (unsolved){
-        nsteps+= solveSystem(
+
+    nsteps+= solveSystem(
             tnow,
             tend,
             timestep/n_integration_steps,
@@ -363,7 +358,13 @@ int errorLoop(
             Nsystems,
             Neqn_p_sys);
 
+/* ----------------------------------------------- */
+    
 #ifdef ADAPTIVETIMESTEP 
+    // use a flag as a counter, why not
+    int unsolved = 1;
+    while (unsolved){
+        
         n_integration_steps*=2;
 
         nsteps+= solveSystem(
@@ -411,12 +412,15 @@ int errorLoop(
             // reset the error flag on the device
             cudaMemcpy(d_error_flag,error_flag,sizeof(int),cudaMemcpyHostToDevice);
         
-            // reset the equations
+
+            // copy this half-step to the previous full-step to save work
             cudaMemcpy(
                 d_current_state_flat,
-                equations,
+                d_half_current_state_flat,
                 Nsystems*Neqn_p_sys*sizeof(float),
-                cudaMemcpyHostToDevice);
+                cudaMemcpyDeviceToDevice);
+
+            // reset the equation for the half-step
             cudaMemcpy(
                 d_half_current_state_flat,
                 equations,
@@ -448,6 +452,7 @@ int errorLoop(
 int cudaIntegrateSIE(
     float tnow, // the current time
     float tend, // the time we integrating the system to
+    float timestep, // the initial timestep to attempt to integrate the system with
     float * constants, // the constants for each system
     float * equations, // a flattened array containing the y value for each equation in each system
     int Nsystems, // the number of systems
@@ -529,6 +534,7 @@ int cudaIntegrateSIE(
     int nsteps = errorLoop(
         tnow,
         tend,
+        timestep,
         d_Jacobianss, // matrix (jacobian) input
         d_Jacobianss_flat,
         jacobian_zeros,
