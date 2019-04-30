@@ -172,10 +172,17 @@ int solveSystem(
     // copies the values of y(n) -> y(n-1)
     //  now that we don't need the "previous" step
 #ifdef ORDER2
+    cudaMemcpy(
+        d_previous_state_flat,
+        d_current_state_flat,
+        Nsystems*Neqn_p_sys*sizeof(float),
+        cudaMemcpyDeviceToDevice);
+    /*
     overwriteVector<<<vector_gridDim,threads_per_block>>>(
         d_current_state_flat,
         d_previous_state_flat,
         Nsystems,Neqn_p_sys);
+    */
 #endif
 
     // evaluate the derivative and jacobian at 
@@ -241,9 +248,11 @@ int solveSystem(
 
         // copies the values of y(n) -> y(n-1)
         //  now that we don't need the "previous" step
-        overwriteVector<<<vector_gridDim,threads_per_block>>>(
+        cudaMemcpy(
+            d_previous_state_flat,
             d_current_state_flat,
-            d_previous_state_flat,Nsystems,Neqn_p_sys);
+            Nsystems*Neqn_p_sys*sizeof(float),
+            cudaMemcpyDeviceToDevice);
     /* ----------------------------------------------- */
         SIE_step(
             2.0/3.0*timestep, // Nsystems length vector for timestep to use
