@@ -143,11 +143,13 @@ __global__ void integrate_rk2(
                 shared_temp_equations,
                 Nsystems, Nequations_per_system );
 
+#ifdef ADAPTIVETIMESTEP
             // determine if any equation is above the absolute or relative tolerances
             if(fabs(y2 - y1) > ABSOLUTE_TOLERANCE || fabs((y2-y1)/(2*y2-y1+1e-12)) > RELATIVE_TOLERANCE){
                 *shared_error_flag = 1;
                 }
             __syncthreads();
+#endif
 
             if (*shared_error_flag){
                 // refine and start over
@@ -155,14 +157,19 @@ __global__ void integrate_rk2(
                 *shared_error_flag = 0;
             } // if shared_error_flag
             else{
-                (*nsteps)++;
+                if (threadIdx.x == 0){
+                    atomicAdd(nsteps,1);
+                }
+                //(*nsteps)++;
                 // accept this step and update the shared array
                 //  using local extrapolation (see NR e:17.2.3)
                 shared_equations[threadIdx.x] = 2*y2-y1;
                 tnow+=timestep;
 
+#ifdef ADAPTIVETIMESTEP
                 // let's get a little more optimistic
                 timestep*=2;
+#endif
             }// if shared_error_flag -> else
 
             __syncthreads();

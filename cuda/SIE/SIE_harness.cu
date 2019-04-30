@@ -431,16 +431,13 @@ int errorLoop(
             // we did it, let's exit the loop gracefully
             unsolved=0;
         }
+    }// while unsolved
 #else
         // take only this one step and call it a day, simplest way to 
         //  quit early is to copy the values from d_equations_flat to d_half_equations_flat and
         //  return normally. 
         cudaMemcpy(d_half_current_state_flat,d_current_state_flat,Nsystems*Neqn_p_sys*sizeof(float),cudaMemcpyDeviceToDevice);
-        unsolved=0;
-
 #endif
-    }// while unsolved
-
     // free up memory
     cudaFree(d_error_flag);
     free(error_flag);
