@@ -130,7 +130,7 @@ class ODECache(object):
         ax = plt.gca() if ax is None else ax
         fig = ax.get_figure()
         from matplotlib.lines import Line2D
-        linestyles = ['--',':','-.','-']*2
+        linestyles = ['--',':','-.','-']
         lws = [3,3,3,3]*2
         custom_lines = [Line2D([0], [0], color=colors[i],
             lw=lws[1],ls=linestyles[-1]) for i in range(len(self.solvers))]
@@ -140,7 +140,11 @@ class ODECache(object):
             zip(self.equations_over_time,self.timess,self.nstepss,self.walltimess,self.solvers)):
             for equation_i in range(len(this_solver_equations[system_index])):
                 ys = this_solver_equations[system_index][equation_i]
-                ax.plot(times,ys,c=colors[solver_j],ls = linestyles[equation_i],lw=lws[equation_i])
+                ax.plot(
+                    times,ys,
+                    c=colors[solver_j],
+                    ls = linestyles[equation_i%len(linestyles)],
+                    lw=lws[equation_i%len(lws)])
                 
             this_nstepss +=[ np.sum(nsteps)]
 
@@ -151,7 +155,7 @@ class ODECache(object):
                 color='k',#colors[equation_i],
                 ls='-',xmin=.9,alpha=0.5)
                 ax.text(times[-1]-equation_i,self.eqmss[system_index][equation_i],
-                    self.equation_labels[equation_i].astype('U13'),
+                    self.equation_labels[equation_i%len(self.equation_labels)].astype('U13'),
                     va='top',ha='left',
                     color='k',#colors[equation_i],
                     fontsize=14)

@@ -231,7 +231,8 @@ def main(
     Nequations_per_system = 5,
     n_output_steps = 20,
     fname=None,
-    makeplots=True
+    makeplots=True,
+    Ntile = 1
     ):
 
     ## finish dealing with default arguments
@@ -265,6 +266,16 @@ def main(
 
     ## use the grid to create flat arrays of rate coefficients and abundance arrays
     init_constants,init_equations = get_constants_equations_chimes(nH_arr,temperature_arr,init_chem_arr)
+    
+    ## tile the ICs for each system
+    if Ntile > 1:
+        init_equations = np.concatenate(
+            [np.tile(init_equations[
+                i*Nequations_per_system:
+                (i+1)*Nequations_per_system],
+                Ntile)
+            for i in range(Nsystems)])
+        Nequations_per_system*=Ntile
 
     if RK2:
         constants = copy.copy(init_constants)#get_constants(nH,TEMP,Nsystems)
@@ -429,6 +440,14 @@ def main(
         in zip(nH_arr,temperature_arr,y_heliums)
     ])
 
+    if Ntile > 1:
+        eqmss = np.concatenate(
+            [np.tile(eqmss[
+                i*Nequations_per_system//Ntile:
+                (i+1)*Nequations_per_system//Ntile],
+                Ntile)
+            for i in range(Nsystems)])
+
     with h5py.File(fname,'a') as handle:
         handle.attrs['Nsystems'] = Nsystems
         handle.attrs['Nequations_per_system'] = Nequations_per_system
@@ -462,7 +481,8 @@ if __name__ == '__main__':
         'Nsystems=',
         'RK2=','SIE=','SIE2=',
         'PY=','CHIMES=',
-        'fname=','makeplots='])
+        'fname=','makeplots=',
+        'Ntile='])
 
     #options:
     #--snap(low/high) : snapshot numbers to loop through
