@@ -29,7 +29,7 @@ int main(){
     void * sielib = dlopen("../lib/sie.so", RTLD_LAZY);
     
     int (*p_cudaIntegrateSIE)(float,float,int,float*,float*,int,int);
-    p_cudaIntegrateSIE  = dlsym(sielib,"_Z16cudaIntegrateRK2ffiPfS_ii");
+    p_cudaIntegrateSIE  = dlsym(sielib,"_Z16cudaIntegrateSIEffiPfS_ii");
 
     printf("%.2f\n",equations[1]);
     printf("%.2e\n",constants[1]);

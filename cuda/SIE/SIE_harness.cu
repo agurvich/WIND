@@ -26,8 +26,7 @@ void SIE_step(
 
     // initialize cublas status tracking pointers
     cublasHandle_t handle;
-    int *P, *INFO, *d_INFO_bool;
-    int INFO_bool = 0;
+    int *P, *INFO;
 
     // handle is something that connects cublas calls within a stream... something about v2 and 
     // being able to pass scalars by reference instead of by value. I don't really understand it
@@ -35,10 +34,6 @@ void SIE_step(
     cublasCreate_v2(&handle);
     cudaMalloc(&P, Neqn_p_sys * Nsystems * sizeof(int));
     cudaMalloc(&INFO,  Nsystems * sizeof(int));
-    cudaMalloc(&d_INFO_bool,sizeof(int));
-
-    // set the initial value of the INFO_bool check
-    cudaMemcpy(&d_INFO_bool,&INFO_bool,sizeof(int),cudaMemcpyHostToDevice);
 
     //NOTE: uncomment this to use device pointers for constants
     //cublasSetPointerMode(handle,CUBLAS_POINTER_MODE_DEVICE);
@@ -144,7 +139,7 @@ void SIE_step(
     
     // shut down cublas
     cublasDestroy_v2(handle);
-    cudaFree(P); cudaFree(INFO); cudaFree(d_INFO_bool);
+    cudaFree(P); cudaFree(INFO);
 }
 
 int solveSystem(
@@ -166,7 +161,7 @@ int solveSystem(
     // make sure we don't overintegrate
     timestep = fmin(timestep,tend-tnow);
     
-    int nsteps = 1; 
+    int nsteps = 0; 
 /* -------------- configure the grid  ------------ */
     int threads_per_block;
     dim3 vector_gridDim;
@@ -222,6 +217,7 @@ int solveSystem(
     // in the off chance it gets overwritten by the fmin
     //  below...
     float orig_timestep = timestep;
+    nsteps++;
 #endif
 /* ----------------------------------------------- */
 
@@ -323,6 +319,7 @@ int solveSystem(
     //  for completeness' sake (even if it doesn't matter)
     tnow+=timestep;
     tend+=timestep;
+    nsteps++;
 #endif
 
     cublasDestroy_v2(handle);
