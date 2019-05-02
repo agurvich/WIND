@@ -7,4 +7,4 @@ cd ../../cuda
 make clean
 make
 cd ../python
-python python_harness.py --Ntile=$1
+python python_harness.py --Ntile=$1 --fname="ntile${1}.hdf5"

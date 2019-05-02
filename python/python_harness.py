@@ -131,6 +131,7 @@ def runIntegratorOutput(
             group['times'] = times
             group['nsteps'] = nsteps
             group['walltimes'] = walltimes
+            print(walltimes,'walls')
     print("total nsteps:",np.sum(nsteps))
    
 def calculate_rates(equations,constants):
@@ -297,24 +298,25 @@ def main(
         print("---------------------------------------------------")
         output_mode = 'a'
 
-    if SIE:
-        constants = copy.copy(init_constants)#get_constants(nH,TEMP,Nsystems)
-        equations = copy.copy(init_equations)#initialize_equations(nH,Nsystems,y_helium)
- 
 
-        runIntegratorOutput(
+    ## initialize cublas lazily
+    constants = copy.copy(init_constants)#get_constants(nH,TEMP,Nsystems)
+    equations = copy.copy(init_equations)#initialize_equations(nH,Nsystems,y_helium)
+    runIntegratorOutput(
             c_cudaSIE_integrate,'SIE',
             tnow,tend,
             timestep,
             n_output_steps,
             constants,
             equations,
-            Nsystems,
-            Nequations_per_system,
+            1,
+            1,
             fname,
             output_mode = None,
             print_flag = False)
 
+
+    if SIE:
         constants = copy.copy(init_constants)#get_constants(nH,TEMP,Nsystems)
         equations = copy.copy(init_equations)#initialize_equations(nH,Nsystems,y_helium)
 
@@ -335,22 +337,6 @@ def main(
         output_mode = 'a'
 
     if SIE2:
-        constants = copy.copy(init_constants)#get_constants(nH,TEMP,Nsystems)
-        equations = copy.copy(init_equations)#initialize_equations(nH,Nsystems,y_helium)
-
-        runIntegratorOutput(
-            c_cudaSIE2_integrate,'SIE2',
-            tnow,tend,
-            timestep,
-            n_output_steps,
-            constants,
-            equations,
-            Nsystems,
-            Nequations_per_system,
-            fname,
-            output_mode = None,
-            print_flag = False)
-
         constants = copy.copy(init_constants)#get_constants(nH,TEMP,Nsystems)
         equations = copy.copy(init_equations)#initialize_equations(nH,Nsystems,y_helium)
 
