@@ -6,7 +6,7 @@ ORDER2EXECUTABLE:= ../lib/sie2.so
 INCLUDE = -I../lib -I../include
 
 ## compiler flags
-NVCFLAGS = -g
+NVCFLAGS = -g 
 make: 
 	@## compile this guy
 	nvcc $(CFLAGS) $(NVCFLAGS) -arch=sm_35 -ldl $(INCLUDE) -o debug debug.c;

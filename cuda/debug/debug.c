@@ -1,5 +1,6 @@
 #include "implicit_solver.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <dlfcn.h>
 
 int main(){
@@ -20,20 +21,20 @@ int main(){
 
     float tnow = 0;
     float tend = 10.0;
-    int n_integration_steps = 1;
+    int n_integration_steps = 3;
     int Nsystems = 4;
     int Neqn_p_sys = 5;
 
 
 
     void * sielib = dlopen("../lib/sie.so", RTLD_LAZY);
+    void * sie2lib = dlopen("../lib/sie2.so", RTLD_LAZY);
     
     int (*p_cudaIntegrateSIE)(float,float,int,float*,float*,int,int);
     p_cudaIntegrateSIE  = dlsym(sielib,"_Z16cudaIntegrateSIEffiPfS_ii");
 
-    printf("%.2f\n",equations[1]);
-    printf("%.2e\n",constants[1]);
-
+    int (*p_cudaIntegrateSIM)(float,float,int,float*,float*,int,int);
+    p_cudaIntegrateSIM  = dlsym(sie2lib,"_Z16cudaIntegrateSIEffiPfS_ii");
 
     int nsteps = (*p_cudaIntegrateSIE)(
         tnow, // the current time
@@ -44,7 +45,27 @@ int main(){
         Nsystems, // the number of systems
         Neqn_p_sys);
 
-    printf("%d nsteps\n",nsteps);
+    printf("SIE: %d nsteps\n",nsteps);
+
+    float new_equations[20] = {
+        0 , 1. , 0. , 0.09929229 , 0. ,
+        0 , 1. , 0. , 0.09929229 , 0. ,
+        0 , 1. , 0. , 0.09929229 , 0. ,
+        0 , 1. , 0. , 0.09929229 , 0.};
+    
+    tnow = 0;
+
+    nsteps = (*p_cudaIntegrateSIM)(
+        tnow, // the current time
+        tend, // the time we integrating the system to
+        n_integration_steps, // the initial timestep to attempt to integrate the system with
+        constants, // the constants for each system
+        new_equations, // a flattened array containing the y value for each equation in each system
+        Nsystems, // the number of systems
+        Neqn_p_sys);
+
+    printf("SIM: %d nsteps\n",nsteps);
 
     dlclose(sielib); 
+    dlclose(sie2lib);
 }

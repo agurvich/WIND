@@ -344,6 +344,11 @@ int errorLoop(
     int Nsystems, // number of systems
     int Neqn_p_sys){
 
+#ifdef MIDPOINT
+    // need at least 3 steps to evaluate midpoint method
+    n_integration_steps = max(n_integration_steps,3);
+#endif
+
     // what is our first attempt to solve the system?
     float timestep = (tend-tnow)/n_integration_steps;
 
