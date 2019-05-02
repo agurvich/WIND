@@ -8,7 +8,8 @@ void SIE_step(
     float *, // Nsystems*Neqn_p_sys 1d array (flattened above)
     float *, // output state vector, iterative calls integrates
     int, // number of ODE systems
-    int); // number of equations in each system
+    int, // number of equations in each system
+    float *);// vector to subtract from hf before multipying by A
 
 
 int SIEErrorLoop(

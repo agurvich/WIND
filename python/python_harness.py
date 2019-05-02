@@ -31,13 +31,13 @@ curdir = os.path.split(os.getcwd())[0]
 exec_call = os.path.join(curdir,"cuda","lib","sie.so")
 print(exec_call)
 c_obj = ctypes.CDLL(exec_call)
-c_cudaIntegrateRK2 = getattr(c_obj,"_Z16cudaIntegrateRK2fffPfS_ii")
-c_cudaSIE_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEfffPfS_ii")
+c_cudaIntegrateRK2 = getattr(c_obj,"_Z16cudaIntegrateRK2ffiPfS_ii")
+c_cudaSIE_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_ii")
 
 ## get the second order library
 exec_call = os.path.join(curdir,"cuda","lib","sie2.so")
 c_obj = ctypes.CDLL(exec_call)
-c_cudaSIE2_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEfffPfS_ii")
+c_cudaSIM_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_ii")
 
 
 def get_constants_equations_chimes(nH_arr,temperature_arr,init_chem_arr):
@@ -50,14 +50,10 @@ def get_constants_equations_chimes(nH_arr,temperature_arr,init_chem_arr):
 def runCudaIntegrator(
     integrator,
     tnow,tend,
-    timestep,
+    nsteps,
     constants,equations,
     Nsystems,Nequations_per_system,
     print_flag=1):
-
-    ## just the initial timestep, it will refine if adaptive
-    ##  compile flag was used
-    timestep = tend-tnow if timestep is None else timestep
 
     if print_flag:
         print("equations before:",equations)
@@ -66,7 +62,7 @@ def runCudaIntegrator(
     nsteps =integrator(
         ctypes.c_float(np.float32(tnow)),
         ctypes.c_float(np.float32(tend)),
-        ctypes.c_float(np.float32(timestep)),
+        ctypes.c_int(int(nsteps)),
         constants.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
         equations.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
         ctypes.c_int(Nsystems),
@@ -82,7 +78,7 @@ def runIntegratorOutput(
     integrator_fn,
     integrator_name,
     tnow,tend,
-    timestep,
+    n_integration_steps,
     n_output_steps,
     constants,
     equations,
@@ -109,7 +105,7 @@ def runIntegratorOutput(
             runCudaIntegrator(
                 integrator_fn,
                 tcur,tcur+dt,
-                timestep,
+                n_integration_steps,
                 constants,equations,
                 Nsystems,Nequations_per_system,
                 print_flag = print_flag)]
@@ -220,10 +216,10 @@ def initialize_equations(nH,Nsystems,y_helium):
 def main(
     tnow = 0,
     tend = 200,
-    timestep = None,
+    nsteps = 1,
     RK2 = False,
     SIE = True,
-    SIE2 = True,
+    SIM = True,
     CHIMES = False,
     PY = False,
     TEMP = 1e2, ## K
@@ -285,7 +281,7 @@ def main(
         runIntegratorOutput(
             c_cudaIntegrateRK2,'RK2',
             tnow,tend,
-            timestep,
+            nsteps,
             n_output_steps,
             constants,
             equations,
@@ -305,7 +301,7 @@ def main(
     runIntegratorOutput(
             c_cudaSIE_integrate,'SIE',
             tnow,tend,
-            timestep,
+            nsteps,
             n_output_steps,
             constants,
             equations,
@@ -323,7 +319,7 @@ def main(
         runIntegratorOutput(
             c_cudaSIE_integrate,'SIE',
             tnow,tend,
-            timestep,
+            nsteps,
             n_output_steps,
             constants,
             equations,
@@ -336,14 +332,14 @@ def main(
         print("---------------------------------------------------")
         output_mode = 'a'
 
-    if SIE2:
+    if SIM:
         constants = copy.copy(init_constants)#get_constants(nH,TEMP,Nsystems)
         equations = copy.copy(init_equations)#initialize_equations(nH,Nsystems,y_helium)
 
         runIntegratorOutput(
-            c_cudaSIE2_integrate,'SIE2',
+            c_cudaSIM_integrate,'SIM',
             tnow,tend,
-            timestep,
+            nsteps,
             n_output_steps,
             constants,
             equations,
@@ -462,10 +458,10 @@ if __name__ == '__main__':
     argv = sys.argv[1:]
     opts,args = getopt.getopt(argv,'',[
         'tnow=','tend=',
-        'timestep=',
+        'nsteps=',
         'n_output_steps=',
         'Nsystems=',
-        'RK2=','SIE=','SIE2=',
+        'RK2=','SIE=','SIM=',
         'PY=','CHIMES=',
         'fname=','makeplots=',
         'Ntile='])

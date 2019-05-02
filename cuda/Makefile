@@ -1,6 +1,6 @@
 ## WIND Configuration Options
-ABSOLUTE_TOLERANCE=5e-2
-RELATIVE_TOLERANCE=1e-4
+ABSOLUTE_TOLERANCE=5e-3
+RELATIVE_TOLERANCE=5e-3
 
 WINDCONFIG= -DADAPTIVETIMESTEP #-DLOUD
 
@@ -42,7 +42,7 @@ SIE/SIE.o: SIE/SIE_harness.cu $(OBJS)
 SIE/SIE2.o: SIE/SIE_harness.cu $(OBJS)
 	@echo $@ specific foo $< $*
 	@## compile this guy
-	nvcc $(NVCFLAGS) $(CFLAGS) -DORDER2 -arch=sm_35 $(INCLUDE) $(LIB) -o $@ -c $<;
+	nvcc $(NVCFLAGS) $(CFLAGS) -DMIDPOINT -arch=sm_35 $(INCLUDE) $(LIB) -o $@ -c $<;
 	@## link the other files
 	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(ORDER2EXECUTABLE) $(OBJS) SIE/SIE2.o;
 %.o: %.cu
