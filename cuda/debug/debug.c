@@ -36,7 +36,9 @@ int main(){
     int (*p_cudaIntegrateSIM)(float,float,int,float*,float*,int,int);
     p_cudaIntegrateSIM  = dlsym(sie2lib,"_Z16cudaIntegrateSIEffiPfS_ii");
 
-    int nsteps = (*p_cudaIntegrateSIE)(
+    int nsteps;
+    /*
+    nsteps = (*p_cudaIntegrateSIE)(
         tnow, // the current time
         tend, // the time we integrating the system to
         n_integration_steps, // the initial timestep to attempt to integrate the system with
@@ -46,6 +48,7 @@ int main(){
         Neqn_p_sys);
 
     printf("SIE: %d nsteps\n",nsteps);
+    */
 
     float new_equations[20] = {
         0 , 1. , 0. , 0.09929229 , 0. ,

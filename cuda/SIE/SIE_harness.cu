@@ -120,16 +120,21 @@ void SIE_step(
 
 /* ----------------------------------------------- */
 
-/* -------------- perform a vector addition ------ */
-    // scale the dy vectors by the timestep size
-    //scaleVector<<<vector_gridDim,threads_per_block>>>(d_derivatives_flat,d_timesteps);
-    
+/* ------------ update the current state --------- */
     if (d_derivative_modification_flat == NULL){
+        // scale it explicitly in case calling context needs
+        //  h x A(n) x  f(n)
+        scaleVector<<<vector_gridDim,threads_per_block>>>(
+            d_derivatives_flat,
+            timestep,
+            Nsystems,
+            Neqn_p_sys);
+
         // add ys + h x dys = ys + h x [(I-h*Js)^-1*fs]
         cublasSaxpy(
             handle, // cublas handle
             Neqn_p_sys*Nsystems, // number of elements in each vector
-            (const float *) &timestep, // alpha scalar <-- can't use device pointer???
+            (const float *) &alpha, // alpha scalar <-- can't use device pointer???
             (const float *) d_derivatives_flat, // vector we are adding, flattened derivative vector
             1, // stride between consecutive elements
             d_equations_flat, // vector we are replacing
@@ -145,7 +150,7 @@ void SIE_step(
 int solveSystem(
     float tnow,
     float tend,
-    float timestep,
+    int n_integration_steps,
     float ** d_Jacobianss, // matrix (jacobian) input
     float * d_Jacobianss_flat,
     float * jacobian_zeros,
@@ -159,8 +164,7 @@ int solveSystem(
     int Neqn_p_sys){
 
     // make sure we don't overintegrate
-    timestep = fmin(timestep,tend-tnow);
-    
+    float timestep = (tend-tnow)/n_integration_steps;
     int nsteps = 0; 
 /* -------------- configure the grid  ------------ */
     int threads_per_block;
@@ -173,9 +177,6 @@ int solveSystem(
         &vector_gridDim);
 
 #ifdef MIDPOINT
-    // need at least 3 points to integrate with SIM
-    timestep = fmin(timestep,(tend-tnow)/3);
-
     /* ------------- do the special first step ------- */
     // evaluate the derivative and jacobian at 
     //  the current state
@@ -197,7 +198,7 @@ int solveSystem(
         d_Jacobianss, // inverse output, overwrite d_Jacobianss
         d_identity, // pointer to identity (ideally in constant memory?)
         d_derivatives, // vector (derivatives) input
-        d_derivatives_flat, // dy vector output-- store A(0) x hf(0)
+        d_derivatives_flat, // dy vector output-- store h x A(0) x f(0)
         d_current_state_flat, // y vector output
         Nsystems, // number of systems
         Neqn_p_sys,// number of equations in each system
@@ -212,11 +213,7 @@ int solveSystem(
 
     // address special step timestepping issues
     tnow+=timestep;
-    tend-=timestep;
-
-    // in the off chance it gets overwritten by the fmin
-    //  below...
-    float orig_timestep = timestep;
+    n_integration_steps-=1;
     nsteps++;
 #endif
 /* ----------------------------------------------- */
@@ -225,11 +222,7 @@ int solveSystem(
     cublasStatus_t error;
     cublasCreate_v2(&handle);
 /* -------------- main integration loop ---------- */
-    while (tnow < tend){
-        // make sure we don't overintegrate
-        timestep = fmin(timestep,tend-tnow);
-        nsteps++;
-        
+    while (nsteps < n_integration_steps){        
         // evaluate the derivative and jacobian at 
         //  the current state
         resetSystem(
@@ -276,12 +269,10 @@ int solveSystem(
 
 #endif
         tnow+=timestep;
+        nsteps++;
     }
 
 #ifdef MIDPOINT
-    // in the off chance it gets overwritten by the fmin
-    //  above...
-    timestep = orig_timestep;
     /* ------------- do the special last step -------- */
     // evaluate the derivative and jacobian at 
     //  the current state
@@ -318,7 +309,7 @@ int solveSystem(
     // increment tnow and put tend back where we found it
     //  for completeness' sake (even if it doesn't matter)
     tnow+=timestep;
-    tend+=timestep;
+    n_integration_steps+=1;
     nsteps++;
 #endif
 
@@ -349,9 +340,6 @@ int errorLoop(
     n_integration_steps = max(n_integration_steps,3);
 #endif
 
-    // what is our first attempt to solve the system?
-    float timestep = (tend-tnow)/n_integration_steps;
-
     int * error_flag = (int *) malloc(sizeof(int));
     int * d_error_flag;
     cudaMalloc(&d_error_flag,sizeof(int));
@@ -373,7 +361,7 @@ int errorLoop(
     nsteps+= solveSystem(
             tnow,
             tend,
-            timestep,
+            n_integration_steps,
             d_Jacobianss,
             d_Jacobianss_flat,
             jacobian_zeros,
@@ -394,12 +382,10 @@ int errorLoop(
     while (unsolved){
         
         n_integration_steps*=2;
-        timestep/=2;
-
         nsteps+= solveSystem(
             tnow,
             tend,
-            timestep,
+            n_integration_steps,
             d_Jacobianss,
             d_Jacobianss_flat,
             jacobian_zeros,
