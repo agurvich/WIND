@@ -321,6 +321,7 @@ if __name__ == '__main__':
         'Nsystems=',
         'RK2=','SIE=','SIM=',
         'PY=','CHIMES=',
+        'NR=','katz='
         'fname=','makeplots=',
         'Ntile='])
 

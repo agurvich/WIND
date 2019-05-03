@@ -5,34 +5,36 @@ def reindex(index,Ntile,Ndim,this_tile):
     nrow = index // Ndim
     return index + (Ntile-1)*Ndim*nrow + (Ndim*Ndim*Ntile+Ndim)*this_tile
 
-def make_jacobian_string(Ntile,prefix,suffix):
+def make_jacobian_string(system,Ntile,prefix,suffix):
     strr = prefix
     for this_tile in range(Ntile):
-        strr+=make_jacobian_block(this_tile,Ntile)
+        strr+=system.make_jacobian_block(this_tile,Ntile)
     return strr + suffix
 
-def make_derivative_string(Ntile,prefix,suffix):
+def make_derivative_string(system,Ntile,prefix,suffix):
     strr = prefix
     for this_tile in range(Ntile):
-        strr+=get_derivative_block(this_tile,Ntile)
+        strr+=system.get_derivative_block(this_tile,Ntile)
     return strr + suffix
 
 def make_ode_file(system,Ntile):
     strr = file_prefix
 
     strr+=make_derivative_string(
+        system,
         Ntile,
         system.derivative_prefix,
         system.derivative_suffix)
 
     strr+=make_jacobian_string(
+        system,
         Ntile,
         system.jacobian_prefix,
         system.jacobian_suffix)
 
     strr+=file_suffix
 
-    with open('%s_preprocess_ode.cu'%system.name,'w') as handle:
+    with open('precompile_cu_files/%s_preprocess_ode.cu'%system.name,'w') as handle:
         handle.write(strr)
 
     return make_ode_file

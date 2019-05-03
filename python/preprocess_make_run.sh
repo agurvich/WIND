@@ -1,7 +1,7 @@
 #!/bin/bash
 
-cd preprocess
-python preprocess.py $1
+cd ode_systems 
+python katz96.py $1
 mv preprocess_ode.cu ../../cuda/ode_system.cu
 cd ../../cuda
 make clean

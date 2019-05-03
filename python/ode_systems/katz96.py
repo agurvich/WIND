@@ -9,8 +9,10 @@ from chimes_driver.utils.table_utils import create_table_grid
 from chimes_driver.driver_config import read_parameters, print_parameters 
 from chimes_driver.driver_class import ChimesDriver
 
+
 ## this package imports
 from ode_systems.ode_base import ODEBase
+from ode_systems.preprocess.preprocess import reindex
 
 home_directory = os.environ['HOME']
 
@@ -478,13 +480,3 @@ class Katz96(ODEBase):
     """
 
     jacobian_suffix = "}\n"
-
-if __name__ == '__main__':
-    arg = sys.argv[1:]
-    if len(arg):
-        arg = int(arg[0])
-    else:
-        arg = 1
-
-    system = Katz96()
-    system.preprocess(arg)
