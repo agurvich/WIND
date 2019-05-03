@@ -355,143 +355,143 @@ class Katz96(ODEBase):
     def make_jacobian_block(self,this_tile,Ntile):
         ridx = lambda x: reindex(x,Ntile,5,this_tile)
         jacobian_good_stuff = ("""   
-        // H0
-        this_block_jacobian[%d] = -(constants[%d]*ne + constants[%d]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-        this_block_jacobian[%d] = -this_block_jacobian[%d]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    // H0
+    this_block_jacobian[%d] = -(constants[%d]*ne + constants[%d]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[%d] = -this_block_jacobian[%d]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         """%(ridx(0),0,1,ridx(1),ridx(0)) + 
         """
-        //H+
-        this_block_jacobian[%d] = -constants[%d]*ne; // H+ -alpha_(H+)ne
-        this_block_jacobian[%d] = -this_block_jacobian[%d]; // H0 : 2-alpha_(H+)ne
+    //H+
+    this_block_jacobian[%d] = -constants[%d]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[%d] = -this_block_jacobian[%d]; // H0 : 2-alpha_(H+)ne
         """%(ridx(6),2,ridx(5),ridx(6)) + 
         """
-        // He0
-        this_block_jacobian[%d] = -(constants[%d]*ne+constants[%d]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-        this_block_jacobian[%d] = this_block_jacobian[%d]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    // He0
+    this_block_jacobian[%d] = -(constants[%d]*ne+constants[%d]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[%d] = this_block_jacobian[%d]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         """%(ridx(12),3,4,ridx(13),ridx(12))  + 
         """
-        // He+
-        this_block_jacobian[%d] = constants[%d]*ne+constants[%d]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-        this_block_jacobian[%d] = (constants[%d]+constants[%d])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-        this_block_jacobian[%d] = -this_block_jacobian[%d] - 
-            this_block_jacobian[%d]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    // He+
+    this_block_jacobian[%d] = constants[%d]*ne+constants[%d]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[%d] = (constants[%d]+constants[%d])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[%d] = -this_block_jacobian[%d] - 
+        this_block_jacobian[%d]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         """%(ridx(19),5,6,ridx(17),7,8,ridx(18),ridx(17),ridx(19)) + 
         """
-        // He++
-        this_block_jacobian[%d] = -constants[%d]*ne;//He++ : -alpha_(He++)ne
-        this_block_jacobian[%d] = -this_block_jacobian[%d];//He+ : 9-alpha_(He++)ne
+    // He++
+    this_block_jacobian[%d] = -constants[%d]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[%d] = -this_block_jacobian[%d];//He+ : 9-alpha_(He++)ne
         """%(ridx(24),9,ridx(23),ridx(24)))
         return jacobian_good_stuff
 
     def get_derivative_block(self,this_tile,Ntile):
         ridx = lambda x: x+this_tile *5 
         derivative_good_stuff = ("""    // H0 : 2-alpha_(H+) ne nH+ - (0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0))*nH0
-        this_block_derivatives[%d] = constants[%d]*ne*this_block_state[%d]
-            -(constants[%d]*ne + constants[%d])*this_block_state[%d]; 
+    this_block_derivatives[%d] = constants[%d]*ne*this_block_state[%d]
+        -(constants[%d]*ne + constants[%d])*this_block_state[%d]; 
         """%(ridx(0),2,ridx(1),0,1,ridx(0)) )
         derivative_good_stuff+=(
         """
-        // H+ : (Gamma_(e,H0)ne + Gamma_(gamma,H0))*nH0 - alpha_(H+) ne nH+
-        this_block_derivatives[%d] = -this_block_derivatives[%d];
+    // H+ : (Gamma_(e,H0)ne + Gamma_(gamma,H0))*nH0 - alpha_(H+) ne nH+
+    this_block_derivatives[%d] = -this_block_derivatives[%d];
         """%(ridx(1),ridx(0)))
         derivative_good_stuff+=(
         """
-        // He0 :(7-alpha_(He+)+8-alpha_(d)) ne 3-nHe+ - (3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)) nHe0
-        this_block_derivatives[%d] = (constants[%d]+constants[%d])*ne*this_block_state[%d] 
-            - (constants[%d]*ne+constants[%d])*this_block_state[%d];
+    // He0 :(7-alpha_(He+)+8-alpha_(d)) ne 3-nHe+ - (3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)) nHe0
+    this_block_derivatives[%d] = (constants[%d]+constants[%d])*ne*this_block_state[%d] 
+        - (constants[%d]*ne+constants[%d])*this_block_state[%d];
         """%(ridx(2),7,8,ridx(3),3,4,ridx(2)))
         derivative_good_stuff+=(
         """
-        // He+ : 
-        //  9-alpha_(He++) ne nHe++ 
-        //  + (3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)) nHe0
-        //  - (7-alpha_(He+)+8-alpha_(d)) ne nHe+ 
-        //  - (5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)) nHe+
-        this_block_derivatives[%d] = constants[%d]*ne*this_block_state[%d] 
-            + (constants[%d]*ne+constants[%d])*this_block_state[%d]  
-            - (constants[%d]+constants[%d])*ne*this_block_state[%d] 
-            - (constants[%d]*ne+constants[%d])*this_block_state[%d];
+    // He+ : 
+    //  9-alpha_(He++) ne nHe++ 
+    //  + (3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)) nHe0
+    //  - (7-alpha_(He+)+8-alpha_(d)) ne nHe+ 
+    //  - (5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)) nHe+
+    this_block_derivatives[%d] = constants[%d]*ne*this_block_state[%d] 
+        + (constants[%d]*ne+constants[%d])*this_block_state[%d]  
+        - (constants[%d]+constants[%d])*ne*this_block_state[%d] 
+        - (constants[%d]*ne+constants[%d])*this_block_state[%d];
         """%(ridx(3),9,ridx(4),3,4,ridx(2),7,8,ridx(3),5,6,ridx(3)))
         derivative_good_stuff+=(
         """
-        // He++ : (5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)) nHe+ 
-        //  - 9-alpha_(He++) ne nHe++
-        this_block_derivatives[%d] = (constants[%d]*ne+constants[%d])*this_block_state[%d]
-            -constants[%d]*ne*this_block_state[%d]; 
+    // He++ : (5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)) nHe+ 
+    //  - 9-alpha_(He++) ne nHe++
+    this_block_derivatives[%d] = (constants[%d]*ne+constants[%d])*this_block_state[%d]
+        -constants[%d]*ne*this_block_state[%d]; 
         """%(ridx(4),5,6,ridx(3),9,ridx(4)))
         return derivative_good_stuff
 
     derivative_prefix = """__global__ void calculateDerivatives(
-        float * d_derivatives_flat, 
-        float * constants, 
-        float * equations,
-        int Nsystems,
-        int Neqn_p_sys,
-        float time){
-        // isolate this system 
+    float * d_derivatives_flat, 
+    float * constants, 
+    float * equations,
+    int Nsystems,
+    int Neqn_p_sys,
+    float time){
+    // isolate this system 
 
-        int bid = get_system_index();
-        // don't need to do anything, no system corresponds to this thread-block
-        if (bid >= Nsystems){
-            return;
-        }
+    int bid = get_system_index();
+    // don't need to do anything, no system corresponds to this thread-block
+    if (bid >= Nsystems){
+        return;
+    }
 
-        int eqn_offset = bid*Neqn_p_sys;
-        float * this_block_state = equations+eqn_offset;
-        float * this_block_derivatives = d_derivatives_flat+eqn_offset;
+    int eqn_offset = bid*Neqn_p_sys;
+    float * this_block_state = equations+eqn_offset;
+    float * this_block_derivatives = d_derivatives_flat+eqn_offset;
 
-        // constraint equation, ne = nH+ + nHe+ + 2*nHe++
-        float ne = equations[eqn_offset+1]+equations[eqn_offset+3]+equations[eqn_offset+4]*2.0;
+    // constraint equation, ne = nH+ + nHe+ + 2*nHe++
+    float ne = equations[eqn_offset+1]+equations[eqn_offset+3]+equations[eqn_offset+4]*2.0;
 
-        /* constants = [
-            0-Gamma_(e,H0), 1-Gamma_(gamma,H0), 
-            2-alpha_(H+),
-            3-Gamma_(e,He0), 4-Gamma_(gamma,He0), 
-            5-Gamma_(e,He+), 6-Gamma_(gamma,He+),
-            7-alpha_(He+),
-            8-alpha_(d),
-            9-alpha_(He++)
-            ] 
-        */
-    """
+    /* constants = [
+        0-Gamma_(e,H0), 1-Gamma_(gamma,H0), 
+        2-alpha_(H+),
+        3-Gamma_(e,He0), 4-Gamma_(gamma,He0), 
+        5-Gamma_(e,He+), 6-Gamma_(gamma,He+),
+        7-alpha_(He+),
+        8-alpha_(d),
+        9-alpha_(He++)
+        ] 
+    */
+"""
 
 
     derivative_suffix = "}\n"
 
     jacobian_prefix = """__global__ void calculateJacobians(
-        float **d_Jacobianss, 
-        float * constants,
-        float * equations,
-        int Nsystems,
-        int Neqn_p_sys,
-        float time){
+    float **d_Jacobianss, 
+    float * constants,
+    float * equations,
+    int Nsystems,
+    int Neqn_p_sys,
+    float time){
 
-        // isolate this system 
-        int bid = get_system_index();
+    // isolate this system 
+    int bid = get_system_index();
 
-        // don't need to do anything, no system corresponds to this thread-block
-        if (bid >= Nsystems){
-            return;
-        }
+    // don't need to do anything, no system corresponds to this thread-block
+    if (bid >= Nsystems){
+        return;
+    }
 
-        int eqn_offset = bid*Neqn_p_sys;
-        float * this_block_state = equations+eqn_offset;
-        float * this_block_jacobian = d_Jacobianss[bid];
+    int eqn_offset = bid*Neqn_p_sys;
+    float * this_block_state = equations+eqn_offset;
+    float * this_block_jacobian = d_Jacobianss[bid];
 
-        // constraint equation, ne = nH+ + nHe+ + 2*nHe++
-        float ne = this_block_state[1]+this_block_state[3]+this_block_state[4]*2.0;
+    // constraint equation, ne = nH+ + nHe+ + 2*nHe++
+    float ne = this_block_state[1]+this_block_state[3]+this_block_state[4]*2.0;
 
-        /* constants = [
-            0-Gamma_(e,H0), 1-Gamma_(gamma,H0), 
-            2-alpha_(H+),
-            3-Gamma_(e,He0), 4-Gamma_(gamma,He0), 
-            5-Gamma_(e,He+), 6-Gamma_(gamma,He+),
-            7-alpha_(He+),
-            8-alpha_(d),
-            9-alpha_(He++)
-            ] 
-        */
+    /* constants = [
+        0-Gamma_(e,H0), 1-Gamma_(gamma,H0), 
+        2-alpha_(H+),
+        3-Gamma_(e,He0), 4-Gamma_(gamma,He0), 
+        5-Gamma_(e,He+), 6-Gamma_(gamma,He+),
+        7-alpha_(He+),
+        8-alpha_(d),
+        9-alpha_(He++)
+        ] 
+    */
 
-    """
+"""
 
     jacobian_suffix = "}\n"

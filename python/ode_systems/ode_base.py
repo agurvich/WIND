@@ -34,8 +34,8 @@ class ODEBase(object):
     def dumpToODECache(self):
         raise NotImplementedError
 
-    def preprocess(self,Ntile):
-        make_ode_file(self,Ntile)
+    def preprocess(self):
+        make_ode_file(self,self.Ntile)
 
 
 ### CUDA Solvers
