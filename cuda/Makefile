@@ -14,7 +14,11 @@ ORDER2EXECUTABLE:= lib/sie2.so
 
 
 ## Cuda source files (compiled with nvcc)
-CUFILES		:= $(wildcard RK2/*.cu common_functions/*.cu ode_system.cu)
+CUFILES		:= $(wildcard RK2/*.cu common_functions/*.cu)
+ODEFILE = ode_system.cu
+
+## TODO could compile odes separately and then link to rest of files to create .so
+CUFILES+=$(ODEFILE)
 
 ## objects
 OBJS = $(CUFILES:%.cu=%.o)

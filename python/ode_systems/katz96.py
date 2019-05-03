@@ -207,6 +207,9 @@ class Katz96(ODEBase):
         
         ## make sure that we have implemented the necessary methods
         self.validate()
+            
+        ## run the ode_base __init__
+        super().__init__()
 
     def init_equations(self):
         helium_mass_fractions = self.metallicity_arr[:,1]
@@ -345,7 +348,7 @@ class Katz96(ODEBase):
 
     def make_plots(self):
         print("Making plots to ../plots")
-        this_system = odecache.ODECache(self.cache_fname)
+        this_system = odecache.ODECache(self.h5name)
         this_system.plot_all_systems(
             subtitle = None,
             plot_eqm = True,

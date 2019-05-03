@@ -57,6 +57,9 @@ class NR_test(ODEBase):
         ## make sure that we have implemented the necessary methods
         self.validate()
 
+        ## run the ode_base __init__
+        super().__init__()
+
     def init_constants(self):
         return np.tile([998., 1998.,-999., -1999.],self.Nsystems).astype(np.float32)
         
@@ -112,7 +115,7 @@ class NR_test(ODEBase):
 
     def make_plots(self):
         print("Making plots to ../plots")
-        this_system = odecache.ODECache(self.cache_fname)
+        this_system = odecache.ODECache(self.h5name)
         this_system.plot_all_systems(
             subtitle = None,
             plot_eqm = True,

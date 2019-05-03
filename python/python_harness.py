@@ -122,7 +122,7 @@ def main(
         yss = np.transpose(yss,axes=(1,0,2))
         wall = time.time() - init
         nsteps = system.tend/dt
-        with h5py.File(system.cache_fname,output_mode) as handle:
+        with h5py.File(system.h5name,output_mode) as handle:
             if 'PY' in handle.keys():
                 del handle['PY']
                 print("Overwriting PY")
@@ -162,7 +162,7 @@ def main(
         ## output to the savefile
         integrator_name = 'CHIMES'
         if output_mode is not None:
-            with h5py.File(system.cache_fname,output_mode) as handle:
+            with h5py.File(system.h5name,output_mode) as handle:
                 try:
                     group = handle.create_group(integrator_name)
                 except:
@@ -176,7 +176,7 @@ def main(
 
         output_mode = 'a'
 
-    with h5py.File(system.cache_fname,'a') as handle:
+    with h5py.File(system.h5name,'a') as handle:
         handle.attrs['Nsystems'] = system.Nsystems
         handle.attrs['Nequations_per_system'] = system.Neqn_p_sys
         handle.attrs['equation_labels'] = system.eqn_labels

@@ -76,22 +76,6 @@ __global__ void calculateDerivatives(
     // eq. 16.6.1 in NR 
     this_block_derivatives[0] = 998.0*this_block_state[0] + 1998. * this_block_state[1];
     this_block_derivatives[1] = -999.0*this_block_state[0] - 1999.0*this_block_state[1];
-
-    // eq. 16.6.1 in NR 
-    this_block_derivatives[2] = 998.0*this_block_state[2] + 1998. * this_block_state[3];
-    this_block_derivatives[3] = -999.0*this_block_state[2] - 1999.0*this_block_state[3];
-
-    // eq. 16.6.1 in NR 
-    this_block_derivatives[4] = 998.0*this_block_state[4] + 1998. * this_block_state[5];
-    this_block_derivatives[5] = -999.0*this_block_state[4] - 1999.0*this_block_state[5];
-
-    // eq. 16.6.1 in NR 
-    this_block_derivatives[6] = 998.0*this_block_state[6] + 1998. * this_block_state[7];
-    this_block_derivatives[7] = -999.0*this_block_state[6] - 1999.0*this_block_state[7];
-
-    // eq. 16.6.1 in NR 
-    this_block_derivatives[8] = 998.0*this_block_state[8] + 1998. * this_block_state[9];
-    this_block_derivatives[9] = -999.0*this_block_state[8] - 1999.0*this_block_state[9];
 }
 __global__ void calculateJacobians(
     float **d_Jacobianss, 
@@ -115,28 +99,8 @@ __global__ void calculateJacobians(
 
     this_block_jacobian[0] = 998.0;
     this_block_jacobian[1] = -999.0;
-    this_block_jacobian[10] = 1998.0;
-    this_block_jacobian[11] = -1999.0;
-
-    this_block_jacobian[22] = 998.0;
-    this_block_jacobian[23] = -999.0;
-    this_block_jacobian[32] = 1998.0;
-    this_block_jacobian[33] = -1999.0;
-
-    this_block_jacobian[44] = 998.0;
-    this_block_jacobian[45] = -999.0;
-    this_block_jacobian[54] = 1998.0;
-    this_block_jacobian[55] = -1999.0;
-
-    this_block_jacobian[66] = 998.0;
-    this_block_jacobian[67] = -999.0;
-    this_block_jacobian[76] = 1998.0;
-    this_block_jacobian[77] = -1999.0;
-
-    this_block_jacobian[88] = 998.0;
-    this_block_jacobian[89] = -999.0;
-    this_block_jacobian[98] = 1998.0;
-    this_block_jacobian[99] = -1999.0;
+    this_block_jacobian[2] = 1998.0;
+    this_block_jacobian[3] = -1999.0;
 }
 
 void resetSystem(

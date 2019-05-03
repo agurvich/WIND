@@ -3,11 +3,17 @@ import copy
 import time
 import ctypes
 import h5py
+import os 
 
 from ode_systems.preprocess.preprocess import make_ode_file
 
 class ODEBase(object):
-    pass
+    def __init__(self):
+        this_dir = __file__
+        #/path/to/wind/python/ode_systems
+        for iter in range(3):
+            this_dir = os.path.split(this_dir)[0]
+        self.h5name = os.path.join(this_dir,'data',self.cache_fname)
 
     def validate(self):
         self.init_constants()
@@ -84,7 +90,8 @@ class ODEBase(object):
         print('final (tcur=%.2f):'%tcur,np.round(equations_over_time.astype(float),3)[-1][:self.Neqn_p_sys])
 
         if output_mode is not None:
-            with h5py.File(self.cache_fname,output_mode) as handle:
+        
+            with h5py.File(self.h5name,output_mode) as handle:
                 try:
                     group = handle.create_group(integrator_name)
                 except:
