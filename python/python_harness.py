@@ -25,89 +25,6 @@ exec_call = os.path.join(curdir,"cuda","lib","sie2.so")
 c_obj = ctypes.CDLL(exec_call)
 c_cudaSIM_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_ii")
 
-def runCudaIntegrator(
-    integrator,
-    tnow,tend,
-    nsteps,
-    constants,equations,
-    Nsystems,Nequations_per_system,
-    print_flag=1):
-
-    if print_flag:
-        print("equations before:",equations)
-
-    before = copy.copy(equations)
-    nsteps =integrator(
-        ctypes.c_float(np.float32(tnow)),
-        ctypes.c_float(np.float32(tend)),
-        ctypes.c_int(int(nsteps)),
-        constants.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-        equations.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-        ctypes.c_int(Nsystems),
-        ctypes.c_int(Nequations_per_system),
-        )
-
-    if print_flag:
-        print("equations after %d steps:"%nsteps,equations.astype(np.float32))
-        print(tnow,tend)
-    return nsteps
-
-def runIntegratorOutput(
-    integrator_fn,
-    integrator_name,
-    tnow,tend,
-    n_integration_steps,
-    n_output_steps,
-    constants,
-    equations,
-    Nsystems,
-    Nequations_per_system,
-    fname,
-    output_mode=None,
-    print_flag = 0):
-
-    ## initialize integration breakdown variables
-    tcur = tnow
-    dt = (tend-tnow)/n_output_steps
-    equations_over_time = np.zeros((n_output_steps+1,len(equations)))
-    nloops=0
-    equations_over_time[nloops]=copy.copy(equations)
-    times = []
-    times+=[tcur]
-    nsteps = []
-    walltimes = []
-
-    while nloops < n_output_steps:#while tcur < tend:
-        init_time = time.time()
-        nsteps+=[
-            runCudaIntegrator(
-                integrator_fn,
-                tcur,tcur+dt,
-                n_integration_steps,
-                constants,equations,
-                Nsystems,Nequations_per_system,
-                print_flag = print_flag)]
-        walltimes+=[time.time()-init_time]
-        tcur+=dt
-        times+=[tcur]
-        nloops+=1
-        equations_over_time[nloops]=copy.copy(equations)
-    print('final (tcur=%.2f):'%tcur,np.round(equations_over_time.astype(float),3)[-1][:5])
-    if output_mode is not None:
-        with h5py.File(fname,output_mode) as handle:
-            try:
-                group = handle.create_group(integrator_name)
-            except:
-                del handle[integrator_name]
-                group = handle.create_group(integrator_name)
-                print("overwriting:",integrator_name)
-            group['equations_over_time'] = equations_over_time
-            group['times'] = times
-            group['nsteps'] = nsteps
-            group['walltimes'] = walltimes
-            print(walltimes,'walls')
-    print("total nsteps:",np.sum(nsteps))
-   
 def main(
     nsteps = 1,
     RK2 = False,
@@ -115,7 +32,6 @@ def main(
     SIM = False,
     CHIMES = False,
     PY = True,
-    fname=None,
     makeplots=True,
     NR = False,
     katz = True,
@@ -128,15 +44,7 @@ def main(
         system = Katz96(**kwargs)
     else:
         raise Exception("pick katz or NR")
-
-    ## finish dealing with default arguments
-    if fname is None:
-        fname = "katz_96.hdf5"
-    ## tack on the suffix if it's not there
-    if fname[-len(".hdf5"):] != '.hdf5':
-        fname+='.hdf5' 
-    
-    fname = os.path.join("..",'data',fname)
+ 
     output_mode = 'a'
     print_flag = False
  
@@ -146,16 +54,9 @@ def main(
         constants = copy.copy(init_constants)
         equations = copy.copy(init_equations)
 
-        runIntegratorOutput(
+        system.runIntegratorOutput(
             c_cudaIntegrateRK2,'RK2',
-            system.tnow,system.tend,
             nsteps,
-            system.n_output_steps,
-            constants,
-            equations,
-            system.Nsystems,
-            system.Neqn_p_sys,
-            fname,
             output_mode = output_mode,
             print_flag = print_flag)
 
@@ -163,35 +64,19 @@ def main(
         output_mode = 'a'
 
     ## initialize cublas lazily
-    constants = copy.copy(init_constants)
-    equations = copy.copy(init_equations)
-    runIntegratorOutput(
-            c_cudaSIE_integrate,'SIE',
-            system.tnow,system.tnow+1e-12,
-            1,
-            system.n_output_steps,
-            constants,
-            equations,
-            1,
-            1,
-            fname,
-            output_mode = None,
-            print_flag = False)
+    system.runIntegratorOutput(
+        c_cudaSIE_integrate,'SIE',
+        1,
+        output_mode = None,
+        print_flag = False)
 
     if SIE:
         constants = copy.copy(init_constants)
         equations = copy.copy(init_equations)
 
-        runIntegratorOutput(
+        system.runIntegratorOutput(
             c_cudaSIE_integrate,'SIE',
-            system.tnow,system.tend,
             nsteps,
-            system.n_output_steps,
-            constants,
-            equations,
-            system.Nsystems,
-            system.Neqn_p_sys,
-            fname,
             output_mode = output_mode,
             print_flag = print_flag)
 
@@ -202,16 +87,9 @@ def main(
         constants = copy.copy(init_constants)
         equations = copy.copy(init_equations)
 
-        runIntegratorOutput(
+        system.runIntegratorOutput(
             c_cudaSIM_integrate,'SIM',
-            system.tnow,system.tend,
             nsteps,
-            system.n_output_steps,
-            constants,
-            equations,
-            system.Nsystems,
-            system.Neqn_p_sys,
-            fname,
             output_mode = output_mode,
             print_flag = print_flag)
 
@@ -244,7 +122,7 @@ def main(
         yss = np.transpose(yss,axes=(1,0,2))
         wall = time.time() - init
         nsteps = system.tend/dt
-        with h5py.File(fname,output_mode) as handle:
+        with h5py.File(system.cache_fname,output_mode) as handle:
             if 'PY' in handle.keys():
                 del handle['PY']
                 print("Overwriting PY")
@@ -284,7 +162,7 @@ def main(
         ## output to the savefile
         integrator_name = 'CHIMES'
         if output_mode is not None:
-            with h5py.File(fname,output_mode) as handle:
+            with h5py.File(system.cache_fname,output_mode) as handle:
                 try:
                     group = handle.create_group(integrator_name)
                 except:
@@ -298,7 +176,7 @@ def main(
 
         output_mode = 'a'
 
-    with h5py.File(fname,'a') as handle:
+    with h5py.File(system.cache_fname,'a') as handle:
         handle.attrs['Nsystems'] = system.Nsystems
         handle.attrs['Nequations_per_system'] = system.Neqn_p_sys
         handle.attrs['equation_labels'] = system.eqn_labels
@@ -313,13 +191,8 @@ def main(
         system.dumpToODECache(group)
         
     if makeplots:
-        import odecache
-        print("Making plots to ../plots")
-        this_system = odecache.ODECache(fname)
-        this_system.plot_all_systems(
-            subtitle = None,
-            plot_eqm = True,
-            savefig = '../plots/Katz96_out.pdf')
+        system.make_plots()
+        
 
 if __name__ == '__main__':
     argv = sys.argv[1:]
@@ -331,7 +204,7 @@ if __name__ == '__main__':
         'RK2=','SIE=','SIM=',
         'PY=','CHIMES=',
         'NR=','katz=',
-        'fname=','makeplots=',
+        'cache_fname=','makeplots=',
         'Ntile='])
 
     #options:

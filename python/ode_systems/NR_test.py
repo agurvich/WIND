@@ -10,6 +10,8 @@ import copy
 from ode_systems.ode_base import ODEBase
 from ode_systems.preprocess.preprocess import reindex
 
+import odecache
+
 class NR_test(ODEBase):
 
     def __init__(
@@ -22,6 +24,8 @@ class NR_test(ODEBase):
         self.name='NR_test'
         self.Ntile = Ntile
     
+        self.cache_fname = self.name+'_%d.hdf5'%Ntile
+
         self.eqn_labels = [str.encode('UTF-8') for str in ['u','v']]
     
         ## integration time variables
@@ -102,3 +106,16 @@ class NR_test(ODEBase):
         eqmss = self.calculate_eqmss()
 
         group['eqmss'] = eqmss.reshape(self.Nsystems,self.Neqn_p_sys)
+
+    def make_plots(self):
+        print("Making plots to ../plots")
+        this_system = odecache.ODECache(self.cache_fname)
+        this_system.plot_all_systems(
+            subtitle = None,
+            plot_eqm = True,
+            savefig = '../plots/%s.pdf'%self.name,
+            #xlow=0,ylow=-0.1,
+            yname = '',
+            xname = 't',
+            )
+

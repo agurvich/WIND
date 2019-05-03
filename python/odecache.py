@@ -127,12 +127,11 @@ class ODECache(object):
         self,
         system_index,
         ax=None,
-        ylabel = '$n_X/n_\mathrm{H}$',
-        xlabel = 't (yrs)',
         subtitle = None,
         plot_eqm = False,
         plot_legend_info = True,
-        savefig = None):
+        savefig = None,
+        **kwargs):
 
         ax = plt.gca() if ax is None else ax
         fig = ax.get_figure()
@@ -176,8 +175,11 @@ class ODECache(object):
             except AttributeError:
                 pass
 
-        nameAxes(ax,None,xlabel,ylabel,xlow=0,ylow=-0.1,
-                 subtitle = subtitle,logflag=(0,0))
+        nameAxes(
+            ax,None,
+            subtitle = subtitle,
+            logflag=(0,0),
+            **kwargs)
         
         walls = [np.sum(self.walltimess[solver_j])
             for solver_j in range(len(self.solvers))]

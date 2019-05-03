@@ -14,6 +14,8 @@ from chimes_driver.driver_class import ChimesDriver
 from ode_systems.ode_base import ODEBase
 from ode_systems.preprocess.preprocess import reindex
 
+import odecache
+
 home_directory = os.environ['HOME']
 
 ## NOTE hardcoded in parameter file...
@@ -151,6 +153,8 @@ class Katz96(ODEBase):
 
         self.name='Katz96'
         self.Ntile = Ntile
+
+        self.cache_fname = self.name+'_%d.hdf5'%Ntile
     
         self.eqn_labels = [str.encode('UTF-8') for str in ['H0','H+',"He0","He+","He++"]]
     
@@ -334,6 +338,18 @@ class Katz96(ODEBase):
         group['grid_nHs'] = np.log10(self.nH_arr)
         group['grid_temperatures'] = np.log10(self.temperature_arr)
         group['grid_solar_metals'] = np.log10(self.metallicity_arr[:,0]/WIERSMA_ZSOLAR) 
+
+    def make_plots(self):
+        print("Making plots to ../plots")
+        this_system = odecache.ODECache(self.cache_fname)
+        this_system.plot_all_systems(
+            subtitle = None,
+            plot_eqm = True,
+            savefig = '../plots/%s.pdf'%self.name,
+            xlow=0,ylow=-0.1,
+            yname = '$n_X/n_\mathrm{H}$',
+            xname = 't (yrs)',
+            )
 
 ### PRECOMPILE STUFF FOR MAKING .CU FILES
     def make_jacobian_block(self,this_tile,Ntile):
