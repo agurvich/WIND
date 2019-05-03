@@ -2,6 +2,7 @@ import numpy as np
 import copy
 import time
 import ctypes
+import h5py
 
 from ode_systems.preprocess.preprocess import make_ode_file
 
@@ -37,6 +38,8 @@ class ODEBase(object):
     def preprocess(self):
         make_ode_file(self,self.Ntile)
 
+    derivative_suffix = "}\n"
+    jacobian_suffix = "}\n"
 
 ### CUDA Solvers
     def runIntegratorOutput(
@@ -78,7 +81,7 @@ class ODEBase(object):
             nloops+=1
             equations_over_time[nloops]=copy.copy(equations)
 
-        print('final (tcur=%.2f):'%tcur,np.round(equations_over_time.astype(float),3)[-1][:5])
+        print('final (tcur=%.2f):'%tcur,np.round(equations_over_time.astype(float),3)[-1][:self.Neqn_p_sys])
 
         if output_mode is not None:
             with h5py.File(self.cache_fname,output_mode) as handle:

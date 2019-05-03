@@ -6,11 +6,11 @@
 int main(){
     printf("hello world\n");
 
-    float equations[20] = {
-        0 , 1. , 0. , 0.09929229 , 0. ,
-        0 , 1. , 0. , 0.09929229 , 0. ,
-        0 , 1. , 0. , 0.09929229 , 0. ,
-        0 , 1. , 0. , 0.09929229 , 0.};
+    float equations[40] = {
+        0 , 1. , 0. , 0.09929229 , 0. ,0 , 1. , 0. , 0.09929229 , 0. ,
+        0 , 1. , 0. , 0.09929229 , 0. ,0 , 1. , 0. , 0.09929229 , 0. ,
+        0 , 1. , 0. , 0.09929229 , 0. ,0 , 1. , 0. , 0.09929229 , 0. ,
+        0 , 1. , 0. , 0.09929229 , 0. ,0 , 1. , 0. , 0.09929229 , 0.};
 
     float constants[40] = {
         0 , 1.386e-03 , 4.1869916e-02 , 0 , 1.1655e-04 , 0 , 5.3550002e-07 , 2.5339721e-02 , 0 , 1.6747966e-01,
@@ -23,7 +23,7 @@ int main(){
     float tend = 10.0;
     int n_integration_steps = 4;
     int Nsystems = 4;
-    int Neqn_p_sys = 5;
+    int Neqn_p_sys = 10;
 
 
 
@@ -46,13 +46,27 @@ int main(){
         Nsystems, // the number of systems
         Neqn_p_sys);
 
+    printf("%.2f %.2f %.2f %.2f %.2f ",
+        equations[0],
+        equations[1],
+        equations[2],
+        equations[3],
+        equations[4]);
+
+    printf("%.2f %.2f %.2f %.2f %.2f\n",
+        equations[5],
+        equations[6],
+        equations[7],
+        equations[8],
+        equations[9]);
+
     printf("SIE: %d nsteps\n",nsteps);
 
-    float new_equations[20] = {
-        0 , 1. , 0. , 0.09929229 , 0. ,
-        0 , 1. , 0. , 0.09929229 , 0. ,
-        0 , 1. , 0. , 0.09929229 , 0. ,
-        0 , 1. , 0. , 0.09929229 , 0.};
+    float new_equations[40] = {
+        0 , 1. , 0. , 0.09929229 , 0. ,0 , 1. , 0. , 0.09929229 , 0. ,
+        0 , 1. , 0. , 0.09929229 , 0. ,0 , 1. , 0. , 0.09929229 , 0.,
+        0 , 1. , 0. , 0.09929229 , 0. ,0 , 1. , 0. , 0.09929229 , 0. ,
+        0 , 1. , 0. , 0.09929229 , 0. ,0 , 1. , 0. , 0.09929229 , 0.};
     
     tnow = 0;
 
@@ -65,6 +79,19 @@ int main(){
         Nsystems, // the number of systems
         Neqn_p_sys);
 
+    printf("%.2f %.2f %.2f %.2f %.2f ",
+        new_equations[0],
+        new_equations[1],
+        new_equations[2],
+        new_equations[3],
+        new_equations[4]);
+
+    printf("%.2f %.2f %.2f %.2f %.2f\n",
+        new_equations[5],
+        new_equations[6],
+        new_equations[7],
+        new_equations[8],
+        new_equations[9]);
     printf("SIM: %d nsteps\n",nsteps);
 
     dlclose(sielib); 

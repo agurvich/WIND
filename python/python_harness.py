@@ -28,13 +28,13 @@ c_cudaSIM_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_ii")
 def main(
     nsteps = 1,
     RK2 = False,
-    SIE = False,
+    SIE = True,
     SIM = False,
     CHIMES = False,
-    PY = True,
+    PY = False,
     makeplots=True,
-    NR = False,
-    katz = True,
+    NR = True,
+    katz = False,
     **kwargs):
 
     if NR:

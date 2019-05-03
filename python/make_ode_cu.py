@@ -5,7 +5,7 @@ import getopt
 
 
 def main(
-    Ntile=1,
+    Ntile=2,
     system_name='katz'):
     if system_name == 'katz':
         system = Katz96(Ntile=Ntile)
@@ -35,4 +35,5 @@ if __name__ == '__main__':
             except:
                 ## if it's a string... not so much
                 opts[i]=(opt[0].replace('-',''),opt[1])
+    print(dict(opts),'keywords passed')
     main(**dict(opts))

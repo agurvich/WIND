@@ -3,6 +3,7 @@ import numpy as np
 import time
 import os
 import copy
+import warnings
 
 ## chimes_driver imports
 from chimes_driver.utils.table_utils import create_table_grid 
@@ -187,21 +188,22 @@ class Katz96(ODEBase):
 
 
         self.Neqn_p_sys = 5
+        self.orig_Neqn_p_sys = self.Neqn_p_sys
         self.Nsystems = int(
             self.equations.shape[0]//self.Neqn_p_sys)
         
         self.nconst = 10
 
         ## tile the ICs for each system
-        if Ntile > 1:
+        if self.Ntile > 1:
             self.equations = np.concatenate(
-                [np.tile(init_equations[
+                [np.tile(self.equations[
                     i*self.Neqn_p_sys:
                     (i+1)*self.Neqn_p_sys],
-                    Ntile)
-                for i in range(system.Nsystems)])
+                    self.Ntile)
+                for i in range(self.Nsystems)])
 
-        self.Neqn_p_sys*=Ntile
+        self.Neqn_p_sys*=self.Ntile
         
         ## make sure that we have implemented the necessary methods
         self.validate()
@@ -234,6 +236,8 @@ class Katz96(ODEBase):
             ##  of this system
             equations,constants = system_index
 
+        if self.Ntile > 1:
+            warnings.warn("This python Jacobian function is not tileable")
 
         ne = equations[1]+equations[3]+equations[4]*2.0;
 
@@ -262,7 +266,7 @@ class Katz96(ODEBase):
         jacobian_flat[23] = -jacobian_flat[24];##He+ : 9-alpha_(He++)ne
         
         ## indices above are in column major order to match cuBLAS specification
-        return jacobian_flat.reshape(5,5).T
+        return jacobian_flat.reshape(self.Neqn_p_sys,self.Neqn_p_sys).T
 
     def calculate_derivative(self,system_index=0):
         if type(system_index) == int:
@@ -320,7 +324,7 @@ class Katz96(ODEBase):
                 [np.tile(eqmss[
                     i*self.Neqn_p_sys//self.Ntile:
                     (i+1)*self.Neqn_p_sys//self.Ntile],
-                    Ntile)
+                    self.Ntile)
                 for i in range(self.Nsystems)])
         return eqmss
 
@@ -353,7 +357,7 @@ class Katz96(ODEBase):
 
 ### PRECOMPILE STUFF FOR MAKING .CU FILES
     def make_jacobian_block(self,this_tile,Ntile):
-        ridx = lambda x: reindex(x,Ntile,5,this_tile)
+        ridx = lambda x: reindex(x,Ntile,self.orig_Neqn_p_sys,this_tile)
         jacobian_good_stuff = ("""   
     // H0
     this_block_jacobian[%d] = -(constants[%d]*ne + constants[%d]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
@@ -384,7 +388,7 @@ class Katz96(ODEBase):
         return jacobian_good_stuff
 
     def get_derivative_block(self,this_tile,Ntile):
-        ridx = lambda x: x+this_tile *5 
+        ridx = lambda x: x+this_tile *self.orig_Neqn_p_sys
         derivative_good_stuff = ("""    // H0 : 2-alpha_(H+) ne nH+ - (0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0))*nH0
     this_block_derivatives[%d] = constants[%d]*ne*this_block_state[%d]
         -(constants[%d]*ne + constants[%d])*this_block_state[%d]; 
@@ -454,9 +458,6 @@ class Katz96(ODEBase):
         ] 
     */
 """
-
-
-    derivative_suffix = "}\n"
 
     jacobian_prefix = """__global__ void calculateJacobians(
     float **d_Jacobianss, 
