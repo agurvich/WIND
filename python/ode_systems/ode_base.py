@@ -8,12 +8,19 @@ import os
 from ode_systems.preprocess.preprocess import make_ode_file
 
 class ODEBase(object):
-    def __init__(self):
+    def __init__(
+        self,
+        nsteps = 1,
+        **kwargs):
+
         this_dir = __file__
         #/path/to/wind/python/ode_systems
         for iter in range(3):
             this_dir = os.path.split(this_dir)[0]
-        self.h5name = os.path.join(this_dir,'data',self.cache_fname)
+        self.datadir = os.path.join(this_dir,'data')
+        self.h5name = os.path.join(self.datadir,self.cache_fname)
+    
+        self.n_integration_steps = nsteps
 
     def validate(self):
         self.init_constants()
@@ -52,7 +59,6 @@ class ODEBase(object):
         self,
         integrator_fn,
         integrator_name,
-        n_integration_steps,
         output_mode=None,
         print_flag = 0):
 
@@ -76,7 +82,7 @@ class ODEBase(object):
                 runCudaIntegrator(
                     integrator_fn,
                     tcur,tcur+dt,
-                    n_integration_steps,
+                    self.n_integration_steps,
                     constants,equations,
                     self.Nsystems,self.Neqn_p_sys,
                     print_flag = print_flag)]
@@ -105,10 +111,40 @@ class ODEBase(object):
                 print(walltimes,'walls')
         print("total nsteps:",np.sum(nsteps))
 
+    def dumpToCDebugInput(self):
+        with open(os.path.join(
+            self.datadir,
+            self.name+'_debug.txt'),'w') as handle:
+            
+            handle.write(
+                 "float tnow = %s;\n"%str(self.tnow))
+            handle.write(
+                "float tend = %s;\n" % str(self.tend))
+            handle.write(
+                "int n_integration_steps = %s;\n" % str(self.n_integration_steps))
+            
+            fmt_equations = ["%.3e"%val if val != 0 else "0" for val in self.equations.flatten()]
+            fmt_equations = ",".join(fmt_equations)
+            fmt_equations = '{' + fmt_equations + '}'
+            handle.write(
+                "float * equations = %s;\n" % fmt_equations)
+
+            fmt_constants = ["%.3e"%val if val != 0 else "0" for val in self.constants.flatten()]
+            fmt_constants = ",".join(fmt_constants)
+            fmt_constants = '{' + fmt_constants + '}'
+            handle.write(
+                "float * constants = %s;\n" % fmt_constants)
+
+            handle.write(
+                "int Nsystems = %s;\n" % str(self.Nsystems))
+
+            handle.write(
+                "int Neqn_p_sys = %s;\n" % str(self.Neqn_p_sys))
+
 def runCudaIntegrator(
     integrator,
     tnow,tend,
-    nsteps,
+    n_integration_steps,
     constants,equations,
     Nsystems,Nequations_per_system,
     print_flag=1):
@@ -120,7 +156,7 @@ def runCudaIntegrator(
     nsteps =integrator(
         ctypes.c_float(np.float32(tnow)),
         ctypes.c_float(np.float32(tend)),
-        ctypes.c_int(int(nsteps)),
+        ctypes.c_int(int(n_integration_steps)),
         constants.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
         equations.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
         ctypes.c_int(Nsystems),

@@ -26,7 +26,6 @@ c_obj = ctypes.CDLL(exec_call)
 c_cudaSIM_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_ii")
 
 def main(
-    nsteps = 1,
     RK2 = False,
     SIE = True,
     SIM = False,
@@ -35,6 +34,7 @@ def main(
     makeplots=True,
     NR = True,
     katz = False,
+    dumpDebug = False,
     **kwargs):
 
     if NR:
@@ -56,7 +56,6 @@ def main(
 
         system.runIntegratorOutput(
             c_cudaIntegrateRK2,'RK2',
-            nsteps,
             output_mode = output_mode,
             print_flag = print_flag)
 
@@ -66,7 +65,6 @@ def main(
     ## initialize cublas lazily
     system.runIntegratorOutput(
         c_cudaSIE_integrate,'SIE',
-        1,
         output_mode = None,
         print_flag = False)
 
@@ -76,7 +74,6 @@ def main(
 
         system.runIntegratorOutput(
             c_cudaSIE_integrate,'SIE',
-            nsteps,
             output_mode = output_mode,
             print_flag = print_flag)
 
@@ -89,7 +86,6 @@ def main(
 
         system.runIntegratorOutput(
             c_cudaSIM_integrate,'SIM',
-            nsteps,
             output_mode = output_mode,
             print_flag = print_flag)
 
@@ -192,8 +188,10 @@ def main(
         
     if makeplots:
         system.make_plots()
-        
 
+    if dumpDebug:
+        system.dumpToCDebugInput()
+        
 if __name__ == '__main__':
     argv = sys.argv[1:]
     opts,args = getopt.getopt(argv,'',[
@@ -205,7 +203,8 @@ if __name__ == '__main__':
         'PY=','CHIMES=',
         'NR=','katz=',
         'cache_fname=','makeplots=',
-        'Ntile='])
+        'Ntile=',
+        'dumpDebug='])
 
     #options:
     #--snap(low/high) : snapshot numbers to loop through

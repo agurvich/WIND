@@ -18,12 +18,13 @@ class NR_test(ODEBase):
         tnow=0,
         tend=5,
         n_output_steps=50,
-        Ntile=1):
+        Ntile=1,
+        **kwargs):
 
-        self.name='NR_test'
+        self.name='NR_test_%d'%Ntile
         self.Ntile = Ntile
     
-        self.cache_fname = self.name+'_%d.hdf5'%Ntile
+        self.cache_fname = self.name+'.hdf5'
 
         self.eqn_labels = [str.encode('UTF-8') for str in ['u','v']]
     
@@ -58,7 +59,7 @@ class NR_test(ODEBase):
         self.validate()
 
         ## run the ode_base __init__
-        super().__init__()
+        super().__init__(**kwargs)
 
     def init_constants(self):
         return np.tile([998., 1998.,-999., -1999.],self.Nsystems).astype(np.float32)

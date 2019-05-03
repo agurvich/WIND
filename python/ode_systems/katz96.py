@@ -150,12 +150,13 @@ class Katz96(ODEBase):
         tnow=0,
         tend=200,
         n_output_steps=20,
-        Ntile=1):
+        Ntile=1,
+        **kwargs):
 
-        self.name='Katz96'
+        self.name='Katz96_%d'%Ntile
         self.Ntile = Ntile
 
-        self.cache_fname = self.name+'_%d.hdf5'%Ntile
+        self.cache_fname = self.name+'.hdf5'
     
         self.eqn_labels = [str.encode('UTF-8') for str in ['H0','H+',"He0","He+","He++"]]
     
@@ -209,7 +210,7 @@ class Katz96(ODEBase):
         self.validate()
             
         ## run the ode_base __init__
-        super().__init__()
+        super().__init__(**kwargs)
 
     def init_equations(self):
         helium_mass_fractions = self.metallicity_arr[:,1]
