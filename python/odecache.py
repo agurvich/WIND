@@ -30,9 +30,12 @@ class ODECache(object):
             self.eqmss = handle['Equilibrium']['eqmss'].value.reshape(
                 -1,self.Nequations_per_system)
 
-            self.grid_nHs = handle['Equilibrium/grid_nHs'].value
-            self.grid_temperatures = handle['Equilibrium/grid_temperatures'].value
-            self.grid_solar_metals = handle['Equilibrium/grid_solar_metals'].value
+            ## unpack any configuration information that 
+            ##  might've been saved
+            for key in handle['Equilibrium'].keys():
+                if key == 'eqmss':
+                    continue
+                setattr(self,key,handle['Equilibrium'][key].value) 
 
             for solver in handle.keys():
                 if self.solvers is not None:
@@ -99,7 +102,11 @@ class ODECache(object):
         plot_systems = min(self.Nsystems,100)
         grid_dim = int(np.ceil(np.sqrt(plot_systems)))
         fig,axs = plt.subplots(nrows=grid_dim,ncols=grid_dim)
-        axs = axs.flatten()
+        if self.Nsystems > 1:
+            axs = axs.flatten()
+        else:
+            axs = [axs]
+
         for system_index in range(plot_systems):
             ax = axs[system_index]
             self.plot_system_over_time(
@@ -161,10 +168,13 @@ class ODECache(object):
                     fontsize=14)
                 
         if subtitle is None:
-            subtitle = "log(nH) = %.1f - log(T) = %.1f - log(Z) = %.1f"%(
-                self.grid_nHs[system_index],
-                self.grid_temperatures[system_index],
-                self.grid_solar_metals[system_index])
+            try:
+                subtitle = "log(nH) = %.1f - log(T) = %.1f - log(Z) = %.1f"%(
+                    self.grid_nHs[system_index],
+                    self.grid_temperatures[system_index],
+                    self.grid_solar_metals[system_index])
+            except AttributeError:
+                pass
 
         nameAxes(ax,None,xlabel,ylabel,xlow=0,ylow=-0.1,
                  subtitle = subtitle,logflag=(0,0))

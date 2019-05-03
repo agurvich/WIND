@@ -9,6 +9,8 @@ import h5py
 import getopt,sys
 
 from ode_systems.katz96 import Katz96
+from ode_systems.NR_test import NR_test
+from pysolvers.sie import integrate_sie
 
 ## find the first order solver shared object library 
 curdir = os.path.split(os.getcwd())[0]
@@ -107,35 +109,25 @@ def runIntegratorOutput(
     print("total nsteps:",np.sum(nsteps))
    
 def main(
-    tnow = 0,
-    tend = 200,
     nsteps = 1,
     RK2 = False,
-    SIE = True,
-    SIM = True,
+    SIE = False,
+    SIM = False,
     CHIMES = False,
-    PY = False,
-    Nequations_per_system = 5,
-    n_output_steps = 20,
+    PY = True,
     fname=None,
     makeplots=True,
-    NR = False,
-    katz = True,
+    NR = True,
+    katz = False,
     **kwargs):
 
-    if katz:
-        system = Katz96(
-            tnow,
-            tend,
-            n_output_steps,
-            **kwargs)
+    if NR:
+        system = NR_test(**kwargs)
 
-    elif NR:
-        system = NR(
-            tnow,
-            tend,
-            n_output_steps,
-            **kwargs)
+    elif katz:
+        system = Katz96(**kwargs)
+    else:
+        raise Exception("pick katz or NR")
 
     ## finish dealing with default arguments
     if fname is None:
@@ -156,9 +148,9 @@ def main(
 
         runIntegratorOutput(
             c_cudaIntegrateRK2,'RK2',
-            tnow,tend,
+            system.tnow,system.tend,
             nsteps,
-            n_output_steps,
+            system.n_output_steps,
             constants,
             equations,
             system.Nsystems,
@@ -175,9 +167,9 @@ def main(
     equations = copy.copy(init_equations)
     runIntegratorOutput(
             c_cudaSIE_integrate,'SIE',
-            tnow,tnow+1e-12,
+            system.tnow,system.tnow+1e-12,
             1,
-            n_output_steps,
+            system.n_output_steps,
             constants,
             equations,
             1,
@@ -192,9 +184,9 @@ def main(
 
         runIntegratorOutput(
             c_cudaSIE_integrate,'SIE',
-            tnow,tend,
+            system.tnow,system.tend,
             nsteps,
-            n_output_steps,
+            system.n_output_steps,
             constants,
             equations,
             system.Nsystems,
@@ -212,9 +204,9 @@ def main(
 
         runIntegratorOutput(
             c_cudaSIM_integrate,'SIM',
-            tnow,tend,
+            system.tnow,system.tend,
             nsteps,
-            n_output_steps,
+            system.n_output_steps,
             constants,
             equations,
             system.Nsystems,
@@ -224,17 +216,22 @@ def main(
             print_flag = print_flag)
 
     if PY:
-        raise UnimplementedError("SIE not implemented for Katz96 yet")
-        import sie
-        y0 = np.array([1., 0.])
-
-        dt = 0.01
-        tend = 5.
+        y0 = system.equations[:system.Neqn_p_sys]#np.array([1., 0.])
+        dt = (system.tend-system.tnow)/system.n_output_steps
 
         init = time.time()
-        (t_arr_sol, y_arr_sol) = sie.integrate_sie(y0, dt, tend, sie.f_NR_test, sie.J_NR_test)
+        (t_arr_sol, y_arr_sol) = integrate_sie(
+            y0, 
+            dt,
+            system.tend, 
+            lambda eq: system.calculate_derivative(
+                system_index = 0), 
+            lambda eq: system.calculate_jacobian(
+                system_index = 0))
+
+        print("times=",t_arr_sol)
         wall = time.time() - init
-        nsteps = tend/dt
+        nsteps = system.tend/dt
         with h5py.File(fname,output_mode) as handle:
             if 'PY' in handle.keys():
                 del handle['PY']
@@ -254,12 +251,12 @@ def main(
             rank = 0)
 
         ## initialize the output array
-        equations_over_time = np.zeros((n_output_steps+1,system.Neqn_p_sys))
-        times = np.linspace(tnow,tend,n_output_steps+1,endpoint=True)
-        nsteps = np.zeros(n_output_steps) ## no way to measure this :[ 
+        equations_over_time = np.zeros((system.n_output_steps+1,system.Neqn_p_sys))
+        times = np.linspace(system.tnow,system.tend,system.n_output_steps+1,endpoint=True)
+        nsteps = np.zeros(system.n_output_steps) ## no way to measure this :[ 
 
         ## change the DT within chimes-driver
-        my_driver.myGasVars.hydro_timestep = (tend - tnow)*3.15e7/n_output_steps ## s
+        my_driver.myGasVars.hydro_timestep = (system.tend - system.tnow)*3.15e7/system.n_output_steps ## s
 
         my_driver.walltimes = []
         final_output_array, chimes_cumulative_time = my_driver.run()
@@ -321,7 +318,7 @@ if __name__ == '__main__':
         'Nsystems=',
         'RK2=','SIE=','SIM=',
         'PY=','CHIMES=',
-        'NR=','katz='
+        'NR=','katz=',
         'fname=','makeplots=',
         'Ntile='])
 

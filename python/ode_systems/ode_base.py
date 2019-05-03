@@ -11,6 +11,7 @@ class ODEBase(object):
         self.calculate_jacobian()
         self.calculate_derivative()
         self.calculate_eqmss()
+        self.dumpToODECache()
 
     def init_constants(self):
         raise NotImplementedError
@@ -24,10 +25,10 @@ class ODEBase(object):
     def calculate_derivative(self):
         raise NotImplementedError
 
-    def calculate_eqmss(self):
+    def calculate_eqmss():
         raise NotImplementedError
 
-    def calculate_eqmss():
+    def dumpToODECache(self):
         raise NotImplementedError
 
     def preprocess(self,Ntile):

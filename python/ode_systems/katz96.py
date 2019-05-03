@@ -142,7 +142,13 @@ def katz_constants(nH,TEMP,Nsystems):
     return (constants*3.15e7).astype(np.float32) ## convert to 1/yr
 
 class Katz96(ODEBase):
-    def __init__(self,tnow,tend,n_output_steps,Ntile=1):
+    def __init__(
+        self,
+        tnow=0,
+        tend=200,
+        n_output_steps=20,
+        Ntile=1):
+
         self.name='Katz96'
         self.Ntile = Ntile
     
@@ -151,12 +157,19 @@ class Katz96(ODEBase):
         ## integration time variables
         self.tnow = tnow
         self.tend = tend
+        self.n_output_steps = n_output_steps
 
         ### read the chimes grid
         (self.driver_pars,
         self.global_variable_pars,
         self.gas_variable_pars) = read_parameters(
             chimes_parameter_file)    
+
+        (self.nH_arr,self.temperature_arr,
+        self.metallicity_arr,self.shieldLength_arr,
+        self.init_chem_arr) = create_table_grid(
+            self.driver_pars,
+            self.global_variable_pars)
 
         ## overwrite the driver pars
         self.driver_pars["driver_mode"] = "noneq_evolution"
@@ -190,30 +203,17 @@ class Katz96(ODEBase):
         self.validate()
 
     def init_equations(self):
-
-        (nH_arr,temperature_arr,
-        metallicity_arr,shieldLength_arr,
-        init_chem_arr) = create_table_grid(
-            self.driver_pars,
-            self.global_variable_pars)
-
-        helium_mass_fractions = metallicity_arr[:,1]
+        helium_mass_fractions = self.metallicity_arr[:,1]
         y_heliums = helium_mass_fractions / (4*(1-helium_mass_fractions))
 
         ## use the grid to create flat arrays of rate coefficients and abundance arrays
-        equations = np.concatenate([init_chem_arr[:,1:3],init_chem_arr[:,4:7]],axis=1).flatten()
+        equations = np.concatenate([self.init_chem_arr[:,1:3],self.init_chem_arr[:,4:7]],axis=1).flatten()
         return equations.astype(np.float32)
 
     def init_constants(self):
-
-        (nH_arr,temperature_arr,
-        metallicity_arr,shieldLength_arr,
-        init_chem_arr) = create_table_grid(
-            self.driver_pars,
-            self.global_variable_pars)
-
+ 
         ## use the grid to create flat arrays of rate coefficients and abundance arrays
-        constants = np.array([katz_constants(nh,temp,1) for (nh,temp) in zip(nH_arr,temperature_arr)]).flatten()
+        constants = np.array([katz_constants(nh,temp,1) for (nh,temp) in zip(self.nH_arr,self.temperature_arr)]).flatten()
         return constants.astype(np.float32)
     
     def calculate_jacobian(self,system_index=0):
@@ -290,21 +290,14 @@ class Katz96(ODEBase):
         return rates
 
     def calculate_eqmss(self):
-
-        (nH_arr,temperature_arr,
-        metallicity_arr,shieldLength_arr,
-        init_chem_arr) = create_table_grid(
-            self.driver_pars,
-            self.global_variable_pars)
-
-        helium_mass_fractions = metallicity_arr[:,1]
+        helium_mass_fractions = self.metallicity_arr[:,1]
         y_heliums = helium_mass_fractions / (4*(1-helium_mass_fractions))
 
         ## why 4*y_helium? who can say...
         eqmss =  np.array([
             get_eqm_abundances(nH,T,4*y_helium) 
             for (nH,T,y_helium) 
-            in zip(nH_arr,temperature_arr,y_heliums)])
+            in zip(self.nH_arr,self.temperature_arr,y_heliums)])
 
         if self.Ntile > 1:
             eqmss = np.concatenate(
@@ -322,19 +315,13 @@ class Katz96(ODEBase):
 
         eqmss = self.calculate_eqmss()
 
-        (nH_arr,temperature_arr,
-        metallicity_arr,shieldLength_arr,
-        init_chem_arr) = create_table_grid(
-            self.driver_pars,
-            self.global_variable_pars)
-
-        helium_mass_fractions = metallicity_arr[:,1]
+        helium_mass_fractions = self.metallicity_arr[:,1]
         y_heliums = helium_mass_fractions / (4*(1-helium_mass_fractions))
 
         group['eqmss'] = eqmss.reshape(self.Nsystems,self.Neqn_p_sys)
-        group['grid_nHs'] = np.log10(nH_arr)
-        group['grid_temperatures'] = np.log10(temperature_arr)
-        group['grid_solar_metals'] = np.log10(metallicity_arr[:,0]/WIERSMA_ZSOLAR) 
+        group['grid_nHs'] = np.log10(self.nH_arr)
+        group['grid_temperatures'] = np.log10(self.temperature_arr)
+        group['grid_solar_metals'] = np.log10(self.metallicity_arr[:,0]/WIERSMA_ZSOLAR) 
 
 ### PRECOMPILE STUFF FOR MAKING .CU FILES
     def make_jacobian_block(self,this_tile,Ntile):
