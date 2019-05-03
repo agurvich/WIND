@@ -68,7 +68,7 @@ def runIntegratorOutput(
 
     ## initialize integration breakdown variables
     tcur = tnow
-    dt = tend#(tend-tnow)/n_output_steps
+    dt = (tend-tnow)/n_output_steps
     equations_over_time = np.zeros((n_output_steps+1,len(equations)))
     nloops=0
     equations_over_time[nloops]=copy.copy(equations)
@@ -117,8 +117,8 @@ def main(
     PY = True,
     fname=None,
     makeplots=True,
-    NR = True,
-    katz = False,
+    NR = False,
+    katz = True,
     **kwargs):
 
     if NR:
@@ -216,29 +216,32 @@ def main(
             print_flag = print_flag)
 
     if PY:
-        this_equations = system.equations[:system.Neqn_p_sys]
-        this_constants = system.constants[:system.nconst]
-        dt = (system.tend-system.tnow)/system.n_output_steps
+        yss = []
+        for system_index in range(system.Nsystems):
+            this_equations = system.equations[
+                system_index*system.Neqn_p_sys:
+                (system_index+1)*system.Neqn_p_sys]
 
-        def f_NR_test(y):
-            up = 998.*y[0] + 1998.*y[1] # eq. 16.6.1
-            vp = -999.*y[0] - 1999.*y[1]
-            return np.array((up, vp))
+            this_constants = system.constants[
+                system_index*system.nconst:
+                (system_index+1)*system.nconst]
 
-        # Jacobian matrix for NR test.
-        def J_NR_test(y):
-            return np.array([[998., 1998.],[-999., -1999.]])
+            dt = (system.tend-system.tnow)/system.n_output_steps
 
-        init = time.time()
-        (t_arr_sol, y_arr_sol) = integrate_sie(
-            this_equations, 
-            this_constants,
-            dt,
-            system.tend, 
-            system.calculate_derivative,
-            system.calculate_jacobian)
+            init = time.time()
+            (t_arr_sol, y_arr_sol) = integrate_sie(
+                this_equations, 
+                this_constants,
+                dt,
+                system.tend, 
+                system.calculate_derivative,
+                system.calculate_jacobian)
 
-        print("times=",t_arr_sol)
+            yss+=[y_arr_sol]
+
+        print(np.shape(yss))
+        yss = np.array(yss)
+        yss = np.transpose(yss,axes=(1,0,2))
         wall = time.time() - init
         nsteps = system.tend/dt
         with h5py.File(fname,output_mode) as handle:
@@ -247,7 +250,7 @@ def main(
                 print("Overwriting PY")
             group = handle.create_group('PY')
             ## not memory efficient but it will jive with ODECache at least
-            group['equations_over_time'] = np.tile(y_arr_sol,system.Nsystems)
+            group['equations_over_time'] = yss
             group['times'] = t_arr_sol
             group['nsteps'] = [nsteps]
             group['walltimes'] = [wall]
