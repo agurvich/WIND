@@ -62,33 +62,35 @@ void SIE_step(
 
 
 /* -------------- invert the matrix -------------- */
-    // compute (I-hJ) with a custom kernel
-    addArrayToBatchArrays<<<matrix_gridDim,threads_per_block>>>(
-        d_identity,d_Jacobianss,1.0,-1.0,timestep,
-        Nsystems,Neqn_p_sys); 
+    if (d_Jacobianss != NULL){
+        // compute (I-hJ) with a custom kernel
+        addArrayToBatchArrays<<<matrix_gridDim,threads_per_block>>>(
+            d_identity,d_Jacobianss,1.0,-1.0,timestep,
+            Nsystems,Neqn_p_sys); 
 
-    // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
-    // the permutation array seems to be important for some reason
-    cublasStatus_t error = cublasSgetrfBatched(
-        handle, // cublas handle
-        Neqn_p_sys, // leading dimension of A??
-        d_Jacobianss, // matrix to factor, here I-hs*Js
-        Neqn_p_sys, // 
-        P, // permutation matrix
-        INFO, // cublas status object
-        Nsystems); // number of systems
+        // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
+        // the permutation array seems to be important for some reason
+        cublasStatus_t error = cublasSgetrfBatched(
+            handle, // cublas handle
+            Neqn_p_sys, // leading dimension of A??
+            d_Jacobianss, // matrix to factor, here I-hs*Js
+            Neqn_p_sys, // 
+            P, // permutation matrix
+            INFO, // cublas status object
+            Nsystems); // number of systems
 
-    // second cublas call, this one solves AX=B with B the identity. It puts X in d_inverse
-    cublasSgetriBatched(
-        handle, // cublas handle
-        Neqn_p_sys, // leading dimension of A??
-        (const float **)d_Jacobianss, // matrix to inverse, here I-hs*Js
-        Neqn_p_sys, // leading dimension of B??
-        P, // permutation matrix
-        d_inverse, // output matrix
-        Neqn_p_sys, // 
-        INFO, // cublas status object
-        Nsystems); // number of systems
+        // second cublas call, this one solves AX=B with B the identity. It puts X in d_inverse
+        cublasSgetriBatched(
+            handle, // cublas handle
+            Neqn_p_sys, // leading dimension of A??
+            (const float **)d_Jacobianss, // matrix to inverse, here I-hs*Js
+            Neqn_p_sys, // leading dimension of B??
+            P, // permutation matrix
+            d_inverse, // output matrix
+            Neqn_p_sys, // 
+            INFO, // cublas status object
+            Nsystems); // number of systems
+    }
 /* ----------------------------------------------- */
 
 /* -------------- perform a matrix-vector mult --- */
@@ -239,7 +241,7 @@ int solveSystem(
 
         SIE_step(
             timestep,
-            d_Jacobianss, // matrix (jacobian) input
+            d_Jacobianss,
             d_Jacobianss, // inverse output, overwrite d_Jacobianss
             d_identity, // pointer to identity (ideally in constant memory?)
             d_derivatives, // vector (derivatives) input

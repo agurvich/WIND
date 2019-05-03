@@ -21,7 +21,7 @@ int main(){
 
     float tnow = 0;
     float tend = 10.0;
-    int n_integration_steps = 3;
+    int n_integration_steps = 4;
     int Nsystems = 4;
     int Neqn_p_sys = 5;
 
