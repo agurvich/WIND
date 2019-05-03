@@ -6,6 +6,7 @@
 int main(){
     printf("hello world\n");
 
+    /*
     float equations[40] = {
         0 , 1. , 0. , 0.09929229 , 0. ,0 , 1. , 0. , 0.09929229 , 0. ,
         0 , 1. , 0. , 0.09929229 , 0. ,0 , 1. , 0. , 0.09929229 , 0. ,
@@ -24,8 +25,18 @@ int main(){
     int n_integration_steps = 4;
     int Nsystems = 4;
     int Neqn_p_sys = 10;
+    */
 
+    float tnow = 0;
+    float tend = 5;
+    int n_integration_steps = 1;
 
+    float equations[12] = {1.000e+00,0,1.000e+00,0,1.000e+00,0,1.000e+00,0,1.000e+00,0,1.000e+00,0};
+    float new_equations[12] = {1.000e+00,0,1.000e+00,0,1.000e+00,0,1.000e+00,0,1.000e+00,0,1.000e+00,0};
+
+    float constants[4] = {9.980e+02,1.998e+03,-9.990e+02,-1.999e+03};
+    int Nsystems = 1;
+    int Neqn_p_sys = 12;
 
     void * sielib = dlopen("../lib/sie.so", RTLD_LAZY);
     void * sie2lib = dlopen("../lib/sie2.so", RTLD_LAZY);
@@ -62,14 +73,7 @@ int main(){
 
     printf("SIE: %d nsteps\n",nsteps);
 
-    float new_equations[40] = {
-        0 , 1. , 0. , 0.09929229 , 0. ,0 , 1. , 0. , 0.09929229 , 0. ,
-        0 , 1. , 0. , 0.09929229 , 0. ,0 , 1. , 0. , 0.09929229 , 0.,
-        0 , 1. , 0. , 0.09929229 , 0. ,0 , 1. , 0. , 0.09929229 , 0. ,
-        0 , 1. , 0. , 0.09929229 , 0. ,0 , 1. , 0. , 0.09929229 , 0.};
-    
     tnow = 0;
-
     nsteps = (*p_cudaIntegrateSIM)(
         tnow, // the current time
         tend, // the time we integrating the system to

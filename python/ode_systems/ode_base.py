@@ -127,13 +127,14 @@ class ODEBase(object):
             fmt_equations = ",".join(fmt_equations)
             fmt_equations = '{' + fmt_equations + '}'
             handle.write(
-                "float * equations = %s;\n" % fmt_equations)
-
+                "float equations[%d] = %s;\n" % (self.Nsystems*self.Neqn_p_sys,fmt_equations))
+            handle.write(
+                "float new_equations[%d] = %s;\n" % (self.Nsystems*self.Neqn_p_sys,fmt_equations))
             fmt_constants = ["%.3e"%val if val != 0 else "0" for val in self.constants.flatten()]
             fmt_constants = ",".join(fmt_constants)
             fmt_constants = '{' + fmt_constants + '}'
             handle.write(
-                "float * constants = %s;\n" % fmt_constants)
+                "float constants[%d] = %s;\n" % (self.Nsystems*self.nconst,fmt_constants))
 
             handle.write(
                 "int Nsystems = %s;\n" % str(self.Nsystems))

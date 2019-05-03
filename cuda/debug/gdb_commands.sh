@@ -1,7 +1,7 @@
 #!/bin/bash
 
-LINE=419
-LINE2=419
+LINE=406
+LINE2=406
 cuda-gdb debug -ex 'set breakpoint pending on' -ex 'dir ../SIE' -ex "b SIE_harness.cu:${LINE}" -ex "b SIE_harness.cu:${LINE2}" -ex "b GDBbreakpoint" -ex 'run python_harness.py' 
 
 ### print elements of an array

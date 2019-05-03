@@ -34,7 +34,7 @@ def main(
     makeplots=True,
     NR = True,
     katz = False,
-    dumpDebug = False,
+    dumpDebug = True,
     **kwargs):
 
     if NR:

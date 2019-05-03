@@ -402,7 +402,7 @@ int errorLoop(
 
         // determine if ANY of the INDEPENDENT systems are above the 
         //  the tolerance and fail them all. NOTE: this makes them not
-        //  independent... 
+        //  independent.
         checkError<<<vector_gridDim,threads_per_block>>>(
             d_current_state_flat,d_half_current_state_flat,d_error_flag,
             Nsystems,Neqn_p_sys);
