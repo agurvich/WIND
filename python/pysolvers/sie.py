@@ -32,7 +32,7 @@ def J(y, t):
 #
 # tend should be an exact multiple of dt to ensure that final value
 # is accurate.
-def integrate_sie(y0, dt, tend, f_func, J_func):
+def integrate_sie(y0,constants, dt, tend, f_func, J_func):
   # Size of the ODE system.
   N = len(y0)
 
@@ -40,7 +40,7 @@ def integrate_sie(y0, dt, tend, f_func, J_func):
   idm = np.identity(N, np.float)
   
   # Special first step.
-  Delta0 = np.matmul(la.inv(idm - dt*J_func(y0)), (dt*f_func(y0)))
+  Delta0 = np.matmul(la.inv(idm - dt*J_func((y0,constants))), (dt*f_func((y0,constants))))
   y1 = y0 + Delta0
 
   # Deltakmo = Delta_(k-1)
@@ -58,10 +58,10 @@ def integrate_sie(y0, dt, tend, f_func, J_func):
     t = t_arr[i]
 
     # Term involving Jacobian and matrix inverse.
-    Jterm = la.inv(idm - dt*J_func(yk))
+    Jterm = la.inv(idm - dt*J_func((yk,constants)))
 
     # Term involving f(yk) and Delta_(k-1).
-    fterm = dt*f_func(yk) - Deltakmo
+    fterm = dt*f_func((yk,constants)) - Deltakmo
 
     Deltak = Deltakmo + 2.*np.matmul(Jterm, fterm)
 
@@ -82,8 +82,8 @@ def integrate_sie(y0, dt, tend, f_func, J_func):
   # errors), t=tend at this point.
 
   # Special last (smoothing) step.
-  Jterm = la.inv(idm - dt*J_func(yk))
-  fterm = dt*f_func(yk) - Deltakmo
+  Jterm = la.inv(idm - dt*J_func((yk,constants)))
+  fterm = dt*f_func((yk,constants)) - Deltakmo
   
   Deltam = np.matmul(Jterm, fterm) 
   ym_bar = yk + Deltam
@@ -93,13 +93,13 @@ def integrate_sie(y0, dt, tend, f_func, J_func):
   return (t_arr, y_arr)
 
 # y derivative (f) for NR test.
-def f_NR_test(y):
+def f_NR_test(y,constants=None):
   up = 998.*y[0] + 1998.*y[1] # eq. 16.6.1
   vp = -999.*y[0] - 1999.*y[1]
   return np.array((up, vp))
 
 # Jacobian matrix for NR test.
-def J_NR_test(y):
+def J_NR_test(y,constants=None):
   return np.array([[998., 1998.],[-999., -1999.]])
 
 if __name__=="__main__":
@@ -111,7 +111,7 @@ if __name__=="__main__":
   dt = 0.01
   tend = 5.
 
-  (t_arr_sol, y_arr_sol) = integrate_sie(y0, dt, tend, f_NR_test, J_NR_test)
+  (t_arr_sol, y_arr_sol) = integrate_sie(y0, np.zeros(4), dt, tend, f_NR_test, J_NR_test)
 
   print("t_arr_sol=",t_arr_sol)
 

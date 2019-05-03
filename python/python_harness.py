@@ -68,7 +68,7 @@ def runIntegratorOutput(
 
     ## initialize integration breakdown variables
     tcur = tnow
-    dt = (tend-tnow)/n_output_steps
+    dt = tend#(tend-tnow)/n_output_steps
     equations_over_time = np.zeros((n_output_steps+1,len(equations)))
     nloops=0
     equations_over_time[nloops]=copy.copy(equations)
@@ -216,18 +216,27 @@ def main(
             print_flag = print_flag)
 
     if PY:
-        y0 = system.equations[:system.Neqn_p_sys]#np.array([1., 0.])
+        this_equations = system.equations[:system.Neqn_p_sys]
+        this_constants = system.constants[:system.nconst]
         dt = (system.tend-system.tnow)/system.n_output_steps
+
+        def f_NR_test(y):
+            up = 998.*y[0] + 1998.*y[1] # eq. 16.6.1
+            vp = -999.*y[0] - 1999.*y[1]
+            return np.array((up, vp))
+
+        # Jacobian matrix for NR test.
+        def J_NR_test(y):
+            return np.array([[998., 1998.],[-999., -1999.]])
 
         init = time.time()
         (t_arr_sol, y_arr_sol) = integrate_sie(
-            y0, 
+            this_equations, 
+            this_constants,
             dt,
             system.tend, 
-            lambda eq: system.calculate_derivative(
-                system_index = 0), 
-            lambda eq: system.calculate_jacobian(
-                system_index = 0))
+            system.calculate_derivative,
+            system.calculate_jacobian)
 
         print("times=",t_arr_sol)
         wall = time.time() - init

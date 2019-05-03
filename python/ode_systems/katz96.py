@@ -217,13 +217,19 @@ class Katz96(ODEBase):
         return constants.astype(np.float32)
     
     def calculate_jacobian(self,system_index=0):
-        constants = self.constants[
-            system_index*self.nconst:
-            (system_index+1)*self.nconst]
+        if type(system_index) == int:
+            constants = self.constants[
+                system_index*self.nconst:
+                (system_index+1)*self.nconst]
 
-        equations = self.equations[
-            system_index*self.Neqn_p_sys:
-            (system_index+1)*self.Neqn_p_sys]
+            equations = self.equations[
+                system_index*self.Neqn_p_sys:
+                (system_index+1)*self.Neqn_p_sys]
+        else:
+            ## assume we're being passed the current state 
+            ##  of this system
+            equations,constants = system_index
+
 
         ne = equations[1]+equations[3]+equations[4]*2.0;
 
@@ -255,14 +261,20 @@ class Katz96(ODEBase):
         return jacobian_flat.reshape(5,5).T
 
     def calculate_derivative(self,system_index=0):
-        equations = self.equations[
-            system_index*self.Neqn_p_sys:
-            (system_index+1)*self.Neqn_p_sys]
+        if type(system_index) == int:
+            equations = self.equations[
+                system_index*self.Neqn_p_sys:
+                (system_index+1)*self.Neqn_p_sys]
 
-        constants = self.constants[
-            system_index*self.nconst:
-            (system_index+1)*self.nconst]
+            constants = self.constants[
+                system_index*self.nconst:
+                (system_index+1)*self.nconst]
         
+        else:
+            ## assume we're being passed the current state 
+            ##  of this system
+            equations,constants = system_index
+
         rates = np.zeros(5)
 
         ne = equations[1] + equations[3] + 2*equations[4]

@@ -60,18 +60,29 @@ class NR_test(ODEBase):
         return np.tile([1.0,0.0],self.Nsystems).astype(np.float32)
 
     def calculate_jacobian(self,system_index=0):
-        constants = self.constants[
-            system_index*self.nconst:
-            (system_index+1)*self.nconst]
+        if type(system_index) == int:
+            constants = self.constants[
+                system_index*self.nconst:
+                (system_index+1)*self.nconst]
+        else:
+            ## assume we're being passed the current state 
+            ##  of this system
+            equations,constants = system_index
 
         return np.array([
             [constants[0], constants[1]],
             [constants[2], constants[3]]])
 
     def calculate_derivative(self,system_index=0):
-        y = self.equations[
-            system_index*self.Neqn_p_sys:
-            (system_index+1)*self.Neqn_p_sys]
+        if type(system_index) == int:
+            y = self.equations[
+                system_index*self.Neqn_p_sys:
+                (system_index+1)*self.Neqn_p_sys]
+        else:
+            equations,constants = system_index
+            ## assume we're being passed the current state 
+            ##  of this system
+            y = equations
 
         up = 998.*y[0] + 1998.*y[1] # eq. 16.6.1
         vp = -999.*y[0] - 1999.*y[1]
