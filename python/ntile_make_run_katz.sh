@@ -7,4 +7,4 @@ pwd
 ## build the new ODE system and link to the solver .so 's
 make
 cd ../python
-python python_harness.py --Ntile=$1 --katz=True --NR=False --SIE=True --PY=False
+#python python_harness.py --Ntile=$1 --katz=True --NR=False --SIE=True --PY=False

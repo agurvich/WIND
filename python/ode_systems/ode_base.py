@@ -22,6 +22,8 @@ class ODEBase(object):
     
         self.n_integration_steps = nsteps
 
+        self.dumpToCDebugInput()
+
     def validate(self):
         self.init_constants()
         self.init_equations()
@@ -108,10 +110,13 @@ class ODEBase(object):
                 group['times'] = times
                 group['nsteps'] = nsteps
                 group['walltimes'] = walltimes
-                print(walltimes,'walls')
+                print('nsteps:',nsteps)
         print("total nsteps:",np.sum(nsteps))
 
     def dumpToCDebugInput(self):
+        print("writing:",self.Nsystems,
+            "systems",self.Neqn_p_sys,
+            "equations per system")
         with open(os.path.join(
             self.datadir,
             self.name+'_debug.txt'),'w') as handle:
@@ -119,7 +124,7 @@ class ODEBase(object):
             handle.write(
                  "float tnow = %s;\n"%str(self.tnow))
             handle.write(
-                "float tend = %s;\n" % str(self.tend))
+                "float tend = %s;\n" % str(self.tend/self.n_output_steps))
             handle.write(
                 "int n_integration_steps = %s;\n" % str(self.n_integration_steps))
             

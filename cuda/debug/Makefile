@@ -8,7 +8,7 @@ INCLUDE = -I../lib -I../include
 BUILDDIR = $(shell pwd)
 
 ## compiler flags
-NVCFLAGS = -g 
+NVCFLAGS = -g -G
 make: 
 	@## compile this guy
 	nvcc $(CFLAGS) $(NVCFLAGS) -arch=sm_35 -ldl $(INCLUDE) -o debug debug.c;
