@@ -25,7 +25,7 @@ __global__ void overwriteVector(float * v1, float * v2, int Nsystems, int Neqn_p
 
 __global__ void scaleVector(float * vector, float scale, int Nsystems, int Neqn_p_sys){
     int tid = get_vector_tid();
-    if (tid<(Neqn_p_sys*Neqn_p_sys)){
+    if (tid<(Nsystems*Neqn_p_sys)){
         vector[tid]*=scale;
     }
 }
