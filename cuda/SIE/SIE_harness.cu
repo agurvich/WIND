@@ -7,7 +7,7 @@
 #include "cuda_utils.h"
 #include "vector_kernels.h"
 
-#define DEBUG
+//#define DEBUG
 
 
 //#include <cusolverDn.h>
@@ -16,6 +16,7 @@
 void SIE_step(
     float timestep, // device pointer to the current timestep (across all systems, lame!!)
     float ** d_Jacobianss,  // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array with flattened jacobians
+    float * d_Jacobianss_flat,
     float ** d_inverse, // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array to store output (same as jacobians to overwrite)
     float ** d_identity, // 1 x Neqn_p_sys*Neqn_p_sys array storing the identity (ideally in constant memory?)
     float ** d_derivatives, // Nsystems x Neqn_p_sys 2d array to store derivatives
@@ -73,6 +74,15 @@ void SIE_step(
             d_identity,d_Jacobianss,1.0,-1.0,timestep,
             Nsystems,Neqn_p_sys); 
 
+        gjeInvertMatrixBatched<<<
+            Nsystems,
+            threads_per_block,
+            Neqn_p_sys*Neqn_p_sys*sizeof(float)>>>(
+            d_Jacobianss_flat,
+            Neqn_p_sys,
+            Nsystems);
+
+/*
         // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
         // the permutation array seems to be important for some reason
         error = cublasSgetrfBatched(
@@ -105,6 +115,7 @@ void SIE_step(
             _cudaGetErrorEnum(error);
             printf("Inverse broke\n");
         }
+*/
     }
 /* ----------------------------------------------- */
 
@@ -230,6 +241,7 @@ int solveSystem(
     SIE_step(
         timestep, // Nsystems length vector for timestep to use
         d_Jacobianss, // matrix (jacobian) input
+
         d_Jacobianss, // inverse output, overwrite d_Jacobianss
         d_identity, // pointer to identity (ideally in constant memory?)
         d_derivatives, // vector (derivatives) input
@@ -295,6 +307,17 @@ int solveSystem(
             d_identity,d_Jacobianss,1.0,-1.0,timestep,
             Nsystems,Neqn_p_sys); 
 
+        // TODO revisit this w/ ode_gridDim?
+        gjeInvertMatrixBatched<<<
+            Nsystems,
+            threads_per_block,
+            Neqn_p_sys*Neqn_p_sys*sizeof(float)>>>(
+            d_Jacobianss_flat,
+            Neqn_p_sys,
+            Nsystems);
+
+
+/*
         // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
         // the permutation array seems to be important for some reason
         error = cublasSgetrfBatched(
@@ -328,7 +351,7 @@ int solveSystem(
             printf("Inverse broke\n");
         }
 
-#endif
+*/
          resetSystem(
             d_derivatives,
             d_derivatives_flat,
@@ -340,10 +363,12 @@ int solveSystem(
             Nsystems,
             Neqn_p_sys,
             tnow);
+#endif
 
         SIE_step(
             timestep,
             d_Jacobianss,
+            d_Jacobianss_flat,
             d_Jacobianss, // inverse output, overwrite d_Jacobianss
             d_identity, // pointer to identity (ideally in constant memory?)
             d_derivatives, // vector (derivatives) input
@@ -395,6 +420,7 @@ int solveSystem(
     SIE_step(
         timestep,
         d_Jacobianss, // matrix (jacobian) input
+        d_Jacobianss_flat,
         d_Jacobianss, // inverse output, overwrite d_Jacobianss
         d_identity, // pointer to identity (ideally in constant memory?)
         d_derivatives, // vector (derivatives) input

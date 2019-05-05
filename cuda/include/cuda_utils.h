@@ -12,6 +12,11 @@ __global__ void printFloatArrayCUDA(float *, int);
 
 __global__ void checkCublasINFO(int *, int *, int);
 
+__global__ void gjeInvertMatrixBatched(
+    float *, // d_matricess_flat,
+    int ,//Ndim,
+    int );//Nbatch)
+
 const char *_cudaGetErrorEnum(cublasStatus_t);
 
 void checkCublasErrorState(int *,int *,int,int, dim3);
