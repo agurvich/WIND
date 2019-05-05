@@ -8,7 +8,8 @@ void SIE_step(
     float *, // Nsystems*Neqn_p_sys 1d array (flattened above)
     float *, // output state vector, iterative calls integrates
     int, // number of ODE systems
-    int); // number of equations in each system
+    int, // number of equations in each system
+    float *);// vector to subtract from hf before multipying by A
 
 
 int SIEErrorLoop(
@@ -27,18 +28,11 @@ int SIEErrorLoop(
     int, // number of systems
     int);
 
-
-// BDF2_solver
-void BDF2_step(
-    float, // device pointer to the current timestep (across all systems, lame!!)
-    float **,  // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array with flattened jacobians
-    float **, // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array to store output (same as jacobians to overwrite)
-    float **, // 1 x Neqn_p_sys*Neqn_p_sys array storing the identity (ideally in constant memory?)
-    float **, // Nsystems x Neqn_p_sys 2d array to store derivatives
-    float *, // Nsystems*Neqn_p_sys 1d array (flattened above)
-    float *, // state vector from previous timestep
-    float *, // state vector from this timestep, where output goes
-    float **, // matrix holding intermediate values used internally for the calculation
-    float *, // flat array storing intermediate values used internally for the calculation
-    int, // number of ODE systems
-    int);// number of equations in each system
+int cudaIntegrateSIE(
+    float,// tnow, // the current time
+    float,// tend, // the time we integrating the system to
+    int,// n_integration_steps, // the initial timestep to attempt to integrate the system with
+    float * ,// * constants, // the constants for each system
+    float * ,// * equations, // a flattened array containing the y value for each equation in each system
+    int,// Nsystems, // the number of systems
+    int);// Neqn_p_sys){ // the number of equations in each system

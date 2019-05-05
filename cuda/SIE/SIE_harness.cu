@@ -7,26 +7,30 @@
 #include "cuda_utils.h"
 #include "vector_kernels.h"
 
+//#define DEBUG
+
+
 //#include <cusolverDn.h>
 //#include "magmablas.h"
 
 void SIE_step(
     float timestep, // device pointer to the current timestep (across all systems, lame!!)
     float ** d_Jacobianss,  // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array with flattened jacobians
+    float * d_Jacobianss_flat,
     float ** d_inverse, // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array to store output (same as jacobians to overwrite)
     float ** d_identity, // 1 x Neqn_p_sys*Neqn_p_sys array storing the identity (ideally in constant memory?)
     float ** d_derivatives, // Nsystems x Neqn_p_sys 2d array to store derivatives
     float * d_derivatives_flat, // Nsystems*Neqn_p_sys 1d array (flattened above)
     float * d_equations_flat, // output state vector, iterative calls integrates
     int Nsystems, // number of ODE systems
-    int Neqn_p_sys){ // number of equations in each system
+    int Neqn_p_sys, // number of equations in each system
+    float * d_derivative_modification_flat){ // vector to subtract from hf before multipying by A
 
 /* -------------- initialize cublas -------------- */
 
     // initialize cublas status tracking pointers
     cublasHandle_t handle;
-    int *P, *INFO, *d_INFO_bool;
-    int INFO_bool = 0;
+    int *P, *INFO;
 
     // handle is something that connects cublas calls within a stream... something about v2 and 
     // being able to pass scalars by reference instead of by value. I don't really understand it
@@ -34,10 +38,6 @@ void SIE_step(
     cublasCreate_v2(&handle);
     cudaMalloc(&P, Neqn_p_sys * Nsystems * sizeof(int));
     cudaMalloc(&INFO,  Nsystems * sizeof(int));
-    cudaMalloc(&d_INFO_bool,sizeof(int));
-
-    // set the initial value of the INFO_bool check
-    cudaMemcpy(&d_INFO_bool,&INFO_bool,sizeof(int),cudaMemcpyHostToDevice);
 
     //NOTE: uncomment this to use device pointers for constants
     //cublasSetPointerMode(handle,CUBLAS_POINTER_MODE_DEVICE);
@@ -66,38 +66,77 @@ void SIE_step(
 
 
 /* -------------- invert the matrix -------------- */
-    // compute (I-hJ) with a custom kernel
-    addArrayToBatchArrays<<<matrix_gridDim,threads_per_block>>>(
-        d_identity,d_Jacobianss,1.0,-1.0,timestep,
-        Nsystems,Neqn_p_sys); 
+    cublasStatus_t error;
+    cublasStatus_t second_error;
+    if (d_Jacobianss != NULL){
+        // compute (I-hJ) with a custom kernel
+        addArrayToBatchArrays<<<matrix_gridDim,threads_per_block>>>(
+            d_identity,d_Jacobianss,1.0,-1.0,timestep,
+            Nsystems,Neqn_p_sys); 
 
-    // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
-    // the permutation array seems to be important for some reason
-    cublasStatus_t error = cublasSgetrfBatched(
-        handle, // cublas handle
-        Neqn_p_sys, // leading dimension of A??
-        d_Jacobianss, // matrix to factor, here I-hs*Js
-        Neqn_p_sys, // 
-        P, // permutation matrix
-        INFO, // cublas status object
-        Nsystems); // number of systems
+        // flush any previous uncaught cuda errors
+        cudaError_t cuda_error = cudaGetLastError();
 
-    // second cublas call, this one solves AX=B with B the identity. It puts X in d_inverse
-    cublasSgetriBatched(
-        handle, // cublas handle
-        Neqn_p_sys, // leading dimension of A??
-        (const float **)d_Jacobianss, // matrix to inverse, here I-hs*Js
-        Neqn_p_sys, // leading dimension of B??
-        P, // permutation matrix
-        d_inverse, // output matrix
-        Neqn_p_sys, // 
-        INFO, // cublas status object
-        Nsystems); // number of systems
+        gjeInvertMatrixBatched<<<
+            Nsystems,
+            threads_per_block,
+            Neqn_p_sys*Neqn_p_sys*sizeof(float)>>>(
+            d_Jacobianss_flat,
+            Neqn_p_sys,
+            Nsystems);
+
+        cudaError_t gjeError = cudaGetLastError();
+        if (gjeError != cudaSuccess){
+            printf("Inversion failed: %s \n",cudaGetErrorString(gjeError));
+        }
+/*
+        // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
+        // the permutation array seems to be important for some reason
+        error = cublasSgetrfBatched(
+            handle, // cublas handle
+            Neqn_p_sys, // leading dimension of A??
+            d_Jacobianss, // matrix to factor, here I-hs*Js
+            Neqn_p_sys, // 
+            P, // permutation matrix
+            INFO, // cublas status object
+            Nsystems); // number of systems
+
+        if (error != CUBLAS_STATUS_SUCCESS){
+            _cudaGetErrorEnum(error);
+            printf("LU factorization broke\n");
+        }
+
+        // second cublas call, this one solves AX=B with B the identity. It puts X in d_inverse
+        error = cublasSgetriBatched(
+            handle, // cublas handle
+            Neqn_p_sys, // leading dimension of A??
+            (const float **)d_Jacobianss, // matrix to inverse, here I-hs*Js
+            Neqn_p_sys, // leading dimension of B??
+            P, // permutation matrix
+            d_inverse, // output matrix
+            Neqn_p_sys, // 
+            INFO, // cublas status object
+            Nsystems); // number of systems
+
+        if (error != CUBLAS_STATUS_SUCCESS){
+            _cudaGetErrorEnum(error);
+            printf("Inverse broke\n");
+        }
+*/
+    }
 /* ----------------------------------------------- */
 
 /* -------------- perform a matrix-vector mult --- */
+    if (d_derivative_modification_flat != NULL){
+        //  (hf(n)-Delta(n-1)) into d_derivatives_flat
+        addVectors<<<vector_gridDim,threads_per_block>>>(
+            -1.0,d_derivative_modification_flat,
+            timestep, d_derivatives_flat,
+            d_derivatives_flat,Nsystems,Neqn_p_sys);
+    }
+
     // multiply (I-h*Js)^-1 x fs
-    cublasSgemmBatched(
+    error = cublasSgemmBatched(
         handle,// cublas handle
         CUBLAS_OP_N,// no transformation
         CUBLAS_OP_N,// no transformation
@@ -114,32 +153,57 @@ void SIE_step(
         Neqn_p_sys, // leading dimension of the 2d array storing C??
         Nsystems); // batch count
 
+        if (error != CUBLAS_STATUS_SUCCESS){
+            _cudaGetErrorEnum(error);
+            printf("Sgemm broke\n");
+        }
+
 /* ----------------------------------------------- */
 
-/* -------------- perform a vector addition ------ */
-    // scale the dy vectors by the timestep size
-    //scaleVector<<<vector_gridDim,threads_per_block>>>(d_derivatives_flat,d_timesteps);
-    
-    // add ys + h x dys = ys + h x [(I-h*Js)^-1*fs]
-    cublasSaxpy(
-        handle, // cublas handle
-        Neqn_p_sys*Nsystems, // number of elements in each vector
-        (const float *) &timestep, // alpha scalar <-- can't use device pointer???
-        (const float *) d_derivatives_flat, // vector we are adding, flattened derivative vector
-        1, // stride between consecutive elements
-        d_equations_flat, // vector we are replacing
-        1); // stride between consecutive elements
+/* ------------ update the current state --------- */
+    if (d_derivative_modification_flat == NULL){
+        // scale it explicitly in case calling context needs
+        //  h x A(n) x  f(n)
+        scaleVector<<<vector_gridDim,threads_per_block>>>(
+            d_derivatives_flat,
+            timestep,
+            Nsystems,
+            Neqn_p_sys);
+
+        // add ys + h x dys = ys + h x [(I-h*Js)^-1*fs]
+        addVectors<<<vector_gridDim,threads_per_block>>>(
+            1.0, d_equations_flat,
+            1.0, d_derivatives_flat,
+            d_equations_flat,Nsystems,Neqn_p_sys);
+
+/*
+        error = cublasSaxpy(
+            handle, // cublas handle
+            Neqn_p_sys*Nsystems, // number of elements in each vector
+            (const float *) &alpha, // alpha scalar <-- can't use device pointer???
+            (const float *) d_derivatives_flat, // vector we are adding, flattened derivative vector
+            1, // stride between consecutive elements
+            d_equations_flat, // vector we are replacing
+            1); // stride between consecutive elements
+
+
+        if (error != CUBLAS_STATUS_SUCCESS){
+            _cudaGetErrorEnum(error);
+            printf("saxpy broke\n");
+        }
+*/
+    }
 /* ----------------------------------------------- */
     
     // shut down cublas
     cublasDestroy_v2(handle);
-    cudaFree(P); cudaFree(INFO); cudaFree(d_INFO_bool);
+    cudaFree(P); cudaFree(INFO);
 }
 
 int solveSystem(
     float tnow,
     float tend,
-    float timestep,
+    int n_integration_steps,
     float ** d_Jacobianss, // matrix (jacobian) input
     float * d_Jacobianss_flat,
     float * jacobian_zeros,
@@ -147,17 +211,14 @@ int solveSystem(
     float ** d_derivatives, // vector (derivatives) input
     float * d_derivatives_flat, // dy vector output
     float * d_current_state_flat, // y vector output
-    float * d_previous_state_flat,
-    float ** d_intermediate, // matrix memory for intermediate calculation
-    float * d_intermediate_flat,// flattened memory for intermediate calculation
+    float * d_previous_delta_flat,
     float * d_constants,
     int Nsystems, // number of systems
     int Neqn_p_sys){
 
     // make sure we don't overintegrate
-    timestep = fmin(timestep,tend-tnow);
-    
-    int nsteps = 1; 
+    float timestep = (tend-tnow)/n_integration_steps;
+    int nsteps = 0; 
 /* -------------- configure the grid  ------------ */
     int threads_per_block;
     dim3 vector_gridDim;
@@ -168,23 +229,8 @@ int solveSystem(
         NULL,
         &vector_gridDim);
 
-/* ----------------------------------------------- */
-    // copies the values of y(n) -> y(n-1)
-    //  now that we don't need the "previous" step
-#ifdef ORDER2
-    cudaMemcpy(
-        d_previous_state_flat,
-        d_current_state_flat,
-        Nsystems*Neqn_p_sys*sizeof(float),
-        cudaMemcpyDeviceToDevice);
-    /*
-    overwriteVector<<<vector_gridDim,threads_per_block>>>(
-        d_current_state_flat,
-        d_previous_state_flat,
-        Nsystems,Neqn_p_sys);
-    */
-#endif
-
+#ifdef MIDPOINT
+    /* ------------- do the special first step ------- */
     // evaluate the derivative and jacobian at 
     //  the current state
     resetSystem(
@@ -202,27 +248,35 @@ int solveSystem(
     SIE_step(
         timestep, // Nsystems length vector for timestep to use
         d_Jacobianss, // matrix (jacobian) input
+
         d_Jacobianss, // inverse output, overwrite d_Jacobianss
         d_identity, // pointer to identity (ideally in constant memory?)
         d_derivatives, // vector (derivatives) input
-        d_derivatives_flat, // dy vector output
+        d_derivatives_flat, // dy vector output-- store h x A(0) x f(0)
         d_current_state_flat, // y vector output
         Nsystems, // number of systems
-        Neqn_p_sys); // number of equations in each system
+        Neqn_p_sys,// number of equations in each system
+        NULL); // vector to subtract from hf before multipying by A
 
+    // save hA(0)f(0) as Delta(0) for next step
+    cudaMemcpy(
+        d_previous_delta_flat,
+        d_derivatives_flat, // is now hA(n)f(n)
+        Nsystems*Neqn_p_sys*sizeof(float),
+        cudaMemcpyDeviceToDevice);
+
+    // address special step timestepping issues
     tnow+=timestep;
-
+    n_integration_steps-=1;
+    nsteps++;
+#endif
 /* ----------------------------------------------- */
 
     cublasHandle_t handle;
     cublasStatus_t error;
     cublasCreate_v2(&handle);
 /* -------------- main integration loop ---------- */
-    while (tnow < tend){
-        // make sure we don't overintegrate
-        timestep = fmin(timestep,tend-tnow);
-        nsteps++;
-        
+    while (nsteps < n_integration_steps){        
         // evaluate the derivative and jacobian at 
         //  the current state
         resetSystem(
@@ -237,73 +291,165 @@ int solveSystem(
             Neqn_p_sys,
             tnow);
 
-#ifdef ORDER2
-    /* -------------- perform the state switcheroo --- */
-        
-        //  (y(n)-y(n-1)) into d_intermediate_flat
-        addVectors<<<vector_gridDim,threads_per_block>>>(
-            -1.0,d_previous_state_flat,
-            1.0, d_current_state_flat,
-            d_intermediate_flat,Nsystems,Neqn_p_sys);
+#ifdef DEBUG
+        int *P, *INFO;
+        // handle is something that connects cublas calls within a stream... something about v2 and 
+        // being able to pass scalars by reference instead of by value. I don't really understand it
+        // place to store cublas status stuff. 
+        cudaMalloc(&P, Neqn_p_sys * Nsystems * sizeof(int));
+        cudaMalloc(&INFO,  Nsystems * sizeof(int));
 
-        // copies the values of y(n) -> y(n-1)
-        //  now that we don't need the "previous" step
-        cudaMemcpy(
-            d_previous_state_flat,
+        dim3 matrix_gridDim;
+        dim3 ode_gridDim;
+
+        configureGrid(
+            Nsystems,Neqn_p_sys,
+            &threads_per_block,
+            &matrix_gridDim,
+            &ode_gridDim,
+            &vector_gridDim);
+
+        // compute (I-hJ) with a custom kernel
+        addArrayToBatchArrays<<<matrix_gridDim,threads_per_block>>>(
+            d_identity,d_Jacobianss,1.0,-1.0,timestep,
+            Nsystems,Neqn_p_sys); 
+
+        // TODO revisit this w/ ode_gridDim?
+        gjeInvertMatrixBatched<<<
+            Nsystems,
+            threads_per_block,
+            Neqn_p_sys*Neqn_p_sys*sizeof(float)>>>(
+            d_Jacobianss_flat,
+            Neqn_p_sys,
+            Nsystems);
+
+
+/*
+        // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
+        // the permutation array seems to be important for some reason
+        error = cublasSgetrfBatched(
+            handle, // cublas handle
+            Neqn_p_sys, // leading dimension of A??
+            d_Jacobianss, // matrix to factor, here I-hs*Js
+            Neqn_p_sys, // 
+            P, // permutation matrix
+            INFO, // cublas status object
+            Nsystems); // number of systems
+
+        if (error != CUBLAS_STATUS_SUCCESS){
+            _cudaGetErrorEnum(error);
+            printf("LU factorization broke\n");
+        }
+
+        // second cublas call, this one solves AX=B with B the identity. It puts X in d_inverse
+        error = cublasSgetriBatched(
+            handle, // cublas handle
+            Neqn_p_sys, // leading dimension of A??
+            (const float **)d_Jacobianss, // matrix to inverse, here I-hs*Js
+            Neqn_p_sys, // leading dimension of B??
+            P, // permutation matrix
+            d_Jacobianss, // output matrix
+            Neqn_p_sys, // 
+            INFO, // cublas status object
+            Nsystems); // number of systems
+
+        if (error != CUBLAS_STATUS_SUCCESS){
+            _cudaGetErrorEnum(error);
+            printf("Inverse broke\n");
+        }
+
+*/
+         resetSystem(
+            d_derivatives,
+            d_derivatives_flat,
+            d_Jacobianss,
+            d_Jacobianss_flat,
+            d_constants,
             d_current_state_flat,
-            Nsystems*Neqn_p_sys*sizeof(float),
-            cudaMemcpyDeviceToDevice);
-    /* ----------------------------------------------- */
-        SIE_step(
-            2.0/3.0*timestep, // Nsystems length vector for timestep to use
-#else
+            jacobian_zeros,
+            Nsystems,
+            Neqn_p_sys,
+            tnow);
+#endif
+
         SIE_step(
             timestep,
-#endif
-            d_Jacobianss, // matrix (jacobian) input
+            d_Jacobianss,
+            d_Jacobianss_flat,
             d_Jacobianss, // inverse output, overwrite d_Jacobianss
             d_identity, // pointer to identity (ideally in constant memory?)
             d_derivatives, // vector (derivatives) input
-            d_derivatives_flat, // dy vector output
+            d_derivatives_flat, // dy vector output -- store A(n) x (hf(n) - Delta(n-1))
             d_current_state_flat, // y vector output
             Nsystems, // number of systems
-            Neqn_p_sys); // number of equations in each system
-
-
-#ifdef ORDER2
-    /* -------------- perform two matrix-vector mults  */
-        // multiply (I-2/3h*Js)^-1 x (y(n)-y(n-1)), 
-        //  overwrite the output into d_intermediate
-
-        float alpha = 1.0;
-        float beta = 0.0;
-
-        error = cublasSgemmBatched(
-            handle,// cublas handle
-            CUBLAS_OP_N,// no transformation
-            CUBLAS_OP_N,// no transformation
-            Neqn_p_sys, //m- number of rows in A (and C)
-            1, //n- number of columns in B (and C)
-            Neqn_p_sys, //k-number of columns in A and rows in B
-            (const float *) &alpha, // alpha scalar
-            (const float **) d_Jacobianss, // has been replaced by 1-2/3h by most recent SIE_step
-            Neqn_p_sys, // leading dimension of the 2d array storing A??
-            (const float **) d_intermediate, // B matrix (or n x 1 column vector)
-            Neqn_p_sys, // leading dimension of the 2d array storing B??
-            (const float *) &beta, // beta scalar
-            (float **) d_intermediate, // output "matrix," let's overwrite B
-            Neqn_p_sys, // leading dimension of the 2d array storing C??
-            Nsystems); // batch count
-
+            Neqn_p_sys, // number of equations in each system
+// flag to change d_equations_flat or just compute A(n) & hA(n)f(n)
+#ifndef MIDPOINT
+            NULL); // doubles as a flag to add A h f(n) + y(n)
+#else
+            d_previous_delta_flat);
+        
+        // add Delta(n) = Delta(n-1) + 2 A x (hf(n) - Delta(n-1))
+        //  and overwrite Delta(n-1) with Delta(n) 
+        //  now that we don't need the "previous" step
         addVectors<<<vector_gridDim,threads_per_block>>>(
-            1.0/3.0,d_intermediate_flat,
+            2.0, d_derivatives_flat,
+            1.0, d_previous_delta_flat,
+            d_previous_delta_flat,Nsystems,Neqn_p_sys);
+
+        // add y(n+1) = y(n) + Delta(n)
+        addVectors<<<vector_gridDim,threads_per_block>>>(
+            1.0, d_previous_delta_flat, // really the current delta
             1.0, d_current_state_flat,
             d_current_state_flat,Nsystems,Neqn_p_sys);
 
 #endif
         tnow+=timestep;
-
+        nsteps++;
     }
+
+#ifdef MIDPOINT
+    /* ------------- do the special last step -------- */
+    // evaluate the derivative and jacobian at 
+    //  the current state
+    resetSystem(
+        d_derivatives,
+        d_derivatives_flat,
+        d_Jacobianss,
+        d_Jacobianss_flat,
+        d_constants,
+        d_current_state_flat,
+        jacobian_zeros,
+        Nsystems,
+        Neqn_p_sys,
+        tnow);
+
+    SIE_step(
+        timestep,
+        d_Jacobianss, // matrix (jacobian) input
+        d_Jacobianss_flat,
+        d_Jacobianss, // inverse output, overwrite d_Jacobianss
+        d_identity, // pointer to identity (ideally in constant memory?)
+        d_derivatives, // vector (derivatives) input
+        d_derivatives_flat, // dy vector output -- store A(m) x (hf(m) - Delta(m-1))
+        d_current_state_flat, // y vector output
+        Nsystems, // number of systems
+        Neqn_p_sys, // number of equations in each system
+        d_previous_delta_flat); // vector to subtract from hf before multipying by A
+
+    // add y(n+1) = y(m) + Delta(m)
+    addVectors<<<vector_gridDim,threads_per_block>>>(
+        1.0, d_derivatives_flat,
+        1.0, d_current_state_flat,
+        d_current_state_flat,Nsystems,Neqn_p_sys);
+
+    // increment tnow and put tend back where we found it
+    //  for completeness' sake (even if it doesn't matter)
+    tnow+=timestep;
+    n_integration_steps+=1;
+    nsteps++;
+#endif
+
     cublasDestroy_v2(handle);
     return nsteps;
 }
@@ -311,7 +457,7 @@ int solveSystem(
 int errorLoop(
     float tnow,
     float tend,
-    float timestep,
+    int n_integration_steps,
     float ** d_Jacobianss, // matrix (jacobian) input
     float * d_Jacobianss_flat,
     float * jacobian_zeros,
@@ -321,15 +467,15 @@ int errorLoop(
     float * equations,
     float * d_current_state_flat, // y vector output
     float * d_half_current_state_flat,
-    float * d_previous_state_flat,
-    float ** d_intermediate,
-    float * d_intermediate_flat,
+    float * d_previous_delta_flat,
     float * d_constants,
     int Nsystems, // number of systems
     int Neqn_p_sys){
 
-    // what is our first attempt to solve the system?
-    int n_integration_steps = 1;
+#ifdef MIDPOINT
+    // need at least 3 steps to evaluate midpoint method
+    n_integration_steps = max(n_integration_steps,3);
+#endif
 
     int * error_flag = (int *) malloc(sizeof(int));
     int * d_error_flag;
@@ -352,7 +498,7 @@ int errorLoop(
     nsteps+= solveSystem(
             tnow,
             tend,
-            timestep/n_integration_steps,
+            n_integration_steps,
             d_Jacobianss,
             d_Jacobianss_flat,
             jacobian_zeros,
@@ -360,9 +506,7 @@ int errorLoop(
             d_derivatives,
             d_derivatives_flat,
             d_current_state_flat,
-            d_previous_state_flat,
-            d_intermediate, // matrix memory for intermediate calculation
-            d_intermediate_flat,// flattened memory for intermediate calculation
+            d_previous_delta_flat,
             d_constants,
             Nsystems,
             Neqn_p_sys);
@@ -375,11 +519,10 @@ int errorLoop(
     while (unsolved){
         
         n_integration_steps*=2;
-
         nsteps+= solveSystem(
             tnow,
             tend,
-            timestep/n_integration_steps,
+            n_integration_steps,
             d_Jacobianss,
             d_Jacobianss_flat,
             jacobian_zeros,
@@ -387,16 +530,14 @@ int errorLoop(
             d_derivatives,
             d_derivatives_flat,
             d_half_current_state_flat,// the output state vector
-            d_previous_state_flat,
-            d_intermediate, // matrix memory for intermediate calculation
-            d_intermediate_flat,// flattened memory for intermediate calculation
+            d_previous_delta_flat,
             d_constants,
             Nsystems,
             Neqn_p_sys);
 
         // determine if ANY of the INDEPENDENT systems are above the 
         //  the tolerance and fail them all. NOTE: this makes them not
-        //  independent... 
+        //  independent.
         checkError<<<vector_gridDim,threads_per_block>>>(
             d_current_state_flat,d_half_current_state_flat,d_error_flag,
             Nsystems,Neqn_p_sys);
@@ -458,19 +599,19 @@ int errorLoop(
 int cudaIntegrateSIE(
     float tnow, // the current time
     float tend, // the time we integrating the system to
-    float timestep, // the initial timestep to attempt to integrate the system with
+    int n_integration_steps, // the initial timestep to attempt to integrate the system with
     float * constants, // the constants for each system
     float * equations, // a flattened array containing the y value for each equation in each system
     int Nsystems, // the number of systems
     int Neqn_p_sys){ // the number of equations in each system
 
-#ifdef LOUD
-#ifdef ORDER2
-    printf("SIE2 Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
+//#ifdef LOUD
+#ifdef MIDPOINT
+    printf("SIM Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
 #else
     printf("SIE Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
 #endif
-#endif
+//#endif
     float *dest = equations;
 
     // define the identity matrix on the host
@@ -515,20 +656,14 @@ int cudaIntegrateSIE(
     float **d_half_current_state = initializeDeviceMatrix(
         equations,&d_half_current_state_flat,Neqn_p_sys,Nsystems);
 
-#ifdef ORDER2
+#ifdef MIDPOINT
     // saving previous step Y(n-1) because we need that for SIE2
-    float *d_previous_state_flat;
-    float **d_previous_state = initializeDeviceMatrix(zeros,&d_previous_state_flat,Neqn_p_sys,Nsystems);
+    float *d_previous_delta_flat;
+    float **d_previous_delta = initializeDeviceMatrix(zeros,&d_previous_delta_flat,Neqn_p_sys,Nsystems);
 
-    // memory for intermediate calculation... reuse it so we aren't constantly allocating
-    //  and deallocating memory, NOTE can we remove this??
-    float *d_intermediate_flat;
-    float **d_intermediate = initializeDeviceMatrix(zeros,&d_intermediate_flat,Neqn_p_sys,Nsystems);
 #else
-    float * d_previous_state_flat = NULL;
-    float **d_previous_state = NULL;
-    float *d_intermediate_flat= NULL;
-    float **d_intermediate = NULL;
+    float * d_previous_delta_flat = NULL;
+    float **d_previous_delta = NULL;
 #endif
 
     // initialize derivative vectors
@@ -540,7 +675,7 @@ int cudaIntegrateSIE(
     int nsteps = errorLoop(
         tnow,
         tend,
-        timestep,
+        n_integration_steps,
         d_Jacobianss, // matrix (jacobian) input
         d_Jacobianss_flat,
         jacobian_zeros,
@@ -550,9 +685,7 @@ int cudaIntegrateSIE(
         equations,
         d_current_state_flat, // y vector output
         d_half_current_state_flat,
-        d_previous_state_flat,
-        d_intermediate, // matrix memory for intermediate calculation
-        d_intermediate_flat,// flattened memory for intermediate calculation
+        d_previous_delta_flat,
         d_constants,
         Nsystems, // number of systems
         Neqn_p_sys);
@@ -571,9 +704,8 @@ int cudaIntegrateSIE(
     cudaFree(d_Jacobianss); cudaFree(d_Jacobianss_flat);
     cudaFree(d_current_state); cudaFree(d_current_state_flat);
     cudaFree(d_half_current_state); cudaFree(d_half_current_state_flat);
-#ifdef ORDER2
-    cudaFree(d_previous_state); cudaFree(d_previous_state_flat);
-    cudaFree(d_intermediate); cudaFree(d_intermediate_flat);
+#ifdef MIDPOINT
+    cudaFree(d_previous_delta); cudaFree(d_previous_delta_flat);
 #endif 
     cudaFree(d_derivatives); cudaFree(d_derivatives_flat);
 

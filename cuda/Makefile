@@ -1,6 +1,6 @@
 ## WIND Configuration Options
-ABSOLUTE_TOLERANCE=5e-2
-RELATIVE_TOLERANCE=1e-4
+ABSOLUTE_TOLERANCE=5e-3
+RELATIVE_TOLERANCE=5e-3
 
 WINDCONFIG= -DADAPTIVETIMESTEP #-DLOUD
 
@@ -11,19 +11,20 @@ WINDCONFIG+=-DRELATIVE_TOLERANCE=$(RELATIVE_TOLERANCE)
 EXECUTABLE	:= lib/sie.so
 ORDER2EXECUTABLE:= lib/sie2.so
 
-
-
 ## Cuda source files (compiled with nvcc)
-CUFILES		:= $(wildcard RK2/*.cu common_functions/*.cu ode_system.cu)
+CUFILES		:= $(wildcard RK2/*.cu common_functions/*.cu)
+
+## ode system to link to 
+ODEFILE = ode_system.cu
+ODEOBJ =$(ODEFILE:%.cu=%.o) 
 
 ## objects
 OBJS = $(CUFILES:%.cu=%.o)
 SIEOBJS = SIE/SIE.o SIE/SIE2.o
 
-
 ## compiler flags
 CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG)
-NVCFLAGS = -g -shared
+NVCFLAGS = -g -shared -G -O0
 
 ## libraries to include
 INCLUDE = -Iinclude -IRK2 -Icommon_functions##-I/sw/xe/magma/1.5.0/cnl5.2_gnu4.8.2/include
@@ -31,24 +32,31 @@ LIB = -lcublas -lcusolver
 
 BUILDDIR = $(shell pwd)
 
-make: $(CUFILES) $(OBJS) $(SIEOBJS)
+make: $(CUFILES) $(OBJS) $(SIEOBJS) $(ODEFILE)
+	@## compile the ODE equations
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(ODEOBJ) -c $(ODEFILE);
+	@## link to the first order solver 
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(EXECUTABLE) $(OBJS) $(ODEOBJ) SIE/SIE.o;
+	@## link the the second order solver
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(ORDER2EXECUTABLE) $(OBJS) $(ODEOBJ) SIE/SIE2.o;
 
-SIE/SIE.o: SIE/SIE_harness.cu $(OBJS)
+SIE/SIE.o: SIE/SIE_harness.cu
 	@echo $@ specific foo $< $*
 	@## compile this guy
 	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $@ -c $<;
-	@## link the other files
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(EXECUTABLE) $(OBJS) SIE/SIE.o;
-SIE/SIE2.o: SIE/SIE_harness.cu $(OBJS)
+
+SIE/SIE2.o: SIE/SIE_harness.cu
 	@echo $@ specific foo $< $*
 	@## compile this guy
-	nvcc $(NVCFLAGS) $(CFLAGS) -DORDER2 -arch=sm_35 $(INCLUDE) $(LIB) -o $@ -c $<;
-	@## link the other files
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(ORDER2EXECUTABLE) $(OBJS) SIE/SIE2.o;
+	nvcc $(NVCFLAGS) $(CFLAGS) -DMIDPOINT -arch=sm_35 $(INCLUDE) $(LIB) -o $@ -c $<;
+
 %.o: %.cu
 	@## compile this guy
 	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $@ -c $<;
 clean: 
 	rm $(OBJS)
+	rm $(SIEOBJS)
 	rm $(EXECUTABLE)
 	rm $(ORDER2EXECUTABLE)
+	rm *.*o 
+	rm lib/*.*o
