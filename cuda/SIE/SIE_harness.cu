@@ -17,7 +17,8 @@ void SIE_step(
     float timestep, // device pointer to the current timestep (across all systems, lame!!)
     float ** d_Jacobianss,  // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array with flattened jacobians
     float * d_Jacobianss_flat,
-    float ** d_inverse, // Nsystems x Neqn_p_sys*Neqn_p_sys 2d array to store output (same as jacobians to overwrite)
+    float ** d_inversess, // inverse output, overwrite d_Jacobianss
+    float * d_inversess_flat,
     float ** d_identity, // 1 x Neqn_p_sys*Neqn_p_sys array storing the identity (ideally in constant memory?)
     float ** d_derivatives, // Nsystems x Neqn_p_sys 2d array to store derivatives
     float * d_derivatives_flat, // Nsystems*Neqn_p_sys 1d array (flattened above)
@@ -79,9 +80,9 @@ void SIE_step(
 
         gjeInvertMatrixBatched<<<
             Nsystems,
-            threads_per_block,
-            Neqn_p_sys*Neqn_p_sys*sizeof(float)>>>(
+            threads_per_block>>>(
             d_Jacobianss_flat,
+            d_inversess_flat,
             Neqn_p_sys,
             Nsystems);
 
@@ -89,40 +90,6 @@ void SIE_step(
         if (gjeError != cudaSuccess){
             printf("Inversion failed: %s \n",cudaGetErrorString(gjeError));
         }
-/*
-        // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
-        // the permutation array seems to be important for some reason
-        error = cublasSgetrfBatched(
-            handle, // cublas handle
-            Neqn_p_sys, // leading dimension of A??
-            d_Jacobianss, // matrix to factor, here I-hs*Js
-            Neqn_p_sys, // 
-            P, // permutation matrix
-            INFO, // cublas status object
-            Nsystems); // number of systems
-
-        if (error != CUBLAS_STATUS_SUCCESS){
-            _cudaGetErrorEnum(error);
-            printf("LU factorization broke\n");
-        }
-
-        // second cublas call, this one solves AX=B with B the identity. It puts X in d_inverse
-        error = cublasSgetriBatched(
-            handle, // cublas handle
-            Neqn_p_sys, // leading dimension of A??
-            (const float **)d_Jacobianss, // matrix to inverse, here I-hs*Js
-            Neqn_p_sys, // leading dimension of B??
-            P, // permutation matrix
-            d_inverse, // output matrix
-            Neqn_p_sys, // 
-            INFO, // cublas status object
-            Nsystems); // number of systems
-
-        if (error != CUBLAS_STATUS_SUCCESS){
-            _cudaGetErrorEnum(error);
-            printf("Inverse broke\n");
-        }
-*/
     }
 /* ----------------------------------------------- */
 
@@ -144,7 +111,7 @@ void SIE_step(
         1, //n- number of columns in B (and C)
         Neqn_p_sys, //k-number of columns in A and rows in B
         (const float *) &alpha, // alpha scalar
-        (const float **) d_inverse, // A matrix
+        (const float **) d_inversess, // A matrix
         Neqn_p_sys, // leading dimension of the 2d array storing A??
         (const float **) d_derivatives, // B matrix (or n x 1 column vector)
         Neqn_p_sys, // leading dimension of the 2d array storing B??
@@ -175,23 +142,6 @@ void SIE_step(
             1.0, d_equations_flat,
             1.0, d_derivatives_flat,
             d_equations_flat,Nsystems,Neqn_p_sys);
-
-/*
-        error = cublasSaxpy(
-            handle, // cublas handle
-            Neqn_p_sys*Nsystems, // number of elements in each vector
-            (const float *) &alpha, // alpha scalar <-- can't use device pointer???
-            (const float *) d_derivatives_flat, // vector we are adding, flattened derivative vector
-            1, // stride between consecutive elements
-            d_equations_flat, // vector we are replacing
-            1); // stride between consecutive elements
-
-
-        if (error != CUBLAS_STATUS_SUCCESS){
-            _cudaGetErrorEnum(error);
-            printf("saxpy broke\n");
-        }
-*/
     }
 /* ----------------------------------------------- */
     
@@ -206,6 +156,8 @@ int solveSystem(
     int n_integration_steps,
     float ** d_Jacobianss, // matrix (jacobian) input
     float * d_Jacobianss_flat,
+    float ** d_inversess,
+    float * d_inversess_flat,
     float * jacobian_zeros,
     float ** d_identity, // pointer to identity (ideally in constant memory?)
     float ** d_derivatives, // vector (derivatives) input
@@ -247,9 +199,10 @@ int solveSystem(
 
     SIE_step(
         timestep, // Nsystems length vector for timestep to use
-        d_Jacobianss, // matrix (jacobian) input
-
-        d_Jacobianss, // inverse output, overwrite d_Jacobianss
+        d_Jacobianss,
+        d_Jacobianss_flat,
+        d_inversess, // inverse output, overwrite d_Jacobianss
+        d_inversess_flat,
         d_identity, // pointer to identity (ideally in constant memory?)
         d_derivatives, // vector (derivatives) input
         d_derivatives_flat, // dy vector output-- store h x A(0) x f(0)
@@ -320,45 +273,10 @@ int solveSystem(
             threads_per_block,
             Neqn_p_sys*Neqn_p_sys*sizeof(float)>>>(
             d_Jacobianss_flat,
+            d_inversess_flat,
             Neqn_p_sys,
             Nsystems);
 
-
-/*
-        // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
-        // the permutation array seems to be important for some reason
-        error = cublasSgetrfBatched(
-            handle, // cublas handle
-            Neqn_p_sys, // leading dimension of A??
-            d_Jacobianss, // matrix to factor, here I-hs*Js
-            Neqn_p_sys, // 
-            P, // permutation matrix
-            INFO, // cublas status object
-            Nsystems); // number of systems
-
-        if (error != CUBLAS_STATUS_SUCCESS){
-            _cudaGetErrorEnum(error);
-            printf("LU factorization broke\n");
-        }
-
-        // second cublas call, this one solves AX=B with B the identity. It puts X in d_inverse
-        error = cublasSgetriBatched(
-            handle, // cublas handle
-            Neqn_p_sys, // leading dimension of A??
-            (const float **)d_Jacobianss, // matrix to inverse, here I-hs*Js
-            Neqn_p_sys, // leading dimension of B??
-            P, // permutation matrix
-            d_Jacobianss, // output matrix
-            Neqn_p_sys, // 
-            INFO, // cublas status object
-            Nsystems); // number of systems
-
-        if (error != CUBLAS_STATUS_SUCCESS){
-            _cudaGetErrorEnum(error);
-            printf("Inverse broke\n");
-        }
-
-*/
          resetSystem(
             d_derivatives,
             d_derivatives_flat,
@@ -376,7 +294,8 @@ int solveSystem(
             timestep,
             d_Jacobianss,
             d_Jacobianss_flat,
-            d_Jacobianss, // inverse output, overwrite d_Jacobianss
+            d_inversess, // inverse output, overwrite d_Jacobianss
+            d_inversess_flat,
             d_identity, // pointer to identity (ideally in constant memory?)
             d_derivatives, // vector (derivatives) input
             d_derivatives_flat, // dy vector output -- store A(n) x (hf(n) - Delta(n-1))
@@ -428,7 +347,8 @@ int solveSystem(
         timestep,
         d_Jacobianss, // matrix (jacobian) input
         d_Jacobianss_flat,
-        d_Jacobianss, // inverse output, overwrite d_Jacobianss
+        d_inversess, // inverse output, overwrite d_Jacobianss
+        d_inversess_flat,
         d_identity, // pointer to identity (ideally in constant memory?)
         d_derivatives, // vector (derivatives) input
         d_derivatives_flat, // dy vector output -- store A(m) x (hf(m) - Delta(m-1))
@@ -460,6 +380,8 @@ int errorLoop(
     int n_integration_steps,
     float ** d_Jacobianss, // matrix (jacobian) input
     float * d_Jacobianss_flat,
+    float ** d_inversess,
+    float * d_inversess_flat,
     float * jacobian_zeros,
     float ** d_identity, // pointer to identity (ideally in constant memory?)
     float ** d_derivatives, // vector (derivatives) input
@@ -501,6 +423,8 @@ int errorLoop(
             n_integration_steps,
             d_Jacobianss,
             d_Jacobianss_flat,
+            d_inversess,
+            d_inversess_flat,
             jacobian_zeros,
             d_identity,
             d_derivatives,
@@ -525,6 +449,8 @@ int errorLoop(
             n_integration_steps,
             d_Jacobianss,
             d_Jacobianss_flat,
+            d_inversess,
+            d_inversess_flat,
             jacobian_zeros,
             d_identity,
             d_derivatives,
@@ -633,6 +559,10 @@ int cudaIntegrateSIE(
     float *d_Jacobianss_flat;
     float **d_Jacobianss = initializeDeviceMatrix(jacobian_zeros,&d_Jacobianss_flat,Neqn_p_sys*Neqn_p_sys,Nsystems);
 
+    // allocate memory for Jacobian matrices as a single "batch"
+    float *d_inversess_flat;
+    float **d_inversess = initializeDeviceMatrix(jacobian_zeros,&d_inversess_flat,Neqn_p_sys*Neqn_p_sys,Nsystems);
+
     // initialize state-equation vectors
     float * zeros = (float *) malloc(Nsystems*Neqn_p_sys*sizeof(float));
     for (int i=0; i<Neqn_p_sys*Nsystems; i++){
@@ -660,10 +590,10 @@ int cudaIntegrateSIE(
     // saving previous step Y(n-1) because we need that for SIE2
     float *d_previous_delta_flat;
     float **d_previous_delta = initializeDeviceMatrix(zeros,&d_previous_delta_flat,Neqn_p_sys,Nsystems);
-
 #else
-    float * d_previous_delta_flat = NULL;
-    float **d_previous_delta = NULL;
+
+    float *d_previous_delta_flat = NULL;
+
 #endif
 
     // initialize derivative vectors
@@ -678,6 +608,8 @@ int cudaIntegrateSIE(
         n_integration_steps,
         d_Jacobianss, // matrix (jacobian) input
         d_Jacobianss_flat,
+        d_inversess,
+        d_inversess_flat,
         jacobian_zeros,
         d_identity, // pointer to identity (ideally in constant memory?)
         d_derivatives, // vector (derivatives) input
@@ -702,6 +634,7 @@ int cudaIntegrateSIE(
 /* -------------- shutdown by freeing memory   --- */
     cudaFree(d_identity); cudaFree(d_identity_flat);
     cudaFree(d_Jacobianss); cudaFree(d_Jacobianss_flat);
+    cudaFree(d_inversess); cudaFree(d_inversess_flat);
     cudaFree(d_current_state); cudaFree(d_current_state_flat);
     cudaFree(d_half_current_state); cudaFree(d_half_current_state_flat);
 #ifdef MIDPOINT

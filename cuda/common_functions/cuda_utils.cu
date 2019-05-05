@@ -264,10 +264,11 @@ __device__ void setIdentity(
 
 __device__ void gjeInvertMatrix(
     float * d_this_matrix_flat,
+    float * d_inverse_matrix_flat,
     int Ndim){
 
     // allocate a temporary inverse matrix
-    extern __shared__ float d_inverse_matrix_flat[];
+    //extern __shared__ float d_inverse_matrix_flat[];
 
     // generate an identity matrix in the shared inverse matrix 
     setIdentity(d_inverse_matrix_flat,Ndim);
@@ -276,6 +277,7 @@ __device__ void gjeInvertMatrix(
 
     gjeLFactor(d_this_matrix_flat,d_inverse_matrix_flat,Ndim);
         
+    /*
     // copy the output back
     int tid;
     for (int iterations=0; iterations<(Ndim*Ndim/blockDim.x); iterations++){
@@ -284,15 +286,18 @@ __device__ void gjeInvertMatrix(
             d_this_matrix_flat[tid] = d_inverse_matrix_flat[tid];
         }
     }
+    */
 }
 
 __global__ void gjeInvertMatrixBatched(
     float * d_matricess_flat,
+    float * d_inverse_matricess_flat,
     int Ndim,
     int Nbatch){
 
     int bid = getGJEBID();
     gjeInvertMatrix(
         d_matricess_flat + bid*Ndim*Ndim,
+        d_inverse_matricess_flat + bid*Ndim*Ndim,
         Ndim);
 }
