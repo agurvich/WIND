@@ -636,6 +636,31 @@ __global__ void calculateDerivatives(
     //  - 9-alpha_(He++) ne nHe++
     this_block_derivatives[109] = (constants[5]*ne+constants[6])*this_block_state[108]
         -constants[9]*ne*this_block_state[109]; 
+            // H0 : 2-alpha_(H+) ne nH+ - (0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0))*nH0
+    this_block_derivatives[110] = constants[2]*ne*this_block_state[111]
+        -(constants[0]*ne + constants[1])*this_block_state[110]; 
+        
+    // H+ : (Gamma_(e,H0)ne + Gamma_(gamma,H0))*nH0 - alpha_(H+) ne nH+
+    this_block_derivatives[111] = -this_block_derivatives[110];
+        
+    // He0 :(7-alpha_(He+)+8-alpha_(d)) ne 3-nHe+ - (3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)) nHe0
+    this_block_derivatives[112] = (constants[7]+constants[8])*ne*this_block_state[113] 
+        - (constants[3]*ne+constants[4])*this_block_state[112];
+        
+    // He+ : 
+    //  9-alpha_(He++) ne nHe++ 
+    //  + (3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)) nHe0
+    //  - (7-alpha_(He+)+8-alpha_(d)) ne nHe+ 
+    //  - (5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)) nHe+
+    this_block_derivatives[113] = constants[9]*ne*this_block_state[114] 
+        + (constants[3]*ne+constants[4])*this_block_state[112]  
+        - (constants[7]+constants[8])*ne*this_block_state[113] 
+        - (constants[5]*ne+constants[6])*this_block_state[113];
+        
+    // He++ : (5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)) nHe+ 
+    //  - 9-alpha_(He++) ne nHe++
+    this_block_derivatives[114] = (constants[5]*ne+constants[6])*this_block_state[113]
+        -constants[9]*ne*this_block_state[114]; 
         }
 __global__ void calculateJacobians(
     float **d_Jacobianss, 
@@ -677,484 +702,506 @@ __global__ void calculateJacobians(
     this_block_jacobian[1] = -this_block_jacobian[0]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[111] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[110] = -this_block_jacobian[111]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[116] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[115] = -this_block_jacobian[116]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[222] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[223] = this_block_jacobian[222]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[232] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[233] = this_block_jacobian[232]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[334] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[332] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[333] = -this_block_jacobian[332] - 
-        this_block_jacobian[334]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[349] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[347] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[348] = -this_block_jacobian[347] - 
+        this_block_jacobian[349]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[444] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[443] = -this_block_jacobian[444];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[464] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[463] = -this_block_jacobian[464];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[555] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[556] = -this_block_jacobian[555]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[580] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[581] = -this_block_jacobian[580]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[666] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[665] = -this_block_jacobian[666]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[696] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[695] = -this_block_jacobian[696]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[777] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[778] = this_block_jacobian[777]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[812] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[813] = this_block_jacobian[812]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[889] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[887] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[888] = -this_block_jacobian[887] - 
-        this_block_jacobian[889]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[929] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[927] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[928] = -this_block_jacobian[927] - 
+        this_block_jacobian[929]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[999] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[998] = -this_block_jacobian[999];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[1044] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[1043] = -this_block_jacobian[1044];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[1110] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[1111] = -this_block_jacobian[1110]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[1160] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[1161] = -this_block_jacobian[1160]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[1221] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[1220] = -this_block_jacobian[1221]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[1276] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[1275] = -this_block_jacobian[1276]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[1332] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[1333] = this_block_jacobian[1332]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[1392] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[1393] = this_block_jacobian[1392]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[1444] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[1442] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[1443] = -this_block_jacobian[1442] - 
-        this_block_jacobian[1444]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[1509] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[1507] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[1508] = -this_block_jacobian[1507] - 
+        this_block_jacobian[1509]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[1554] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[1553] = -this_block_jacobian[1554];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[1624] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[1623] = -this_block_jacobian[1624];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[1665] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[1666] = -this_block_jacobian[1665]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[1740] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[1741] = -this_block_jacobian[1740]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[1776] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[1775] = -this_block_jacobian[1776]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[1856] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[1855] = -this_block_jacobian[1856]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[1887] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[1888] = this_block_jacobian[1887]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[1972] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[1973] = this_block_jacobian[1972]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[1999] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[1997] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[1998] = -this_block_jacobian[1997] - 
-        this_block_jacobian[1999]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[2089] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[2087] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[2088] = -this_block_jacobian[2087] - 
+        this_block_jacobian[2089]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[2109] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[2108] = -this_block_jacobian[2109];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[2204] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[2203] = -this_block_jacobian[2204];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[2220] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[2221] = -this_block_jacobian[2220]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[2320] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[2321] = -this_block_jacobian[2320]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[2331] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[2330] = -this_block_jacobian[2331]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[2436] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[2435] = -this_block_jacobian[2436]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[2442] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[2443] = this_block_jacobian[2442]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[2552] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[2553] = this_block_jacobian[2552]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[2554] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[2552] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[2553] = -this_block_jacobian[2552] - 
-        this_block_jacobian[2554]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[2669] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[2667] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[2668] = -this_block_jacobian[2667] - 
+        this_block_jacobian[2669]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[2664] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[2663] = -this_block_jacobian[2664];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[2784] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[2783] = -this_block_jacobian[2784];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[2775] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[2776] = -this_block_jacobian[2775]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[2900] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[2901] = -this_block_jacobian[2900]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[2886] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[2885] = -this_block_jacobian[2886]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[3016] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[3015] = -this_block_jacobian[3016]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[2997] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[2998] = this_block_jacobian[2997]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[3132] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[3133] = this_block_jacobian[3132]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[3109] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[3107] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[3108] = -this_block_jacobian[3107] - 
-        this_block_jacobian[3109]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[3249] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[3247] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[3248] = -this_block_jacobian[3247] - 
+        this_block_jacobian[3249]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[3219] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[3218] = -this_block_jacobian[3219];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[3364] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[3363] = -this_block_jacobian[3364];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[3330] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[3331] = -this_block_jacobian[3330]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[3480] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[3481] = -this_block_jacobian[3480]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[3441] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[3440] = -this_block_jacobian[3441]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[3596] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[3595] = -this_block_jacobian[3596]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[3552] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[3553] = this_block_jacobian[3552]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[3712] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[3713] = this_block_jacobian[3712]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[3664] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[3662] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[3663] = -this_block_jacobian[3662] - 
-        this_block_jacobian[3664]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[3829] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[3827] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[3828] = -this_block_jacobian[3827] - 
+        this_block_jacobian[3829]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[3774] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[3773] = -this_block_jacobian[3774];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[3944] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[3943] = -this_block_jacobian[3944];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[3885] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[3886] = -this_block_jacobian[3885]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[4060] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[4061] = -this_block_jacobian[4060]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[3996] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[3995] = -this_block_jacobian[3996]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[4176] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[4175] = -this_block_jacobian[4176]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[4107] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[4108] = this_block_jacobian[4107]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[4292] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[4293] = this_block_jacobian[4292]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[4219] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[4217] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[4218] = -this_block_jacobian[4217] - 
-        this_block_jacobian[4219]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[4409] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[4407] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[4408] = -this_block_jacobian[4407] - 
+        this_block_jacobian[4409]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[4329] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[4328] = -this_block_jacobian[4329];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[4524] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[4523] = -this_block_jacobian[4524];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[4440] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[4441] = -this_block_jacobian[4440]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[4640] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[4641] = -this_block_jacobian[4640]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[4551] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[4550] = -this_block_jacobian[4551]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[4756] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[4755] = -this_block_jacobian[4756]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[4662] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[4663] = this_block_jacobian[4662]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[4872] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[4873] = this_block_jacobian[4872]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[4774] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[4772] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[4773] = -this_block_jacobian[4772] - 
-        this_block_jacobian[4774]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[4989] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[4987] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[4988] = -this_block_jacobian[4987] - 
+        this_block_jacobian[4989]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[4884] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[4883] = -this_block_jacobian[4884];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[5104] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[5103] = -this_block_jacobian[5104];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[4995] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[4996] = -this_block_jacobian[4995]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[5220] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[5221] = -this_block_jacobian[5220]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[5106] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[5105] = -this_block_jacobian[5106]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[5336] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[5335] = -this_block_jacobian[5336]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[5217] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[5218] = this_block_jacobian[5217]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[5452] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[5453] = this_block_jacobian[5452]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[5329] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[5327] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[5328] = -this_block_jacobian[5327] - 
-        this_block_jacobian[5329]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[5569] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[5567] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[5568] = -this_block_jacobian[5567] - 
+        this_block_jacobian[5569]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[5439] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[5438] = -this_block_jacobian[5439];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[5684] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[5683] = -this_block_jacobian[5684];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[5550] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[5551] = -this_block_jacobian[5550]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[5800] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[5801] = -this_block_jacobian[5800]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[5661] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[5660] = -this_block_jacobian[5661]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[5916] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[5915] = -this_block_jacobian[5916]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[5772] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[5773] = this_block_jacobian[5772]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[6032] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[6033] = this_block_jacobian[6032]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[5884] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[5882] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[5883] = -this_block_jacobian[5882] - 
-        this_block_jacobian[5884]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[6149] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[6147] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[6148] = -this_block_jacobian[6147] - 
+        this_block_jacobian[6149]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[5994] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[5993] = -this_block_jacobian[5994];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[6264] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[6263] = -this_block_jacobian[6264];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[6105] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[6106] = -this_block_jacobian[6105]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[6380] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[6381] = -this_block_jacobian[6380]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[6216] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[6215] = -this_block_jacobian[6216]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[6496] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[6495] = -this_block_jacobian[6496]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[6327] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[6328] = this_block_jacobian[6327]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[6612] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[6613] = this_block_jacobian[6612]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[6439] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[6437] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[6438] = -this_block_jacobian[6437] - 
-        this_block_jacobian[6439]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[6729] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[6727] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[6728] = -this_block_jacobian[6727] - 
+        this_block_jacobian[6729]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[6549] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[6548] = -this_block_jacobian[6549];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[6844] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[6843] = -this_block_jacobian[6844];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[6660] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[6661] = -this_block_jacobian[6660]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[6960] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[6961] = -this_block_jacobian[6960]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[6771] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[6770] = -this_block_jacobian[6771]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[7076] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[7075] = -this_block_jacobian[7076]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[6882] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[6883] = this_block_jacobian[6882]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[7192] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[7193] = this_block_jacobian[7192]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[6994] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[6992] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[6993] = -this_block_jacobian[6992] - 
-        this_block_jacobian[6994]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[7309] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[7307] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[7308] = -this_block_jacobian[7307] - 
+        this_block_jacobian[7309]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[7104] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[7103] = -this_block_jacobian[7104];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[7424] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[7423] = -this_block_jacobian[7424];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[7215] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[7216] = -this_block_jacobian[7215]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[7540] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[7541] = -this_block_jacobian[7540]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[7326] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[7325] = -this_block_jacobian[7326]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[7656] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[7655] = -this_block_jacobian[7656]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[7437] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[7438] = this_block_jacobian[7437]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[7772] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[7773] = this_block_jacobian[7772]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[7549] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[7547] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[7548] = -this_block_jacobian[7547] - 
-        this_block_jacobian[7549]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[7889] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[7887] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[7888] = -this_block_jacobian[7887] - 
+        this_block_jacobian[7889]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[7659] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[7658] = -this_block_jacobian[7659];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[8004] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[8003] = -this_block_jacobian[8004];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[7770] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[7771] = -this_block_jacobian[7770]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[8120] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[8121] = -this_block_jacobian[8120]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[7881] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[7880] = -this_block_jacobian[7881]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[8236] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[8235] = -this_block_jacobian[8236]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[7992] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[7993] = this_block_jacobian[7992]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[8352] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[8353] = this_block_jacobian[8352]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[8104] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[8102] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[8103] = -this_block_jacobian[8102] - 
-        this_block_jacobian[8104]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[8469] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[8467] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[8468] = -this_block_jacobian[8467] - 
+        this_block_jacobian[8469]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[8214] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[8213] = -this_block_jacobian[8214];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[8584] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[8583] = -this_block_jacobian[8584];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[8325] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[8326] = -this_block_jacobian[8325]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[8700] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[8701] = -this_block_jacobian[8700]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[8436] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[8435] = -this_block_jacobian[8436]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[8816] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[8815] = -this_block_jacobian[8816]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[8547] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[8548] = this_block_jacobian[8547]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[8932] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[8933] = this_block_jacobian[8932]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[8659] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[8657] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[8658] = -this_block_jacobian[8657] - 
-        this_block_jacobian[8659]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[9049] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[9047] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[9048] = -this_block_jacobian[9047] - 
+        this_block_jacobian[9049]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[8769] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[8768] = -this_block_jacobian[8769];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[9164] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[9163] = -this_block_jacobian[9164];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[8880] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[8881] = -this_block_jacobian[8880]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[9280] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[9281] = -this_block_jacobian[9280]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[8991] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[8990] = -this_block_jacobian[8991]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[9396] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[9395] = -this_block_jacobian[9396]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[9102] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[9103] = this_block_jacobian[9102]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[9512] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[9513] = this_block_jacobian[9512]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[9214] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[9212] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[9213] = -this_block_jacobian[9212] - 
-        this_block_jacobian[9214]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[9629] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[9627] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[9628] = -this_block_jacobian[9627] - 
+        this_block_jacobian[9629]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[9324] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[9323] = -this_block_jacobian[9324];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[9744] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[9743] = -this_block_jacobian[9744];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[9435] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[9436] = -this_block_jacobian[9435]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[9860] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[9861] = -this_block_jacobian[9860]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[9546] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[9545] = -this_block_jacobian[9546]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[9976] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[9975] = -this_block_jacobian[9976]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[9657] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[9658] = this_block_jacobian[9657]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[10092] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[10093] = this_block_jacobian[10092]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[9769] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[9767] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[9768] = -this_block_jacobian[9767] - 
-        this_block_jacobian[9769]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[10209] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[10207] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[10208] = -this_block_jacobian[10207] - 
+        this_block_jacobian[10209]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[9879] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[9878] = -this_block_jacobian[9879];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[10324] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[10323] = -this_block_jacobian[10324];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[9990] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[9991] = -this_block_jacobian[9990]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[10440] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[10441] = -this_block_jacobian[10440]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[10101] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[10100] = -this_block_jacobian[10101]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[10556] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[10555] = -this_block_jacobian[10556]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[10212] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[10213] = this_block_jacobian[10212]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[10672] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[10673] = this_block_jacobian[10672]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[10324] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[10322] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[10323] = -this_block_jacobian[10322] - 
-        this_block_jacobian[10324]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[10789] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[10787] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[10788] = -this_block_jacobian[10787] - 
+        this_block_jacobian[10789]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[10434] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[10433] = -this_block_jacobian[10434];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[10904] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[10903] = -this_block_jacobian[10904];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[10545] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[10546] = -this_block_jacobian[10545]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[11020] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[11021] = -this_block_jacobian[11020]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[10656] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[10655] = -this_block_jacobian[10656]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[11136] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[11135] = -this_block_jacobian[11136]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[10767] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[10768] = this_block_jacobian[10767]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[11252] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[11253] = this_block_jacobian[11252]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[10879] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[10877] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[10878] = -this_block_jacobian[10877] - 
-        this_block_jacobian[10879]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[11369] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[11367] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[11368] = -this_block_jacobian[11367] - 
+        this_block_jacobian[11369]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[10989] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[10988] = -this_block_jacobian[10989];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[11484] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[11483] = -this_block_jacobian[11484];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[11100] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[11101] = -this_block_jacobian[11100]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[11600] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[11601] = -this_block_jacobian[11600]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[11211] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[11210] = -this_block_jacobian[11211]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[11716] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[11715] = -this_block_jacobian[11716]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[11322] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[11323] = this_block_jacobian[11322]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[11832] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[11833] = this_block_jacobian[11832]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[11434] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[11432] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[11433] = -this_block_jacobian[11432] - 
-        this_block_jacobian[11434]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[11949] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[11947] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[11948] = -this_block_jacobian[11947] - 
+        this_block_jacobian[11949]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[11544] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[11543] = -this_block_jacobian[11544];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[12064] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[12063] = -this_block_jacobian[12064];//He+ : 9-alpha_(He++)ne
            
     // H0
-    this_block_jacobian[11655] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
-    this_block_jacobian[11656] = -this_block_jacobian[11655]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+    this_block_jacobian[12180] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[12181] = -this_block_jacobian[12180]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
         
     //H+
-    this_block_jacobian[11766] = -constants[2]*ne; // H+ -alpha_(H+)ne
-    this_block_jacobian[11765] = -this_block_jacobian[11766]; // H0 : 2-alpha_(H+)ne
+    this_block_jacobian[12296] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[12295] = -this_block_jacobian[12296]; // H0 : 2-alpha_(H+)ne
         
     // He0
-    this_block_jacobian[11877] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
-    this_block_jacobian[11878] = this_block_jacobian[11877]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+    this_block_jacobian[12412] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[12413] = this_block_jacobian[12412]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
         
     // He+
-    this_block_jacobian[11989] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
-    this_block_jacobian[11987] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
-    this_block_jacobian[11988] = -this_block_jacobian[11987] - 
-        this_block_jacobian[11989]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+    this_block_jacobian[12529] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[12527] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[12528] = -this_block_jacobian[12527] - 
+        this_block_jacobian[12529]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
         
     // He++
-    this_block_jacobian[12099] = -constants[9]*ne;//He++ : -alpha_(He++)ne
-    this_block_jacobian[12098] = -this_block_jacobian[12099];//He+ : 9-alpha_(He++)ne
+    this_block_jacobian[12644] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[12643] = -this_block_jacobian[12644];//He+ : 9-alpha_(He++)ne
+           
+    // H0
+    this_block_jacobian[12760] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+    this_block_jacobian[12761] = -this_block_jacobian[12760]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+        
+    //H+
+    this_block_jacobian[12876] = -constants[2]*ne; // H+ -alpha_(H+)ne
+    this_block_jacobian[12875] = -this_block_jacobian[12876]; // H0 : 2-alpha_(H+)ne
+        
+    // He0
+    this_block_jacobian[12992] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+    this_block_jacobian[12993] = this_block_jacobian[12992]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+        
+    // He+
+    this_block_jacobian[13109] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+    this_block_jacobian[13107] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+    this_block_jacobian[13108] = -this_block_jacobian[13107] - 
+        this_block_jacobian[13109]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+        
+    // He++
+    this_block_jacobian[13224] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+    this_block_jacobian[13223] = -this_block_jacobian[13224];//He+ : 9-alpha_(He++)ne
         }
 
 void resetSystem(

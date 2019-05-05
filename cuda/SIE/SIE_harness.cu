@@ -74,6 +74,9 @@ void SIE_step(
             d_identity,d_Jacobianss,1.0,-1.0,timestep,
             Nsystems,Neqn_p_sys); 
 
+        // flush any previous uncaught cuda errors
+        cudaError_t cuda_error = cudaGetLastError();
+
         gjeInvertMatrixBatched<<<
             Nsystems,
             threads_per_block,
@@ -82,6 +85,10 @@ void SIE_step(
             Neqn_p_sys,
             Nsystems);
 
+        cudaError_t gjeError = cudaGetLastError();
+        if (gjeError != cudaSuccess){
+            printf("Inversion failed: %s \n",cudaGetErrorString(gjeError));
+        }
 /*
         // host call to cublas, does LU factorization for matrices in d_Jacobianss, stores the result in... P?
         // the permutation array seems to be important for some reason
