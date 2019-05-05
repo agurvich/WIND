@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <cublas_v2.h>
 #include "utils.h"
 
 void GDBbreakpoint(){
@@ -21,6 +22,16 @@ void setIdentityMatrix(float * identity,int Neqn_p_sys){
             identity[i]=0;
         }
     }
+}
+
+void initializeCublasExternally(){
+    // the first time you open cublas
+    //  it takes longer so have a fn
+    //  that just opens cublas to avoid
+    //  interfering with timing results.
+    cublasHandle_t handle;
+    cublasCreate_v2(&handle);
+    cublasDestroy_v2(handle);
 }
 
 float ** initializeDeviceMatrix(float * h_flat, float ** p_d_flat, int arr_size,int nbatch){

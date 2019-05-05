@@ -10,3 +10,7 @@ float ** initializeDeviceMatrix(float *, float **, int, int);
 
 // just a function call to set a breakpoint on for cuda-gdb
 void GDBbreakpoint();
+
+// just a function to create and destroy a cublas handle
+//  to avoid timing interference. 
+void initializeCublasExternally();

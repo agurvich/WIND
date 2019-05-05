@@ -19,6 +19,7 @@ print(exec_call)
 c_obj = ctypes.CDLL(exec_call)
 c_cudaIntegrateRK2 = getattr(c_obj,"_Z16cudaIntegrateRK2ffiPfS_ii")
 c_cudaSIE_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_ii")
+cublas_init = getattr(c_obj,"_Z26initializeCublasExternallyv")
 
 ## get the second order library
 exec_call = os.path.join(curdir,"cuda","lib","sie2.so")
@@ -62,11 +63,9 @@ def main(
         print("---------------------------------------------------")
         output_mode = 'a'
 
-    ## initialize cublas lazily
-    system.runIntegratorOutput(
-        c_cudaSIE_integrate,'SIE',
-        output_mode = None,
-        print_flag = False)
+    ## initialize cublas to avoid interfering with timing
+    ##  since first one seems to take longer...? 
+    cublas_init()
 
     if SIE:
         constants = copy.copy(init_constants)

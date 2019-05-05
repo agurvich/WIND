@@ -24,7 +24,7 @@ SIEOBJS = SIE/SIE.o SIE/SIE2.o
 
 ## compiler flags
 CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG)
-NVCFLAGS = -g -shared -G -O0
+NVCFLAGS = -shared #-g -G -O0
 
 ## libraries to include
 INCLUDE = -Iinclude -IRK2 -Icommon_functions##-I/sw/xe/magma/1.5.0/cnl5.2_gnu4.8.2/include
