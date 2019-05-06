@@ -10,9 +10,9 @@ def main(
     system_name='Katz96'):
 
     if system_name == 'Katz96':
-        system = k96_system()
+        system = k96_system(Ntile=Ntile)
     elif system_name == 'NR_test':
-        system = nr_test_system()
+        system = nr_test_system(Ntile=Ntile)
     else:
         raise ValueError("pick Katz96 or NR_test")
 

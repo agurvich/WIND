@@ -9,5 +9,4 @@ bash shell_scripts/precompile_system.sh $1 $2
 
 bash profiling_tools/memory_profile.sh "${@:1}"
 
-bash shell_scripts/move_debug_file.sh $1 $2 
-
+#bash shell_scripts/move_debug_file.sh $1 $2 
