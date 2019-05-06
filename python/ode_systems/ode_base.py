@@ -17,7 +17,11 @@ class ODEBase(object):
         #/path/to/wind/python/ode_systems
         for iter in range(3):
             this_dir = os.path.split(this_dir)[0]
-        self.datadir = os.path.join(this_dir,'data')
+        self.datadir = os.path.join(this_dir,'data',self.name)
+
+        if not os.path.isdir(self.datadir):
+            os.mkdir(self.datadir)
+
         self.h5name = os.path.join(self.datadir,self.cache_fname)
     
         self.n_integration_steps = nsteps

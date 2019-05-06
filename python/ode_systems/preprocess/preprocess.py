@@ -52,7 +52,12 @@ def make_ode_file(system,Ntile):
         for line in handle.readlines():
             strr+=line
 
-    with open('precompile_cu_files/%s_preprocess_ode.cu'%system.name,'w') as handle:
+    with open(
+        os.path.join(
+            system.datadir,
+            '%s_preprocess_ode.cu'%system.name,
+            ),'w') as handle:
+
         handle.write(strr)
 
     return make_ode_file
@@ -81,7 +86,7 @@ def make_RK2_file(system,Ntile):
     ## write out to the precompile directory
     with open(
         os.path.join(
-            'precompile_cu_files',
+            system.datadir,
             '%s_preprocess_RK2_kernel.cu'%
             system.name),'w') as handle:
         handle.write(strr)

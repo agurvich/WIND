@@ -8,8 +8,8 @@ import h5py
 
 import getopt,sys
 
-from ode_systems.katz96 import Katz96
-from ode_systems.NR_test import NR_test
+from ode_systems.katz96 import Katz96 as k96_system
+from ode_systems.NR_test import NR_test as nr_test_system
 from pysolvers.sie import integrate_sie
 
 ## find the first order solver shared object library 
@@ -32,19 +32,18 @@ def main(
     SIM = False,
     CHIMES = False,
     PY = False,
+    system_name = 'Katz96',
     makeplots=True,
-    NR = False,
-    katz = True,
     dumpDebug = True,
     **kwargs):
 
-    if NR:
-        system = NR_test(**kwargs)
+    if system_name == 'Katz96':
+        system = k96_system(**kwargs)
+    elif system_name == 'NR_test':
+        system = nr_test_system(**kwargs)
 
-    elif katz:
-        system = Katz96(**kwargs)
     else:
-        raise Exception("pick katz or NR")
+        raise ValueError("pick Katz96 or NR_test")
  
     output_mode = 'a'
     print_flag = False
@@ -200,7 +199,7 @@ if __name__ == '__main__':
         'Nsystems=',
         'RK2=','SIE=','SIM=',
         'PY=','CHIMES=',
-        'NR=','katz=',
+        'system_name=',
         'cache_fname=','makeplots=',
         'Ntile=',
         'dumpDebug='])

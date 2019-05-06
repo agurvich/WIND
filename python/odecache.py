@@ -10,6 +10,8 @@ colors = get_distinct(5)
 import pandas as pd
 
 
+
+    
 class ODECache(object):
     def __init__(self,fname,solvers = None):
         ## open the hdf5 file and bind them to this ODE system
@@ -201,3 +203,17 @@ class ODECache(object):
         fig.set_size_inches(16,9)
         if savefig is not None:
             fig.savefig(savefig)
+
+class MultiODECache(ODECache):
+    def __init__(
+        self,
+        fnames,
+        solvers = None):
+        ## open the hdf5 file and bind them to this ODE system
+        self.solvers = solvers
+        self.open_ODE_cache(fname)
+        print(self.solvers,'solvers used')
+        
+    def open_ODE_cache(self,fname):
+        pass
+        
