@@ -138,13 +138,29 @@ class NR_test(ODEBase):
     this_block_jacobian[%d] = -1999.0;
 """%(ridx(0),ridx(1),ridx(2),ridx(3))
 
-    def get_derivative_block(self,this_tile,Ntile):
+    def make_derivative_block(self,this_tile,Ntile):
         ridx = lambda x: x+this_tile *self.orig_Neqn_p_sys
         return """
     // eq. 16.6.1 in NR 
     this_block_derivatives[%d] = 998.0*this_block_state[%d] + 1998. * this_block_state[%d];
     this_block_derivatives[%d] = -999.0*this_block_state[%d] - 1999.0*this_block_state[%d];
 """%(ridx(0),ridx(0),ridx(1),ridx(1),ridx(0),ridx(1))
+
+    def make_RK2_block(self,this_tile,Ntile):
+        ridx = lambda x: x+this_tile *self.orig_Neqn_p_sys
+
+        ## TODO make this self consistent
+        #constants = np.tile([998., 1998.,-999., -1999.],self.Nsystems).astype(np.float32)
+        strr = """
+    if (threadIdx.x == %d){
+        return 998.0*equations[%d] + 1998. * equations[%d];
+    }"""%(ridx(0),ridx(0),ridx(1))
+
+        strr+="""
+    else if (threadIdx.x == %d){
+        return -999.0*equations[%d] - 1999.0*equations[%d];
+    }"""%(ridx(1),ridx(0),ridx(1))
+        return strr
 
     derivative_prefix = """__global__ void calculateDerivatives(
     float * d_derivatives_flat, 
@@ -185,3 +201,22 @@ class NR_test(ODEBase):
     float * this_block_state = equations+eqn_offset;
     float * this_block_jacobian = d_Jacobianss[bid];
 """
+
+    RK2_prefix = """
+#include <stdio.h>
+#include <math.h>
+
+#include "explicit_solver.h"
+
+__device__ float calculate_dydt(
+    float tnow,
+    float * constants,
+    float * equations){
+
+"""
+
+    RK2_suffix = """
+   else{
+        return NULL;
+    } 
+} // calculate_dydt\n"""

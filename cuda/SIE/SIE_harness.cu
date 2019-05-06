@@ -531,13 +531,13 @@ int cudaIntegrateSIE(
     int Nsystems, // the number of systems
     int Neqn_p_sys){ // the number of equations in each system
 
-//#ifdef LOUD
+#ifdef LOUD
 #ifdef MIDPOINT
     printf("SIM Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
 #else
     printf("SIE Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
 #endif
-//#endif
+#endif
     float *dest = equations;
 
     // define the identity matrix on the host
