@@ -391,7 +391,7 @@ class Katz96(ODEBase):
         """%(ridx(24),9,ridx(23),ridx(24)))
         return jacobian_good_stuff
 
-    def get_derivative_block(self,this_tile,Ntile):
+    def make_derivative_block(self,this_tile,Ntile):
         ridx = lambda x: x+this_tile *self.orig_Neqn_p_sys
         derivative_good_stuff = ("""    // H0 : 2-alpha_(H+) ne nH+ - (0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0))*nH0
     this_block_derivatives[%d] = constants[%d]*ne*this_block_state[%d]
@@ -428,6 +428,52 @@ class Katz96(ODEBase):
         -constants[%d]*ne*this_block_state[%d]; 
         """%(ridx(4),5,6,ridx(3),9,ridx(4)))
         return derivative_good_stuff
+    
+    def make_RK2_block(self,this_tile,Ntile):
+        ridx = lambda x: x+this_tile *self.orig_Neqn_p_sys
+
+        strr = """
+    if (threadIdx.x == %d){
+        // H0 : alpha_(H+) ne nH+ - (Gamma_(e,H0)ne + Gamma_(gamma,H0))*nH0
+        return constants[2]*ne*equations[%d]
+            -(constants[0]*ne + constants[1])*equations[%d]; 
+    }"""%(ridx(0),ridx(1),ridx(0))
+
+        strr+="""
+    else if (threadIdx.x == %d){
+        // H+ : (Gamma_(e,H0)ne + Gamma_(gamma,H0))*nH0 - alpha_(H+) ne nH+
+        return -constants[2]*ne*equations[%d]
+            +(constants[0]*ne + constants[1])*equations[%d]; 
+    }"""%(ridx(1),ridx(1),ridx(0))
+
+        strr+="""
+    else if (threadIdx.x == %d){
+        // He0 :(alpha_(He+)+alpha_(d)) ne nHe+ - (Gamma_(e,He0)ne + Gamma_(gamma,He0)) nHe0
+        return (constants[7]+constants[8])*ne*equations[%d] 
+            - (constants[3]*ne+constants[4])*equations[%d];
+    }"""%(ridx(2),ridx(3),ridx(2))
+
+        strr+="""
+    else if (threadIdx.x == %d){
+        // He+ : 
+        //  alpha_(He++) ne nHe++ 
+        //  + (Gamma_(e,He0)ne + Gamma_(gamma,He0)) nHe0
+        //  - (alpha_(He+)+alpha_(d)) ne nHe+ 
+        //  - (Gamma_(e,He+)ne + Gamma_(gamma,He+)) nHe+
+        return constants[9]*ne*equations[%d] 
+            + (constants[3]*ne+constants[4])*equations[%d]  
+            - (constants[7]+constants[8])*ne*equations[%d] 
+            - (constants[5]*ne+constants[6])*equations[%d];
+    }"""%(ridx(3),ridx(4),ridx(2),ridx(3),ridx(3))
+
+        strr+="""
+    else if (threadIdx.x == %d){
+        // He++ : -alpha_(He++) ne nHe++
+        return -constants[9]*ne*equations[%d];
+    }
+    """%(ridx(4),ridx(4))
+
+        return strr
 
     derivative_prefix = """__global__ void calculateDerivatives(
     float * d_derivatives_flat, 
@@ -500,3 +546,34 @@ class Katz96(ODEBase):
 """
 
     jacobian_suffix = "}\n"
+
+    RK2_prefix = """
+#include <stdio.h>
+#include <math.h>
+
+#include "explicit_solver.h"
+
+__device__ float calculate_dydt(
+    float tnow,
+    float * constants,
+    float * equations){
+    // constraint equation, ne = nH+ + nHe+ + 2*nHe++
+    float ne = equations[1]+equations[3]+equations[4]*2.0;
+
+    /* constants = [
+        Gamma_(e,H0), Gamma_(gamma,H0), 
+        alpha_(H+),
+        Gamma_(e,He0), Gamma_(gamma,He0), 
+        Gamma_(e,He+), Gamma_(gamma,He+),
+        alpha_(He+),
+        alpha_(d),
+        alpha_(He++)
+        ] 
+    */ 
+"""
+
+    RK2_suffix = """
+   else{
+        return NULL;
+    } 
+} // calculate_dydt\n"""

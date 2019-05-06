@@ -27,14 +27,14 @@ c_obj = ctypes.CDLL(exec_call)
 c_cudaSIM_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_ii")
 
 def main(
-    RK2 = False,
+    RK2 = True,
     SIE = True,
     SIM = False,
     CHIMES = False,
     PY = False,
     makeplots=True,
-    NR = True,
-    katz = False,
+    NR = False,
+    katz = True,
     dumpDebug = True,
     **kwargs):
 

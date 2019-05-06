@@ -12,7 +12,8 @@ EXECUTABLE	:= lib/sie.so
 ORDER2EXECUTABLE:= lib/sie2.so
 
 ## Cuda source files (compiled with nvcc)
-CUFILES		:= $(wildcard RK2/*.cu common_functions/*.cu)
+CUFILES	:= RK2/harness.cu RK2/kernel.cu 
+CUFILES+=$(wildcard common_functions/*.cu)
 
 ## ode system to link to 
 ODEFILE = ode_system.cu

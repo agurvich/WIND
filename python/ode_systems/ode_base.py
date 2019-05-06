@@ -5,7 +5,7 @@ import ctypes
 import h5py
 import os 
 
-from ode_systems.preprocess.preprocess import make_ode_file
+from ode_systems.preprocess.preprocess import make_ode_file,make_RK2_file
 
 class ODEBase(object):
     def __init__(
@@ -52,6 +52,7 @@ class ODEBase(object):
 
     def preprocess(self):
         make_ode_file(self,self.Ntile)
+        make_RK2_file(self,self.Ntile)
 
     derivative_suffix = "}\n"
     jacobian_suffix = "}\n"
