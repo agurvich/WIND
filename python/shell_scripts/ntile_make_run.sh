@@ -9,5 +9,5 @@ bash shell_scripts/precompile_system.sh $1 $2
 
 python python_harness.py  --system_name=$1 --Ntile=$2 "${@:3}"
 
-bash shell_scripts/move_debug_file.sh $1 $2 
+#bash shell_scripts/move_debug_file.sh $1 $2 
 

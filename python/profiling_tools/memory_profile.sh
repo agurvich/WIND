@@ -2,7 +2,7 @@
 export LD_LIBRARY_PATH=$CRAY_CUDATOOLKIT_DIR
 /lib64:$LD_LIBRARY_PATH
 
-NAME=${1}_${2}
+NAME=${1}${3}_${2}
 DATADIR=../data/${NAME}
 
 ## NOTE this assumes SIE will always be run before RK2 is
@@ -13,6 +13,6 @@ then
 fi
 
 device_memory_profile ${memory_out_file} & 
-python python_harness.py --system_name=${1} --Ntile=${2} "${@:3}"
+python python_harness.py --system_name=${1} --Ntile=${2} "${@:4}"
 ## kill background nvidia-smi process
 killall nvidia-smi

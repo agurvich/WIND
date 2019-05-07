@@ -24,8 +24,6 @@ class NR_test(ODEBase):
         self.name='NR_test_%d'%Ntile
         self.Ntile = Ntile
     
-        self.cache_fname = self.name+'.hdf5'
-
         self.eqn_labels = [str.encode('UTF-8') for str in ['u','v']]
     
         ## integration time variables
@@ -40,6 +38,7 @@ class NR_test(ODEBase):
         ## initialize equations and constants
         self.equations = self.init_equations()
         self.constants = self.init_constants()
+        self.eqmss = self.calculate_eqmss()
 
         self.nconst = 4
 
@@ -110,9 +109,8 @@ class NR_test(ODEBase):
         if group is None:
             return
 
-        eqmss = self.calculate_eqmss()
 
-        group['eqmss'] = eqmss.reshape(self.Nsystems,self.Neqn_p_sys)
+        group['eqmss'] = self.eqmss.reshape(self.Nsystems,self.Neqn_p_sys)
 
     def make_plots(self):
         print("Making plots to ../plots")
