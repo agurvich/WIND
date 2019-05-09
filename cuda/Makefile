@@ -8,20 +8,21 @@ WINDCONFIG+=-DABSOLUTE_TOLERANCE=$(ABSOLUTE_TOLERANCE)
 WINDCONFIG+=-DRELATIVE_TOLERANCE=$(RELATIVE_TOLERANCE)
 
 ## Library names
-EXECUTABLE	:= lib/sie.so
-ORDER2EXECUTABLE:= lib/sie2.so
+SIEEXECUTABLE	:= lib/sie.so
+RK2EXECUTABLE:= lib/rk2.so
 
 ## Cuda source files (compiled with nvcc)
-CUFILES	:= RK2/harness.cu RK2/kernel.cu linear_algebra/gauss_jordan_elimination.cu
+CUFILES	:=  linear_algebra/gauss_jordan_elimination.cu
 CUFILES+=$(wildcard common_functions/*.cu)
 
 ## which ode system to link to 
 ODEFILE = ode_system.cu
-ODEOBJ =$(ODEFILE:%.cu=%.o) 
 
 ## compiled object names
-OBJS = $(CUFILES:%.cu=%.o)
-SIEOBJS = SIE/SIE.o SIE/SIE2.o
+COMMONOBJS = $(CUFILES:%.cu=%.o)
+ODEOBJ = $(ODEFILE:%.cu=%.o) 
+SIEOBJS = SIE/harness_kernel.o
+RK2OBJS = RK2/harness.o RK2/kernel.o RK2/device_dydt.o
 
 ## compiler flags to make shared object for python
 CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG)
@@ -33,26 +34,23 @@ LIB = -lcublas -lcusolver
 
 BUILDDIR = $(shell pwd)
 
-make: $(CUFILES) $(OBJS) $(SIEOBJS) $(ODEFILE)
-	@## compile the ODE equations
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(ODEOBJ) -c $(ODEFILE);
-	@## link to the first order solver 
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(EXECUTABLE) $(OBJS) $(ODEOBJ) SIE/SIE.o;
-	@## link the the second order solver
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(ORDER2EXECUTABLE) $(OBJS) $(ODEOBJ) SIE/SIE2.o;
+make: $(c) $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(ODEOBJ)
+	@#echo $(CUFILES)
+	@## link common objs and ode obj to the 1st order semi-implicit solver 
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(SIEEXECUTABLE) $(COMMONOBJS) $(ODEOBJ) $(SIEOBJS);
+	@## link common objs and ode obj to the 2nd order explicit solver 
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(RK2EXECUTABLE) $(COMMONOBJS) $(ODEOBJ) $(RK2OBJS);
 
 %.o: %.cu
-	@## compile this guy
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $@ -c $<;
-
-SIE/SIE2.o: SIE/SIE_harness.cu
-	@## compile SIM by passing -MIDPOINT define flag
-	nvcc $(NVCFLAGS) $(CFLAGS) -DMIDPOINT -arch=sm_35 $(INCLUDE) $(LIB) -o $@ -c $<;
+	@#echo compiling $@ from $<
+	@## compile this source file to object
+	nvcc $(NVCFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 $(INCLUDE) $(LIB) -o $@ $<;
 
 clean: 
-	rm $(OBJS)
+	rm $(COMMONOBJS)
 	rm $(SIEOBJS)
-	rm $(EXECUTABLE)
-	rm $(ORDER2EXECUTABLE)
+	rm $(RK2OBJS)
+	rm $(SIEEXECUTABLE)
+	rm $(RK2EXECUTABLE)
 	rm *.*o 
 	rm lib/*.*o
