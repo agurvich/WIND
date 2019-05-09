@@ -14,10 +14,10 @@ class ODEBase(object):
         Nsystem_tile=1,
         **kwargs):
 
-        if Nsystem_tile > 1:
+        if Nsystem_tile >= 1:
             split_name = self.name.split('_')
             new_name = split_name[:-1]
-            new_name.append(str(Nsystem_tile))
+            new_name.append('nsystem_%s'%str(Nsystem_tile))
             new_name+= split_name[-1:]
             self.name = '_'.join(new_name)
 
