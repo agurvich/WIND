@@ -200,8 +200,8 @@ if __name__ == '__main__':
         'RK2=','SIE=','SIM=',
         'PY=','CHIMES=',
         'system_name=',
-        'cache_fname=','makeplots=',
-        'Ntile=',
+        'makeplots=',
+        'Ntile=','Nsystem_tile=',
         'dumpDebug='])
 
     #options:

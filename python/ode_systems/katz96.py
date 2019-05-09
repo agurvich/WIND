@@ -156,8 +156,6 @@ class Katz96(ODEBase):
         self.name='Katz96_%d'%Ntile
         self.Ntile = Ntile
 
-        self.cache_fname = self.name+'.hdf5'
-    
         self.eqn_labels = [str.encode('UTF-8') for str in ['H0','H+',"He0","He+","He++"]]
     
         ## integration time variables
@@ -192,7 +190,10 @@ class Katz96(ODEBase):
         self.orig_Neqn_p_sys = self.Neqn_p_sys
         self.Nsystems = int(
             self.equations.shape[0]//self.Neqn_p_sys)
-        
+        self.Neqn_p_sys*=self.Ntile
+
+        self.eqmss = self.calculate_eqmss()
+
         self.nconst = 10
 
         ## tile the ICs for each system
@@ -203,15 +204,13 @@ class Katz96(ODEBase):
                     (i+1)*self.Neqn_p_sys],
                     self.Ntile)
                 for i in range(self.Nsystems)])
-
-        self.Neqn_p_sys*=self.Ntile
         
         ## make sure that we have implemented the necessary methods
         self.validate()
             
         ## run the ode_base __init__
         super().__init__(**kwargs)
-
+        
     def init_equations(self):
         helium_mass_fractions = self.metallicity_arr[:,1]
         y_heliums = helium_mass_fractions / (4*(1-helium_mass_fractions))
@@ -324,12 +323,14 @@ class Katz96(ODEBase):
             in zip(self.nH_arr,self.temperature_arr,y_heliums)])
 
         if self.Ntile > 1:
-            eqmss = np.concatenate(
-                [np.tile(eqmss[
-                    i*self.Neqn_p_sys//self.Ntile:
-                    (i+1)*self.Neqn_p_sys//self.Ntile],
-                    self.Ntile)
-                for i in range(self.Nsystems)])
+            llist = []
+            for i in range(self.Nsystems):
+                foo = np.tile(
+                    eqmss[
+                        i*self.Neqn_p_sys//self.Ntile:
+                        (i+1)*self.Neqn_p_sys//self.Ntile],self.Ntile)
+                llist +=[foo]
+            eqmss = np.concatenate(llist)
         return eqmss
 
 
@@ -337,15 +338,10 @@ class Katz96(ODEBase):
         if group is None:
             return
 
-        eqmss = self.calculate_eqmss()
-
-        helium_mass_fractions = self.metallicity_arr[:,1]
-        y_heliums = helium_mass_fractions / (4*(1-helium_mass_fractions))
-
-        group['eqmss'] = eqmss.reshape(self.Nsystems,self.Neqn_p_sys)
-        group['grid_nHs'] = np.log10(self.nH_arr)
-        group['grid_temperatures'] = np.log10(self.temperature_arr)
-        group['grid_solar_metals'] = np.log10(self.metallicity_arr[:,0]/WIERSMA_ZSOLAR) 
+        group['eqmss'] = self.eqmss.reshape(self.Nsystems,self.Neqn_p_sys)
+        group['grid_nHs'] = np.tile(np.log10(self.nH_arr),self.Nsystem_tile)
+        group['grid_temperatures'] = np.tile(np.log10(self.temperature_arr),self.Nsystem_tile)
+        group['grid_solar_metals'] = np.tile(np.log10(self.metallicity_arr[:,0]/WIERSMA_ZSOLAR),self.Nsystem_tile)
 
     def make_plots(self):
         print("Making plots to ../plots")

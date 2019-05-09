@@ -11,7 +11,22 @@ class ODEBase(object):
     def __init__(
         self,
         nsteps = 1,
+        Nsystem_tile=1,
         **kwargs):
+
+        if Nsystem_tile > 1:
+            split_name = self.name.split('_')
+            new_name = split_name[:-1]
+            new_name.append(str(Nsystem_tile))
+            new_name+= split_name[-1:]
+            self.name = '_'.join(new_name)
+
+        if nsteps > 1:
+            split_name = self.name.split('_')
+            new_name = split_name[:-1]
+            new_name.append('fixed_%s'%str(nsteps))
+            new_name+= split_name[-1:]
+            self.name = '_'.join(new_name)
 
         this_dir = __file__
         #/path/to/wind/python/ode_systems
@@ -22,11 +37,16 @@ class ODEBase(object):
         if not os.path.isdir(self.datadir):
             os.mkdir(self.datadir)
 
-        self.h5name = os.path.join(self.datadir,self.cache_fname)
-    
+        self.h5name = os.path.join(self.datadir,self.name+'.hdf5')
         self.n_integration_steps = nsteps
+        #self.dumpToCDebugInput()
 
-        self.dumpToCDebugInput()
+        self.Nsystem_tile = Nsystem_tile
+        if Nsystem_tile > 1:
+            self.equations = np.tile(self.equations,Nsystem_tile)
+            self.constants = np.tile(self.constants,Nsystem_tile)
+            self.eqmss = np.tile(self.eqmss,Nsystem_tile)
+            self.Nsystems*=Nsystem_tile
 
     def validate(self):
         self.init_constants()

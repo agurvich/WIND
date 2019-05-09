@@ -7,12 +7,20 @@ import getopt
 
 def main(
     Ntile=2,
+    Nsystem_tile=1,
+    nsteps=1,
     system_name='Katz96'):
 
     if system_name == 'Katz96':
-        system = k96_system(Ntile=Ntile)
+        system = k96_system(
+            Ntile=Ntile,
+            Nsystem_tile=Nsystem_tile,
+            nsteps=nsteps)
     elif system_name == 'NR_test':
-        system = nr_test_system(Ntile=Ntile)
+        system = nr_test_system(
+            Ntile=Ntile,
+            Nsystem_tile=Nsystem_tile,
+            nsteps=nsteps)
     else:
         raise ValueError("pick Katz96 or NR_test")
 
@@ -22,7 +30,7 @@ def main(
 if __name__ == '__main__':
     argv = sys.argv[1:]
     opts,args = getopt.getopt(argv,'',[
-        'system_name=','Ntile='])
+        'system_name=','Ntile=','Nsystem_tile=','nsteps='])
 
     #options:
     #--snap(low/high) : snapshot numbers to loop through

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SYSTEM_NAME=$1
-Ntiles=(1 5 10 15 20 25 30 40 45 50 100 200)
+Ntiles=(1 5 10 15 20 25 30 40 45 50 100 200 500)
 
 for Ntile in "${Ntiles[@]}"
 do
