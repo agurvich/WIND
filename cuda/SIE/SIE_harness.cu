@@ -6,9 +6,11 @@
 #include "utils.h"
 #include "cuda_utils.h"
 #include "vector_kernels.h"
+#include "linear_algebra.h"
 
 //#define DEBUG
 
+#define useCUDA
 
 //#include <cusolverDn.h>
 //#include "magmablas.h"
@@ -71,6 +73,7 @@ void SIE_step(
     cublasStatus_t second_error;
     if (d_Jacobianss != NULL){
         // compute (I-hJ) with a custom kernel
+#ifdef useCUDA
         addArrayToBatchArrays<<<matrix_gridDim,threads_per_block>>>(
             d_identity,d_Jacobianss,1.0,-1.0,timestep,
             Nsystems,Neqn_p_sys); 
@@ -85,6 +88,14 @@ void SIE_step(
             d_inversess_flat,
             Neqn_p_sys,
             Nsystems);
+#else
+
+        //TODO implement add to batch arrays in C
+
+        
+        //TODO implement invert matrix batched in C
+
+#endif
 
         cudaError_t gjeError = cudaGetLastError();
         if (gjeError != cudaSuccess){
@@ -96,10 +107,14 @@ void SIE_step(
 /* -------------- perform a matrix-vector mult --- */
     if (d_derivative_modification_flat != NULL){
         //  (hf(n)-Delta(n-1)) into d_derivatives_flat
+#ifdef useCUDA
         addVectors<<<vector_gridDim,threads_per_block>>>(
             -1.0,d_derivative_modification_flat,
             timestep, d_derivatives_flat,
             d_derivatives_flat,Nsystems,Neqn_p_sys);
+#else
+        // TODO implement addVectors in C
+#endif
     }
 
     // multiply (I-h*Js)^-1 x fs
@@ -131,6 +146,7 @@ void SIE_step(
     if (d_derivative_modification_flat == NULL){
         // scale it explicitly in case calling context needs
         //  h x A(n) x  f(n)
+#ifdef useCUDA
         scaleVector<<<vector_gridDim,threads_per_block>>>(
             d_derivatives_flat,
             timestep,
@@ -142,6 +158,11 @@ void SIE_step(
             1.0, d_equations_flat,
             1.0, d_derivatives_flat,
             d_equations_flat,Nsystems,Neqn_p_sys);
+#else
+        // TODO implement scale vector in C
+        // TODO implement add vectors in C
+#endif
+
     }
 /* ----------------------------------------------- */
     
@@ -244,52 +265,6 @@ int solveSystem(
             Neqn_p_sys,
             tnow);
 
-#ifdef DEBUG
-        int *P, *INFO;
-        // handle is something that connects cublas calls within a stream... something about v2 and 
-        // being able to pass scalars by reference instead of by value. I don't really understand it
-        // place to store cublas status stuff. 
-        cudaMalloc(&P, Neqn_p_sys * Nsystems * sizeof(int));
-        cudaMalloc(&INFO,  Nsystems * sizeof(int));
-
-        dim3 matrix_gridDim;
-        dim3 ode_gridDim;
-
-        configureGrid(
-            Nsystems,Neqn_p_sys,
-            &threads_per_block,
-            &matrix_gridDim,
-            &ode_gridDim,
-            &vector_gridDim);
-
-        // compute (I-hJ) with a custom kernel
-        addArrayToBatchArrays<<<matrix_gridDim,threads_per_block>>>(
-            d_identity,d_Jacobianss,1.0,-1.0,timestep,
-            Nsystems,Neqn_p_sys); 
-
-        // TODO revisit this w/ ode_gridDim?
-        gjeInvertMatrixBatched<<<
-            Nsystems,
-            threads_per_block,
-            Neqn_p_sys*Neqn_p_sys*sizeof(float)>>>(
-            d_Jacobianss_flat,
-            d_inversess_flat,
-            Neqn_p_sys,
-            Nsystems);
-
-         resetSystem(
-            d_derivatives,
-            d_derivatives_flat,
-            d_Jacobianss,
-            d_Jacobianss_flat,
-            d_constants,
-            d_current_state_flat,
-            jacobian_zeros,
-            Nsystems,
-            Neqn_p_sys,
-            tnow);
-#endif
-
         SIE_step(
             timestep,
             d_Jacobianss,
@@ -311,6 +286,7 @@ int solveSystem(
         // add Delta(n) = Delta(n-1) + 2 A x (hf(n) - Delta(n-1))
         //  and overwrite Delta(n-1) with Delta(n) 
         //  now that we don't need the "previous" step
+#ifdef useCUDA
         addVectors<<<vector_gridDim,threads_per_block>>>(
             2.0, d_derivatives_flat,
             1.0, d_previous_delta_flat,
@@ -321,6 +297,10 @@ int solveSystem(
             1.0, d_previous_delta_flat, // really the current delta
             1.0, d_current_state_flat,
             d_current_state_flat,Nsystems,Neqn_p_sys);
+#else
+        // TODO implement add vectors in C
+        // TODO implement add vectors in C
+#endif
 
 #endif
         tnow+=timestep;
@@ -357,11 +337,15 @@ int solveSystem(
         Neqn_p_sys, // number of equations in each system
         d_previous_delta_flat); // vector to subtract from hf before multipying by A
 
+#ifdef useCUDA
     // add y(n+1) = y(m) + Delta(m)
     addVectors<<<vector_gridDim,threads_per_block>>>(
         1.0, d_derivatives_flat,
         1.0, d_current_state_flat,
         d_current_state_flat,Nsystems,Neqn_p_sys);
+#else
+    // TODO implement add vectors in C
+#endif    
 
     // increment tnow and put tend back where we found it
     //  for completeness' sake (even if it doesn't matter)
@@ -464,6 +448,7 @@ int errorLoop(
         // determine if ANY of the INDEPENDENT systems are above the 
         //  the tolerance and fail them all. NOTE: this makes them not
         //  independent.
+#ifdef useCUDA
         checkError<<<vector_gridDim,threads_per_block>>>(
             d_current_state_flat,d_half_current_state_flat,d_error_flag,
             Nsystems,Neqn_p_sys);
@@ -471,6 +456,11 @@ int errorLoop(
         // copy back the bool flag and determine if we done did it
         cudaMemcpy(error_flag,d_error_flag,sizeof(int),cudaMemcpyDeviceToHost);
         //*error_flag = 0;
+#else
+    
+        // TODO implement check error in C
+
+#endif
         
         if (*error_flag){
             // increase the refinement level

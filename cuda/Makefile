@@ -12,23 +12,23 @@ EXECUTABLE	:= lib/sie.so
 ORDER2EXECUTABLE:= lib/sie2.so
 
 ## Cuda source files (compiled with nvcc)
-CUFILES	:= RK2/harness.cu RK2/kernel.cu 
+CUFILES	:= RK2/harness.cu RK2/kernel.cu linear_algebra/gauss_jordan_elimination.cu
 CUFILES+=$(wildcard common_functions/*.cu)
 
-## ode system to link to 
+## which ode system to link to 
 ODEFILE = ode_system.cu
 ODEOBJ =$(ODEFILE:%.cu=%.o) 
 
-## objects
+## compiled object names
 OBJS = $(CUFILES:%.cu=%.o)
 SIEOBJS = SIE/SIE.o SIE/SIE2.o
 
-## compiler flags
+## compiler flags to make shared object for python
 CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG)
 NVCFLAGS = -shared #-g -G -O0
 
 ## libraries to include
-INCLUDE = -Iinclude -IRK2 -Icommon_functions##-I/sw/xe/magma/1.5.0/cnl5.2_gnu4.8.2/include
+INCLUDE = -Iinclude -IRK2 -Icommon_functions -Ilinear_algebra##-I/sw/xe/magma/1.5.0/cnl5.2_gnu4.8.2/include
 LIB = -lcublas -lcusolver
 
 BUILDDIR = $(shell pwd)
@@ -41,19 +41,14 @@ make: $(CUFILES) $(OBJS) $(SIEOBJS) $(ODEFILE)
 	@## link the the second order solver
 	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(ORDER2EXECUTABLE) $(OBJS) $(ODEOBJ) SIE/SIE2.o;
 
-SIE/SIE.o: SIE/SIE_harness.cu
-	@echo $@ specific foo $< $*
+%.o: %.cu
 	@## compile this guy
 	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $@ -c $<;
 
 SIE/SIE2.o: SIE/SIE_harness.cu
-	@echo $@ specific foo $< $*
-	@## compile this guy
+	@## compile SIM by passing -MIDPOINT define flag
 	nvcc $(NVCFLAGS) $(CFLAGS) -DMIDPOINT -arch=sm_35 $(INCLUDE) $(LIB) -o $@ -c $<;
 
-%.o: %.cu
-	@## compile this guy
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $@ -c $<;
 clean: 
 	rm $(OBJS)
 	rm $(SIEOBJS)

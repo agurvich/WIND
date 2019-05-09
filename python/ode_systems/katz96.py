@@ -345,7 +345,10 @@ class Katz96(ODEBase):
 
     def make_plots(self):
         print("Making plots to ../plots")
-        this_system = odecache.ODECache(self.h5name)
+        this_system = odecache.ODECache(
+            self.name,
+            self.h5name)
+
         this_system.plot_all_systems(
             subtitle = None,
             plot_eqm = True,
