@@ -188,8 +188,8 @@ def runCudaIntegrator(
         ctypes.c_float(np.float32(tnow)),
         ctypes.c_float(np.float32(tend)),
         ctypes.c_int(int(n_integration_steps)),
-        constants.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-        equations.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+        constants.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+        equations.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
         ctypes.c_int(Nsystems),
         ctypes.c_int(Nequations_per_system),
         )

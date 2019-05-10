@@ -22,7 +22,13 @@ cublas_init = getattr(c_obj,"_Z26initializeCublasExternallyv")
 ## get the second order library
 exec_call = os.path.join(curdir,"cuda","lib","rk2.so")
 c_obj = ctypes.CDLL(exec_call)
-c_cudaIntegrateRK2 = getattr(c_obj,"_Z16cudaIntegrateRK2ffiPfS_ii")
+c_cudaIntegrateRK2 = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_ii")
+
+
+curdir = os.path.split(os.getcwd())[0]
+exec_call = os.path.join(curdir,"cuda","c_baseline","rk2_gold.so")
+c_obj = ctypes.CDLL(exec_call)
+c_integrateRK2 = getattr(c_obj,"goldIntegrateSystem")
 
 def main(
     RK2 = False,
@@ -52,8 +58,10 @@ def main(
         constants = copy.copy(init_constants)
         equations = copy.copy(init_equations)
 
+
         system.runIntegratorOutput(
-            c_cudaIntegrateRK2,'RK2',
+            #c_cudaIntegrateRK2,'RK2',
+            c_integrateRK2,'RK2',
             output_mode = output_mode,
             print_flag = print_flag)
 

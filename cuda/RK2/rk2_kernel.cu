@@ -1,3 +1,9 @@
+#include <stdio.h>
+#include <math.h>
+
+#include "explicit_solver.h"
+#include "device.h"
+
 __device__ float rk2_innerstep(
     float tnow, // the current time
     float tstop, // the time we want to stop

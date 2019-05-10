@@ -15,7 +15,7 @@ void printArray(int * arr,int N){
     printf("\n");
 }
 
-int cudaIntegrateRK2(
+int cudaIntegrateSystem(
     float tnow, // the current time
     float tend, // the time we integrating the system to
     int n_integration_steps,
@@ -70,7 +70,7 @@ int cudaIntegrateRK2(
     dim3 dimGrid( gridsize, 1 );
 
     //shared mem -> 2 float arrays for each system and 1 shared flag
-    integrate_rk2<<<dimGrid,dimBlock,
+    integrateSystem<<<dimGrid,dimBlock,
         Nequations_per_system*(2*sizeof(float))+ sizeof(int)
         >>> (
         tnow, tend,

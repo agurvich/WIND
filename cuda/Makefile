@@ -12,24 +12,24 @@ SIEEXECUTABLE	:= lib/sie.so
 RK2EXECUTABLE:= lib/rk2.so
 
 ## Cuda source files (compiled with nvcc)
-CUFILES	:=  linear_algebra/gauss_jordan_elimination.cu
+CUFILES	:= linear_algebra/gauss_jordan_elimination.cu 
 CUFILES+=$(wildcard common_functions/*.cu)
 
 ## which ode system to link to 
-ODEFILE = ode_system.cu
+ODEFILE = ode_system/ode_system.cu
 
 ## compiled object names
 COMMONOBJS = $(CUFILES:%.cu=%.o)
 ODEOBJ = $(ODEFILE:%.cu=%.o) 
 SIEOBJS = SIE/harness_kernel.o
-RK2OBJS = RK2/harness.o RK2/kernel.o RK2/device_dydt.o
+RK2OBJS = RK2/harness.o RK2/rk2_kernel.o ode_system/device_dydt.o
 
 ## compiler flags to make shared object for python
 CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG)
 NVCFLAGS = -shared #-g -G -O0
 
 ## libraries to include
-INCLUDE = -Iinclude -IRK2 -Icommon_functions -Ilinear_algebra##-I/sw/xe/magma/1.5.0/cnl5.2_gnu4.8.2/include
+INCLUDE = -Iinclude -IRK2 -Icommon_functions -Iode_system -Ilinear_algebra
 LIB = -lcublas -lcusolver
 
 BUILDDIR = $(shell pwd)
