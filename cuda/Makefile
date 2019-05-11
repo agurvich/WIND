@@ -26,7 +26,7 @@ RK2OBJS = RK2/harness.o RK2/rk2_kernel.o ode_system/device_dydt.o
 
 ## compiler flags to make shared object for python
 CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG)
-NVCFLAGS = -shared #-g -G -O0
+NVCFLAGS = -shared -g -G -O0
 
 ## libraries to include
 INCLUDE = -Iinclude -IRK2 -Icommon_functions -Iode_system -Ilinear_algebra
@@ -40,17 +40,12 @@ make: $(c) $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(ODEOBJ)
 	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(SIEEXECUTABLE) $(COMMONOBJS) $(ODEOBJ) $(SIEOBJS);
 	@## link common objs and ode obj to the 2nd order explicit solver 
 	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(RK2EXECUTABLE) $(COMMONOBJS) $(ODEOBJ) $(RK2OBJS);
-
+	cd c_baseline;make
 %.o: %.cu
 	@#echo compiling $@ from $<
 	@## compile this source file to object
 	nvcc $(NVCFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 $(INCLUDE) $(LIB) -o $@ $<;
 
 clean: 
-	rm $(COMMONOBJS)
-	rm $(SIEOBJS)
-	rm $(RK2OBJS)
-	rm $(SIEEXECUTABLE)
-	rm $(RK2EXECUTABLE)
-	rm *.*o 
-	rm lib/*.*o
+	rm $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(SIEEXECUTABLE) $(RK2EXECUTABLE)
+	cd c_baseline;make clean

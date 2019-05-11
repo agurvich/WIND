@@ -8,26 +8,28 @@
 int checkError(float * y1, float * y2, int Neqn_p_sys){
     double abs_error;
     double rel_error;
+    int error_flag = 0;
     for (int eqn_i=0; eqn_i<Neqn_p_sys; eqn_i++){
         abs_error = fabs(y2[eqn_i]-y1[eqn_i]);
         if (abs_error >= ABSOLUTE_TOLERANCE){
 #ifdef LOUD
-            printf("absolute failed: %.2e\n",abs_error);
+            printf("%d absolute failed: %.2e\n",eqn_i,abs_error);
 #endif
-            return 1;
+            error_flag = 1;
         }
-        if (fabs(y1[eqn_i]) > ABSOLUTE_TOLERANCE && 
-            fabs(y2[eqn_i]) > ABSOLUTE_TOLERANCE){
-            rel_error = abs_error/fmin(fabs(y1[eqn_i]),fabs(y2[eqn_i]));
-            if (rel_error >= RELATIVE_TOLERANCE){
+        //if (fabs(y1[eqn_i]) > ABSOLUTE_TOLERANCE && 
+            //fabs(y2[eqn_i]) > ABSOLUTE_TOLERANCE){
+            //rel_error = abs_error/fmin(fabs(y1[eqn_i]),fabs(y2[eqn_i]));
+        rel_error = fabs((y2[eqn_i] - y1[eqn_i])/(2*y2[eqn_i]-y1[eqn_i]+1e-12));
+        if (rel_error >= RELATIVE_TOLERANCE){
 #ifdef LOUD
-                printf("relative failed: %.2e\n",rel_error);
+                printf("%d relative failed: %.2e\n",eqn_i,rel_error);
 #endif
-                return 1;
-            }// if rel_error >=RELATIVE_TOLERANCE
-        }// if fabs(y1) > ABS_TOL && fabs(y2) > ABS_TOL
+                error_flag = 1;
+        }// if rel_error >=RELATIVE_TOLERANCE
+        //}// if fabs(y1) > ABS_TOL && fabs(y2) > ABS_TOL
     }// for eqn_i <Neqn_p_sys
-    return 0;
+    return error_flag;
 }// int checkError
 
 int integrateSystem(
@@ -101,10 +103,14 @@ int integrateSystem(
             //  will want y2 but maybe a combination of y1 and y2 will
             //  cancel out error terms, e.g. rk2 
             acceptSolution(y1,y2,equations,Neqn_p_sys);
+/*
+            printf("tnow: %.4f timestep: %.4f nsteps: %d\n",tnow,timestep,nsteps);
+*/
             tnow+=timestep;
 
+
             // get a little more ambitious
-            timestep*=2;
+            timestep*=2.0;
             unsolved =0;
         }
     }

@@ -60,13 +60,25 @@ def main(
 
 
         system.runIntegratorOutput(
-            #c_cudaIntegrateRK2,'RK2',
-            c_integrateRK2,'RK2',
+            c_cudaIntegrateRK2,'RK2',
             output_mode = output_mode,
             print_flag = print_flag)
 
         print("---------------------------------------------------")
         output_mode = 'a'
+
+        constants = copy.copy(init_constants)
+        equations = copy.copy(init_equations)
+
+
+        system.runIntegratorOutput(
+            c_integrateRK2,'RK2',
+            output_mode = None,
+            print_flag = print_flag)
+
+        print("---------------------------------------------------")
+        output_mode = 'a'
+
 
     ## initialize cublas to avoid interfering with timing
     ##  since first one seems to take longer...? 

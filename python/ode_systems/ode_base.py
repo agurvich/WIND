@@ -135,7 +135,7 @@ class ODEBase(object):
                 group['times'] = times
                 group['nsteps'] = nsteps
                 group['walltimes'] = walltimes
-                print('nsteps:',nsteps)
+        print('nsteps:',nsteps)
         print("total nsteps:",np.sum(nsteps))
 
     def dumpToCDebugInput(self):

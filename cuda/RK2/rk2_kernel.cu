@@ -4,10 +4,29 @@
 #include "explicit_solver.h"
 #include "device.h"
 
+__device__ void checkError(float y1, float y2, int * shared_error_flag){
+    // determine if any equation is above the absolute or relative tolerances
+    float abs_error = fabs(y2 - y1);
+    if(abs_error > ABSOLUTE_TOLERANCE){
+        *shared_error_flag = 1;
+#ifdef LOUD
+        printf("%d absolute failed: %.2e\n",threadIdx.x,abs_error);
+#endif
+    }
+    float rel_error = fabs((y2-y1)/(2*y2-y1+1e-12));
+    if(rel_error > RELATIVE_TOLERANCE){
+        *shared_error_flag = 1;
+#ifdef LOUD
+        printf("%d relative failed: %.2e\n",threadIdx.x,rel_error);
+#endif
+        }
+    __syncthreads();
+}
+
 __device__ float rk2_innerstep(
     float tnow, // the current time
     float tstop, // the time we want to stop
-    float timestep, // the timestep to take
+    int n_integration_steps, // the timestep to take
     float * constants, // the constants for each system
     float * shared_temp_equations, // place to store temporary equations
     int Nsystems, // the number of systems
@@ -15,7 +34,8 @@ __device__ float rk2_innerstep(
 
     float dydt = 0;
 
-    while (tnow < tstop){
+    float timestep = (tstop-tnow)/n_integration_steps;
+    for (int nsteps=0; nsteps<n_integration_steps; nsteps++){
         // limit step size based on remaining time
         timestep = fmin(tstop - tnow, timestep);
 
@@ -57,6 +77,7 @@ __global__ void integrateSystem(
 
     float y1,y2;
 
+    int this_nsteps = 0;
     // ensure thread within limit
     if (tid < Nsystems*Nequations_per_system ) {
         // copy the y values to shared memory
@@ -66,6 +87,7 @@ __global__ void integrateSystem(
 
         //printf("%d thread %d block\n",threadIdx.x,blockIdx.x);
         while (tnow < tend){
+            this_nsteps+=3;
             // make sure we don't overintegrate
             timestep = fmin(tend-tnow,timestep);
 
@@ -75,10 +97,21 @@ __global__ void integrateSystem(
 
             y1 = rk2_innerstep(
                 tnow, tnow+timestep,
-                timestep,
+                1,
                 constants,
                 shared_temp_equations,
                 Nsystems, Nequations_per_system );
+/*
+            if (threadIdx.x==0 && blockIdx.x==1){
+                printf("%02d - y1: ",this_nsteps);
+                printf("%.6f\t",shared_temp_equations[0]);
+                printf("%.6f\t",shared_temp_equations[1]);
+                printf("%.6f\t",shared_temp_equations[2]);
+                printf("%.6f\t",shared_temp_equations[3]);
+                printf("%.6f\t",shared_temp_equations[4]);
+                printf("\n");
+            }
+*/
             
             // now reset the temporary equations
             shared_temp_equations[threadIdx.x] = shared_equations[threadIdx.x];
@@ -86,17 +119,25 @@ __global__ void integrateSystem(
 
             y2 = rk2_innerstep(
                 tnow, tnow+timestep,
-                timestep/2,
+                2,
                 constants,
                 shared_temp_equations,
                 Nsystems, Nequations_per_system );
+/*
+            if (threadIdx.x==0 && blockIdx.x==1){
+                printf("%02d - y2: ",this_nsteps);
+                printf("%.6f\t",shared_temp_equations[0]);
+                printf("%.6f\t",shared_temp_equations[1]);
+                printf("%.6f\t",shared_temp_equations[2]);
+                printf("%.6f\t",shared_temp_equations[3]);
+                printf("%.6f\t",shared_temp_equations[4]);
+                printf("\n");
+                printf("\n");
+            }
+*/
 
 #ifdef ADAPTIVETIMESTEP
-            // determine if any equation is above the absolute or relative tolerances
-            if(fabs(y2 - y1) > ABSOLUTE_TOLERANCE || fabs((y2-y1)/(2*y2-y1+1e-12)) > RELATIVE_TOLERANCE){
-                *shared_error_flag = 1;
-                }
-            __syncthreads();
+            checkError(y1,y2,shared_error_flag); 
 #endif
 
             if (*shared_error_flag){
@@ -105,13 +146,17 @@ __global__ void integrateSystem(
                 *shared_error_flag = 0;
             } // if shared_error_flag
             else{
-                if (threadIdx.x == 0){
-                    atomicAdd(nsteps,1);
-                }
                 //(*nsteps)++;
                 // accept this step and update the shared array
                 //  using local extrapolation (see NR e:17.2.3)
                 shared_equations[threadIdx.x] = 2*y2-y1;
+
+/*
+                if (threadIdx.x==0 && blockIdx.x==3){
+                    printf("tnow: %.4f timestep: %.4f nsteps: %d bid: %d\n",tnow,timestep,this_nsteps,blockIdx.x);
+                }
+*/
+
                 tnow+=timestep;
 
 #ifdef ADAPTIVETIMESTEP
@@ -128,8 +173,12 @@ __global__ void integrateSystem(
         equations[tid]=shared_equations[threadIdx.x];
 #ifdef LOUD
         if (threadIdx.x == 1 && blockIdx.x == 0){
-            printf("nsteps taken: %d - tnow: %.2f\n",*nsteps,tnow);
+            printf("nsteps taken: %d - tnow: %.2f\n",this_nsteps,tnow);
         }
 #endif
+
+        if (threadIdx.x == 0){
+            atomicAdd(nsteps,this_nsteps);
+        }
     } // if tid < nequations
 } //integrateSystem

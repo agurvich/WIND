@@ -33,8 +33,8 @@ int cudaIntegrateSystem(
     int equations_size = Nequations*sizeof(float);
 
     float *constantsDevice;
-    cudaMalloc((void**)&constantsDevice, equations_size); 
-    cudaMemcpy( constantsDevice, constants, NUM_CONST*sizeof(float), cudaMemcpyHostToDevice ); 
+    cudaMalloc((void**)&constantsDevice, Nsystems*NUM_CONST*sizeof(float)); 
+    cudaMemcpy( constantsDevice, constants, Nsystems*NUM_CONST*sizeof(float), cudaMemcpyHostToDevice ); 
 
     float *equationsDevice;
     cudaMalloc((void**)&equationsDevice, equations_size); 

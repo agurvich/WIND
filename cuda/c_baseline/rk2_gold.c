@@ -38,6 +38,8 @@ int take_step(
         for (int eqn_i=0; eqn_i<Neqn_p_sys; eqn_i++){
             equations[eqn_i]+=timestep*dydt[eqn_i];
         }
+
+        tnow+=timestep;
     }
     return n_integration_steps;
 }
@@ -61,11 +63,10 @@ int goldIntegrateSystem(
             tnow,tend,
             (tend-tnow)/n_integration_steps, 
             equationss_flat + Neqn_p_sys*system_i,
-            constantss_flat + Neqn_p_sys*system_i,
+            constantss_flat + NUMCONST*system_i,
             NULL,
             NULL,
             Neqn_p_sys);
-        printf("nloops %d %d\n",system_i,nloops);
     }
     
     // return how many steps were taken
