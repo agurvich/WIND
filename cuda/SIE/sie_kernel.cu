@@ -92,10 +92,11 @@ __device__ float sie_innerstep(
         //  accumulate matrix rows into elements of f
         for (int eqn_i=0; eqn_i < Nequations_per_system; eqn_i++){
             this_index = eqn_i*Nequations_per_system + threadIdx.x;
-            // accumulate values directly into shared_equations[eqn_i]
-            atomicAdd(
-                &shared_equations[eqn_i],
-                inverses[this_index]*dydt*timestep);
+            // accumulate values directly into shared_equations[eqn_i]-- J and inverses is actualy transposed
+            shared_equations[threadIdx.x]+=inverses[this_index]*dydt*timestep;
+            //atomicAdd(
+            //   &shared_equations[eqn_i],
+            //   inverses[this_index]*dydt*timestep);
         }
         //  NOTE could replace this with an array columns wherein
         //  you loop through the rows of inverse and save the columns

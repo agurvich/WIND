@@ -139,12 +139,14 @@ class ODEBase(object):
         print("total nsteps:",np.sum(nsteps))
 
     def dumpToCDebugInput(self):
+        fname = os.path.join(
+            self.datadir,
+            self.name+'_debug.txt')
         print("writing:",self.Nsystems,
             "systems",self.Neqn_p_sys,
-            "equations per system")
-        with open(os.path.join(
-            self.datadir,
-            self.name+'_debug.txt'),'w') as handle:
+            "equations per system to:",
+            fname)
+        with open(fname,'w') as handle:
             
             handle.write(
                  "float tnow = %s;\n"%str(self.tnow))

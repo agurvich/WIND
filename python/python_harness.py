@@ -14,10 +14,16 @@ from pysolvers.sie import integrate_sie
 
 ## find the first order solver shared object library 
 curdir = os.path.split(os.getcwd())[0]
+
+#exec_call = os.path.join(curdir,"cuda","lib","host_sie.so")
+#c_obj = ctypes.CDLL(exec_call)
+#c_cudaSIE_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_ii")
+#cublas_init = getattr(c_obj,"_Z26initializeCublasExternallyv")
+
+
 exec_call = os.path.join(curdir,"cuda","lib","sie.so")
 c_obj = ctypes.CDLL(exec_call)
-c_cudaSIE_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_ii")
-cublas_init = getattr(c_obj,"_Z26initializeCublasExternallyv")
+c_cudaIntegrateSIE = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_ii")
 
 ## get the second order library
 exec_call = os.path.join(curdir,"cuda","lib","rk2.so")
@@ -82,14 +88,16 @@ def main(
 
     ## initialize cublas to avoid interfering with timing
     ##  since first one seems to take longer...? 
-    cublas_init()
+    ## if SIE_host:
+        ## cublas_init()
 
     if SIE:
         constants = copy.copy(init_constants)
         equations = copy.copy(init_equations)
 
+        system.dumpToCDebugInput()
         system.runIntegratorOutput(
-            c_cudaSIE_integrate,'SIE',
+            c_cudaIntegrateSIE,'SIE',
             output_mode = output_mode,
             print_flag = print_flag)
 
