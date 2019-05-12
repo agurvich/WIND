@@ -16,7 +16,7 @@ __device__ void checkError(float y1, float y2, int * shared_error_flag){
     }
     float rel_error = fabs((y2-y1)/(y2+1e-12));
     if(rel_error > RELATIVE_TOLERANCE && 
-        fabs(y1) > ABSOLUTE_TOLERANCE && 
+        fabs(y1) > ABSOLUTE_TOLERANCE &&
         fabs(y2) > ABSOLUTE_TOLERANCE){
         *shared_error_flag = 1;
 #ifdef LOUD

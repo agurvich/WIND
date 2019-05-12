@@ -120,7 +120,7 @@ class ODEBase(object):
             nloops+=1
             equations_over_time[nloops]=copy.copy(equations)
 
-        print('final (tcur=%.2f):'%tcur,np.round(equations_over_time.astype(float),3)[-1][:self.Neqn_p_sys])
+        print('final (tcur=%.2f):'%tcur,np.round(equations_over_time.astype(float),5)[-1][:self.Neqn_p_sys])
 
         if output_mode is not None:
         

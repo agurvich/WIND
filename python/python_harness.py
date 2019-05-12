@@ -15,22 +15,25 @@ from pysolvers.sie import integrate_sie
 ## find the first order solver shared object library 
 curdir = os.path.split(os.getcwd())[0]
 
-#exec_call = os.path.join(curdir,"cuda","lib","host_sie.so")
-#c_obj = ctypes.CDLL(exec_call)
-#c_cudaSIE_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_ii")
-#cublas_init = getattr(c_obj,"_Z26initializeCublasExternallyv")
+exec_call = os.path.join(curdir,"cuda","lib","sie_host.so")
+c_obj = ctypes.CDLL(exec_call)
+cublas_init = getattr(c_obj,"_Z26initializeCublasExternallyv")
+c_cudaIntegrateSIEhost = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_ii")
 
 
+## find the first order solver shared object library that is host-locked
 exec_call = os.path.join(curdir,"cuda","lib","sie.so")
 c_obj = ctypes.CDLL(exec_call)
 c_cudaIntegrateSIE = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_ii")
 
 ## get the second order library
+##  cuda
 exec_call = os.path.join(curdir,"cuda","lib","rk2.so")
 c_obj = ctypes.CDLL(exec_call)
 c_cudaIntegrateRK2 = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_ii")
 
 
+##  c gold standard
 curdir = os.path.split(os.getcwd())[0]
 exec_call = os.path.join(curdir,"cuda","c_baseline","rk2_gold.so")
 c_obj = ctypes.CDLL(exec_call)
@@ -39,7 +42,7 @@ c_integrateRK2 = getattr(c_obj,"goldIntegrateSystem")
 def main(
     RK2 = False,
     SIE = False,
-    SIM = False,
+    SIEhost = False,
     CHIMES = False,
     PY = False,
     system_name = 'Katz96',
@@ -78,7 +81,7 @@ def main(
 
 
         system.runIntegratorOutput(
-            c_integrateRK2,'RK2',
+            c_integrateRK2,'RK2gold',
             output_mode = None,
             print_flag = print_flag)
 
@@ -88,8 +91,7 @@ def main(
 
     ## initialize cublas to avoid interfering with timing
     ##  since first one seems to take longer...? 
-    ## if SIE_host:
-        ## cublas_init()
+
 
     if SIE:
         constants = copy.copy(init_constants)
@@ -104,12 +106,13 @@ def main(
         print("---------------------------------------------------")
         output_mode = 'a'
 
-    if SIM:
+    if SIEhost:
+        cublas_init()
         constants = copy.copy(init_constants)
         equations = copy.copy(init_equations)
 
         system.runIntegratorOutput(
-            c_cudaSIM_integrate,'SIM',
+            c_cudaIntegrateSIEhost,'SIEhost',
             output_mode = output_mode,
             print_flag = print_flag)
 
@@ -223,7 +226,7 @@ if __name__ == '__main__':
         'nsteps=',
         'n_output_steps=',
         'Nsystems=',
-        'RK2=','SIE=','SIM=',
+        'RK2=','SIE=','SIEhost=',
         'PY=','CHIMES=',
         'system_name=',
         'makeplots=',

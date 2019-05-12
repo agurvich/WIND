@@ -57,7 +57,9 @@ __global__ void checkError(
 #endif
             *bool_flag = 1;
         }
-        if (fabs(v1[tid]/v2[tid]) > RELATIVE_TOLERANCE && v2[tid] > ABSOLUTE_TOLERANCE){
+        if (fabs((v1[tid]-v2[tid])/(v2[tid]+1e-12)) > RELATIVE_TOLERANCE && 
+            v1[tid] > ABSOLUTE_TOLERANCE &&
+            v2[tid] > ABSOLUTE_TOLERANCE){
 #ifdef LOUD
             printf("RELATIVE %d %.2e\n",tid,v1[tid]/v2[tid]);
 #endif

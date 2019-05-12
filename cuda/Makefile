@@ -9,6 +9,7 @@ WINDCONFIG+=-DRELATIVE_TOLERANCE=$(RELATIVE_TOLERANCE)
 
 ## Library names
 SIEEXECUTABLE	:= lib/sie.so
+SIEHOSTEXECUTABLE   := lib/sie_host.so
 RK2EXECUTABLE:= lib/rk2.so
 
 ## Cuda source files (compiled with nvcc)
@@ -39,6 +40,8 @@ make: $(c) $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(ODEOBJ)
 	@#echo $(CUFILES)
 	@## link common objs and ode obj to the 1st order semi-implicit solver 
 	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(SIEEXECUTABLE) $(COMMONOBJS) $(ODEOBJ) $(SIEOBJS);
+	@## link common objs and ode obj to the 1st order semi-implicit that is host-locked
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(SIEHOSTEXECUTABLE) $(COMMONOBJS) $(ODEOBJ) $(SIEHOSTOBJS);
 	@## link common objs and ode obj to the 2nd order explicit solver 
 	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(RK2EXECUTABLE) $(COMMONOBJS) $(ODEOBJ) $(RK2OBJS);
 	cd c_baseline;make
