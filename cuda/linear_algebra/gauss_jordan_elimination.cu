@@ -22,8 +22,10 @@ __device__ void scaleRow(
     if (read_scale_factor){
         *scale_factor_out = row_array[place_index];
     }
+    __syncthreads();
 
     int tid;
+
     for (int iterations=0; iterations<(Ndim/blockDim.x); iterations++){
         tid = getGJETID(iterations);
         if (tid < Ndim){
@@ -48,6 +50,7 @@ __device__ void subtractRows(
     if (read_scale_factor){
         *scale_factor_out = target_row_array[place_index];
     }
+    __syncthreads();
 
     int tid;
     // loop over a row
