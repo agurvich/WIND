@@ -15,7 +15,9 @@ __device__ void checkError(float y1, float y2, int * shared_error_flag){
 #endif
     }
     float rel_error = fabs((y2-y1)/(y2+1e-12));
-    if(rel_error > RELATIVE_TOLERANCE){
+    if(rel_error > RELATIVE_TOLERANCE && 
+        fabs(y1) > ABSOLUTE_TOLERANCE && 
+        fabs(y2) > ABSOLUTE_TOLERANCE){
         *shared_error_flag = 1;
 #ifdef LOUD
         printf("%d relative failed: %.2e\n",threadIdx.x,rel_error);
@@ -55,6 +57,7 @@ __device__ float sie_innerstep(
     int n_integration_steps, // the timestep to take
     float * constants, // the constants for each system
     float * shared_equations, // place to store the current state
+    float * shared_dydts,
     float * Jacobians,
     float * inverses,
     int Nequations_per_system){ // the number of equations in each system
@@ -73,6 +76,8 @@ __device__ float sie_innerstep(
             tnow,
             constants,
             shared_equations);
+
+        shared_dydts[threadIdx.x] = dydt;
 
         // calculate the jacobian for the whole system
         calculate_jacobian(
@@ -93,7 +98,7 @@ __device__ float sie_innerstep(
         for (int eqn_i=0; eqn_i < Nequations_per_system; eqn_i++){
             this_index = eqn_i*Nequations_per_system + threadIdx.x;
             // accumulate values directly into shared_equations[eqn_i]-- J and inverses is actualy transposed
-            shared_equations[threadIdx.x]+=inverses[this_index]*dydt*timestep;
+            shared_equations[threadIdx.x]+=inverses[this_index]*shared_dydts[eqn_i]*timestep;
             //atomicAdd(
             //   &shared_equations[eqn_i],
             //   inverses[this_index]*dydt*timestep);
@@ -139,6 +144,7 @@ __global__ void integrateSystem(
     //  when initializing the kernel (<<dimGrid,dimBlock,sbytes>>)
     int * shared_error_flag = (int *) &total_shared[0];
     float * shared_equations = (float *) &total_shared[1];
+    float * shared_dydts = (float *) &shared_equations[Nequations_per_system];
 
     float y1,y2,current_y;
 
@@ -165,6 +171,7 @@ __global__ void integrateSystem(
                     1,
                     constants,
                     shared_equations,
+                    shared_dydts,
                     Jacobians,
                     inverses,
                     Nequations_per_system );
@@ -190,6 +197,7 @@ __global__ void integrateSystem(
                     2,
                     constants,
                     shared_equations,
+                    shared_dydts,
                     Jacobians,
                     inverses,
                     Nequations_per_system );
@@ -214,6 +222,7 @@ __global__ void integrateSystem(
                 // refine and start over
                 timestep/=2;
                 *shared_error_flag = 0;
+                shared_equations[threadIdx.x] = current_y;
             } // if shared_error_flag
             else{
                 // accept this step and update the shared array

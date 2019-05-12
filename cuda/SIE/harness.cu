@@ -68,7 +68,7 @@ int cudaIntegrateSystem(
 
     //shared mem -> 2 float arrays for each system and 1 shared flag
     integrateSystem<<<dimGrid,dimBlock,
-        Nequations_per_system*(sizeof(float))+ sizeof(int)
+        Nequations_per_system*(2*sizeof(float))+ sizeof(int)
         >>> (
         tnow, tend,
         (tend-tnow)/n_integration_steps,
