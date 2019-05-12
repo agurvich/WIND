@@ -16,13 +16,14 @@ CUFILES	:= linear_algebra/gauss_jordan_elimination.cu
 CUFILES+=$(wildcard common_functions/*.cu)
 
 ## which ode system to link to 
-ODEFILE = ode_system/ode_system.cu
+ODEFILE = ode_system/ode_system.cu ode_system/device_dydt.cu
 
 ## compiled object names
 COMMONOBJS = $(CUFILES:%.cu=%.o)
 ODEOBJ = $(ODEFILE:%.cu=%.o) 
-SIEOBJS = SIE/harness_kernel.o
-RK2OBJS = RK2/harness.o RK2/rk2_kernel.o ode_system/device_dydt.o
+SIEHOSTOBJS = SIE_host/harness_kernel.o
+SIEOBJS = SIE/harness.o SIE/sie_kernel.o
+RK2OBJS = RK2/harness.o RK2/rk2_kernel.o
 
 ## compiler flags to make shared object for python
 CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG)
