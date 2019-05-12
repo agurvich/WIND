@@ -3,6 +3,9 @@
 *.o
 *.pyc
 *.pdf
+*.so
+
+*.txt
 
 input*h
 
