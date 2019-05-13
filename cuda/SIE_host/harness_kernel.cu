@@ -80,14 +80,12 @@ void SIE_step(
 
         // flush any previous uncaught cuda errors
         cudaError_t cuda_error = cudaGetLastError();
-
-        gjeInvertMatrixBatched<<<
-            Nsystems,
-            threads_per_block>>>(
+        gjeInvertMatrixBatched<<<Nsystems,threads_per_block>>>(
             d_Jacobianss_flat,
             d_inversess_flat,
             Neqn_p_sys,
             Nsystems);
+        //cudaDeviceSynchronize();
 #else
 
         //TODO implement add to batch arrays in C
@@ -509,7 +507,7 @@ int errorLoop(
     free(error_flag);
 
     // return computations performed
-    return nsteps;
+    return nsteps*Nsystems;
 }
 
 int cudaIntegrateSIE(

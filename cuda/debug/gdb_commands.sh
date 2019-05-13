@@ -1,8 +1,12 @@
 #!/bin/bash
 
-LINE=297
-LINE2=307
-cuda-gdb debug -ex 'set breakpoint pending on' -ex 'dir ../SIE' -ex "b SIE_harness.cu:${LINE}" -ex "b SIE_harness.cu:${LINE2}" -ex "b GDBbreakpoint" -ex 'run python_harness.py'
+LINE=216
+LINE2=448
+cuda-gdb debug -ex 'set breakpoint pending on' -ex 'dir ../SIE' -ex 'dir ../SIE_host' -ex "b sie_kernel:${LINE}" -ex "b harness_kernel.cu:${LINE2}" -ex 'run'
+
+
+
+#-ex "command 1" -ex "p ((@global float *) d_inversess_flat)[0]@5" -ex "p ((@global float *) d_inversess_flat)[5]@5" -ex "p ((@global float *) d_inversess_flat)[10]@5" -ex "p ((@global float *) d_inversess_flat)[15]@5" -ex "p ((@global float *) d_inversess_flat)[20]@5" -ex "end"
 
 ### print elements of an array
 #p ((@global float *)d_current_state_flat)[0]@7
