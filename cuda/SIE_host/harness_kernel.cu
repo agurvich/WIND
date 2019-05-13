@@ -563,8 +563,8 @@ int cudaIntegrateSIE(
     cudaMemcpyToSymbol(constants,d_constants,sizeof(d_constants));
     */
     float * d_constants;
-    cudaMalloc(&d_constants,NUM_CONST*sizeof(float));
-    cudaMemcpy(d_constants,constants,NUM_CONST*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMalloc(&d_constants,Nsystems*NUM_CONST*sizeof(float));
+    cudaMemcpy(d_constants,constants,Nsystems*NUM_CONST*sizeof(float),cudaMemcpyHostToDevice);
 
     // state equations, where output will be stored
     float *d_current_state_flat;

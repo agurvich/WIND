@@ -82,7 +82,7 @@ def main(
 
         system.runIntegratorOutput(
             c_integrateRK2,'RK2gold',
-            output_mode = None,
+            output_mode = output_mode,
             print_flag = print_flag)
 
         print("---------------------------------------------------")

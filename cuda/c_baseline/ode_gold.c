@@ -30,16 +30,19 @@ void calculate_dydt(
     // He0 :(alpha_(He+)+alpha_(d)) ne nHe+ - (Gamma_(e,He0)ne + Gamma_(gamma,He0)) nHe0
     dydt[2] = (constants[7]+constants[8])*ne*equations[3] 
         - (constants[3]*ne+constants[4])*equations[2];
-        // He+ : 
-        //  alpha_(He++) ne nHe++ 
-        //  + (Gamma_(e,He0)ne + Gamma_(gamma,He0)) nHe0
-        //  - (alpha_(He+)+alpha_(d)) ne nHe+ 
-        //  - (Gamma_(e,He+)ne + Gamma_(gamma,He+)) nHe+
+    // He+ : 
+    //  alpha_(He++) ne nHe++ 
+    //  + (Gamma_(e,He0)ne + Gamma_(gamma,He0)) nHe0
+    //  - (alpha_(He+)+alpha_(d)) ne nHe+ 
+    //  - (Gamma_(e,He+)ne + Gamma_(gamma,He+)) nHe+
     dydt[3] = constants[9]*ne*equations[4] 
         + (constants[3]*ne+constants[4])*equations[2]  
         - (constants[7]+constants[8])*ne*equations[3] 
         - (constants[5]*ne+constants[6])*equations[3];
-    dydt[4] = -constants[9]*ne*equations[4];
+    // He++ : (5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)) nHe+ 
+    //  - 9-alpha_(He++) ne nHe++
+    dydt[4] = (constants[5]*ne+constants[6])*equations[3]
+        -constants[9]*ne*equations[4];
 }
 
 
