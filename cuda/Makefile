@@ -21,14 +21,14 @@ ODEFILE = ode_system/ode_system.cu ode_system/device_dydt.cu
 
 ## compiled object names
 COMMONOBJS = $(CUFILES:%.cu=%.o)
-ODEOBJ = $(ODEFILE:%.cu=%.o) 
+ODEOBJS = $(ODEFILE:%.cu=%.o) 
 SIEHOSTOBJS = SIE_host/harness_kernel.o
 SIEOBJS = SIE/harness.o SIE/sie_kernel.o
 RK2OBJS = RK2/harness.o RK2/rk2_kernel.o
 
 ## compiler flags to make shared object for python
 CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG)
-NVCFLAGS = -shared -g -G -O0
+NVCFLAGS = -shared -g -G
 
 ## libraries to include
 INCLUDE = -Iinclude -IRK2 -Icommon_functions -Iode_system -Ilinear_algebra
@@ -36,14 +36,14 @@ LIB = -lcublas -lcusolver
 
 BUILDDIR = $(shell pwd)
 
-make: $(c) $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(ODEOBJ)
+make: $(c) $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(SIEHOSTOBJS) $(ODEOBJS)
 	@#echo $(CUFILES)
 	@## link common objs and ode obj to the 1st order semi-implicit solver 
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(SIEEXECUTABLE) $(COMMONOBJS) $(ODEOBJ) $(SIEOBJS);
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(SIEEXECUTABLE) $(COMMONOBJS) $(ODEOBJS) $(SIEOBJS);
 	@## link common objs and ode obj to the 1st order semi-implicit that is host-locked
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(SIEHOSTEXECUTABLE) $(COMMONOBJS) $(ODEOBJ) $(SIEHOSTOBJS);
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(SIEHOSTEXECUTABLE) $(COMMONOBJS) $(ODEOBJS) $(SIEHOSTOBJS);
 	@## link common objs and ode obj to the 2nd order explicit solver 
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(RK2EXECUTABLE) $(COMMONOBJS) $(ODEOBJ) $(RK2OBJS);
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(RK2EXECUTABLE) $(COMMONOBJS) $(ODEOBJS) $(RK2OBJS);
 	cd c_baseline;make
 %.o: %.cu
 	@#echo compiling $@ from $<
@@ -51,5 +51,5 @@ make: $(c) $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(ODEOBJ)
 	nvcc $(NVCFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 $(INCLUDE) $(LIB) -o $@ $<;
 
 clean: 
-	rm $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(SIEEXECUTABLE) $(RK2EXECUTABLE)
+	rm $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(SIEHOSTOBJS) $(ODEOBJS) $(SIEEXECUTABLE) $(RK2EXECUTABLE) $(SIEHOSTEXECUTABLE)
 	cd c_baseline;make clean
