@@ -19,6 +19,7 @@ __device__ void scaleRow(
     float * scale_factor_out,
     bool read_scale_factor){
 
+    __syncthreads();
     if (read_scale_factor){
         *scale_factor_out = row_array[place_index];
     }
@@ -33,7 +34,6 @@ __device__ void scaleRow(
         }
     }
     __syncthreads();
-
 }
 
 __device__ void subtractRows(
@@ -47,6 +47,8 @@ __device__ void subtractRows(
     // were we passed a scale_factor to scale by 
     //  or should we read it from the column we're 
     //  zeroing? 
+
+    __syncthreads();
     if (read_scale_factor){
         *scale_factor_out = target_row_array[place_index];
     }
@@ -72,7 +74,7 @@ __device__ void gjeUFactor(
 
     // allocate a place to store row scale factors
     //  so that they may be applied to the d_inverse_matrix
-    float d_this_row_scale_factor[1];
+    float d_this_row_scale_factor;
 
     // put this matrix into upper triangular form
     for (int row_i=0; row_i<Ndim;row_i++){
@@ -80,7 +82,7 @@ __device__ void gjeUFactor(
             d_this_matrix_flat + row_i*Ndim, // this row
             Ndim, // how many elements in row
             row_i, // which column am i dividing by
-            d_this_row_scale_factor,
+            &d_this_row_scale_factor,
             true); 
 
         // apply the same transformation to the inverse
@@ -88,7 +90,7 @@ __device__ void gjeUFactor(
             d_inverse_matrix_flat + row_i*Ndim, // this row
             Ndim,
             NULL,// use provided scale factor
-            d_this_row_scale_factor,
+            &d_this_row_scale_factor,
             false);
 
         for (int next_row_i=row_i+1; next_row_i < Ndim; next_row_i++){
@@ -97,7 +99,7 @@ __device__ void gjeUFactor(
                 d_this_matrix_flat + row_i*Ndim,
                 Ndim,
                 row_i, // which column am I zeroing out
-                d_this_row_scale_factor,
+                &d_this_row_scale_factor,
                 true);
 
             subtractRows(
@@ -105,7 +107,7 @@ __device__ void gjeUFactor(
                 d_inverse_matrix_flat + row_i*Ndim,
                 Ndim,
                 NULL, // use provided scale factor
-                d_this_row_scale_factor,
+                &d_this_row_scale_factor,
                 false);
         }
     }
@@ -117,7 +119,7 @@ __device__ void gjeLFactor(
     int Ndim){
 
     //  so that they may be applied to the d_inverse_matrix
-    float d_this_row_scale_factor[1];
+    float d_this_row_scale_factor;
 
     int bri;
     int bnri;
@@ -131,7 +133,7 @@ __device__ void gjeLFactor(
                 d_this_matrix_flat + bri*Ndim,
                 Ndim,
                 bri, // which column am I zeroing out
-                d_this_row_scale_factor,
+                &d_this_row_scale_factor,
                 true);
 
             subtractRows(
@@ -139,7 +141,7 @@ __device__ void gjeLFactor(
                 d_inverse_matrix_flat + bri*Ndim,
                 Ndim,
                 NULL, // use provided scale factor
-                d_this_row_scale_factor,
+                &d_this_row_scale_factor,
                 false);
         }
     }
@@ -158,6 +160,7 @@ __device__ void setIdentity(
         }
     }
 
+    __syncthreads();
     // loop over the diagonal
     for (int iterations=0; iterations<(Ndim/blockDim.x); iterations++){
         tid = getGJETID(iterations);
@@ -177,9 +180,7 @@ __device__ void gjeInvertMatrix(
 
     // generate an identity matrix in the shared inverse matrix 
     setIdentity(d_inverse_matrix_flat,Ndim);
-
     gjeUFactor(d_this_matrix_flat,d_inverse_matrix_flat,Ndim);
-
     gjeLFactor(d_this_matrix_flat,d_inverse_matrix_flat,Ndim);
         
     /*
