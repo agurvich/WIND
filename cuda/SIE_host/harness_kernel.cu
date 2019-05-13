@@ -469,7 +469,7 @@ int errorLoop(
             }
 
 #ifdef LOUD
-            printf("refining...%d\n",unsolved);
+            printf("refining...%d - %d\n",nsteps,unsolved);
 #endif
             *error_flag = 0;
 

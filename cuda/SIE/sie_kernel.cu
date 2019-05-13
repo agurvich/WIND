@@ -175,14 +175,15 @@ __global__ void integrateSystem(
                     Jacobians,
                     inverses,
                     Nequations_per_system );
+
 /*
             if (threadIdx.x==0 && blockIdx.x==1){
                 printf("%02d - y1: ",this_nsteps);
-                printf("%.6f\t",shared_temp_equations[0]);
-                printf("%.6f\t",shared_temp_equations[1]);
-                printf("%.6f\t",shared_temp_equations[2]);
-                printf("%.6f\t",shared_temp_equations[3]);
-                printf("%.6f\t",shared_temp_equations[4]);
+                printf("%.6f\t",shared_equations[0]);
+                printf("%.6f\t",shared_equations[1]);
+                printf("%.6f\t",shared_equations[2]);
+                printf("%.6f\t",shared_equations[3]);
+                printf("%.6f\t",shared_equations[4]);
                 printf("\n");
             }
 */
@@ -201,14 +202,15 @@ __global__ void integrateSystem(
                     Jacobians,
                     inverses,
                     Nequations_per_system );
+
 /*
             if (threadIdx.x==0 && blockIdx.x==1){
                 printf("%02d - y2: ",this_nsteps);
-                printf("%.6f\t",shared_temp_equations[0]);
-                printf("%.6f\t",shared_temp_equations[1]);
-                printf("%.6f\t",shared_temp_equations[2]);
-                printf("%.6f\t",shared_temp_equations[3]);
-                printf("%.6f\t",shared_temp_equations[4]);
+                printf("%.6f\t",shared_equations[0]);
+                printf("%.6f\t",shared_equations[1]);
+                printf("%.6f\t",shared_equations[2]);
+                printf("%.6f\t",shared_equations[3]);
+                printf("%.6f\t",shared_equations[4]);
                 printf("\n");
                 printf("\n");
             }
