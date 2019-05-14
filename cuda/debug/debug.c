@@ -1,17 +1,19 @@
-#include "implicit_solver.h"
+#include "input1.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <dlfcn.h>
 int main(){
 
+    void * rk2lib = dlopen("../lib/sie_host.so", RTLD_LAZY);
     void * sielib = dlopen("../lib/sie.so", RTLD_LAZY);
-    void * sie2lib = dlopen("../lib/sie2.so", RTLD_LAZY);
     
-    int (*p_cudaIntegrateSIE)(float,float,int,float*,float*,int,int);
-    p_cudaIntegrateSIE  = dlsym(sielib,"_Z16cudaIntegrateSIEffiPfS_ii");
 
-    int (*p_cudaIntegrateSIM)(float,float,int,float*,float*,int,int);
-    p_cudaIntegrateSIM  = dlsym(sie2lib,"_Z16cudaIntegrateSIEffiPfS_ii");
+    int (*p_cudaIntegrateRK2)(float,float,int,float*,float*,int,int);
+    //p_cudaIntegrateRK2  = dlsym(rk2lib,"_Z19cudaIntegrateSystemffiPfS_ii");
+    p_cudaIntegrateRK2  = dlsym(rk2lib,"_Z16cudaIntegrateSIEffiPfS_ii");
+    int (*p_cudaIntegrateSIE)(float,float,int,float*,float*,int,int);
+    p_cudaIntegrateSIE  = dlsym(sielib,"_Z19cudaIntegrateSystemffiPfS_ii");
+
 
     int nsteps;
     nsteps = (*p_cudaIntegrateSIE)(
@@ -39,9 +41,9 @@ int main(){
 
     printf("SIE: %d nsteps\n",nsteps);
 
-/*
+
     tnow = 0;
-    nsteps = (*p_cudaIntegrateSIM)(
+    nsteps = (*p_cudaIntegrateRK2)(
         tnow, // the current time
         tend, // the time we integrating the system to
         n_integration_steps, // the initial timestep to attempt to integrate the system with
@@ -63,9 +65,8 @@ int main(){
         new_equations[7],
         new_equations[8],
         new_equations[9]);
-    printf("SIM: %d nsteps\n",nsteps);
-*/
+    printf("SIEhost: %d nsteps\n",nsteps);
 
-    dlclose(sielib); 
-    dlclose(sie2lib);
+    dlclose(rk2lib); 
+    dlclose(sielib);
 }
