@@ -133,7 +133,7 @@ void gjeLFactor(
     }
 }
 
-void gjeInvertMatrixGold(
+void gjeInvertMatrix(
     float * matrix,
     float * inverse,
     int ndim){

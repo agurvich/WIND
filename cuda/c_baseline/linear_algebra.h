@@ -1,4 +1,3 @@
-
 void gjeInvertMatrix(
     float *, // matrix
     float *, // inverse

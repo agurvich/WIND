@@ -83,7 +83,7 @@ int goldIntegrateSystem(
     int Neqn_p_sys){ // the number of equations in each system
 
 #ifdef LOUD
-    printf("RK2 Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
+    printf("RK2gold Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
 #endif
 
     int nloops=0;

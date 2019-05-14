@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <math.h>
 
 #include "common_gold.h"
@@ -70,8 +71,8 @@ int take_step(
     float * constants,
     float * dydt,
 
-    float * jacobians_flat, // NULL for rk2
-    float * inverses_flat, // NULL for rk2
+    float * jacobians_flat, 
+    float * inverses_flat,
 
     int Neqn_p_sys){
 
@@ -112,18 +113,23 @@ int goldIntegrateSystem(
     int Neqn_p_sys){ // the number of equations in each system
 
 #ifdef LOUD
-    printf("RK2 Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
+    printf("SIEgold Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
 #endif
 
     int nloops=0;
+    float * Jacobian;
+    float * inverse;
+    Jacobian = (float *) malloc(sizeof(float)*Neqn_p_sys*Neqn_p_sys);
+    inverse = (float *) malloc(sizeof(float)*Neqn_p_sys*Neqn_p_sys);
+
     for (int system_i=0; system_i < Nsystems; system_i++){
         nloops+=integrateSystem(
             tnow,tend,
             (tend-tnow)/n_integration_steps, 
             equationss_flat + Neqn_p_sys*system_i,
             constantss_flat + NUMCONST*system_i,
-            NULL,
-            NULL,
+            Jacobian,
+            inverse,
             Neqn_p_sys);
     }
     
