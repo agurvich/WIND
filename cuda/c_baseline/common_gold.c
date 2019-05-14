@@ -59,7 +59,7 @@ int integrateSystem(
     int nsteps =0;
     int unsolved = 0;
     int error_flag = 0;
-    while (tnow < tend && unsolved<10){
+    while (tnow < tend && unsolved<20){
         // make sure we don't overintegrate
         timestep = fmin(tend-tnow,timestep);
 

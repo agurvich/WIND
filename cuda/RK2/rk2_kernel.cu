@@ -3,6 +3,7 @@
 
 #include "explicit_solver.h"
 #include "device.h"
+#include "ode.h"
 
 __device__ void checkError(float y1, float y2, int * shared_error_flag){
     // determine if any equation is above the absolute or relative tolerances
@@ -74,6 +75,9 @@ __global__ void integrateSystem(
     int * shared_error_flag = (int *) &total_shared[0];
     float * shared_equations = (float *) &total_shared[1];
     float * shared_temp_equations = (float *) &shared_equations[Nequations_per_system];
+
+    // offset pointer to constants in global memory
+    constants += NUM_CONST*blockIdx.x;
 
     float y1,y2;
 
