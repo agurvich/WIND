@@ -34,12 +34,12 @@ c_cudaIntegrateRK2 = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_ii")
 
 
 ##  c gold standard for RK2
-exec_call = os.path.join(curdir,"cuda","c_baseline","rk2_gold.so")
+exec_call = os.path.join(curdir,"cuda","lib","rk2_gold.so")
 c_obj = ctypes.CDLL(exec_call)
 c_integrateRK2 = getattr(c_obj,"goldIntegrateSystem")
 
 ##  c gold standard for SIE
-exec_call = os.path.join(curdir,"cuda","c_baseline","sie_gold.so")
+exec_call = os.path.join(curdir,"cuda","lib","sie_gold.so")
 c_obj = ctypes.CDLL(exec_call)
 c_integrateSIE = getattr(c_obj,"goldIntegrateSystem")
 
@@ -50,7 +50,7 @@ def main(
     CHIMES = False,
     PY = False,
     system_name = 'Katz96',
-    makeplots=True,
+    makeplots=False,
     dumpDebug = True,
     **kwargs):
 
@@ -90,7 +90,6 @@ def main(
 
 
     if SIE:
-        system.dumpToCDebugInput()
         system.runIntegratorOutput(
             c_cudaIntegrateSIE,'SIE',
             output_mode = output_mode,
@@ -213,9 +212,6 @@ def main(
     if makeplots:
         system.make_plots()
 
-    if dumpDebug:
-        system.dumpToCDebugInput()
-        
 if __name__ == '__main__':
     argv = sys.argv[1:]
     opts,args = getopt.getopt(argv,'',[

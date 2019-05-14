@@ -73,6 +73,8 @@ __global__ void calculateDerivatives(
     constants+=bid*NUM_CONST;
     float * dydt = d_derivatives_flat+eqn_offset;
 
+/* ----- PREFIX FLAG FOR PYTHON FRONTEND ----- */
+
     // constraint equation, ne = nH+ + nHe+ + 2*nHe++
     float ne = equations[1]+equations[3]+equations[4]*2.0;
 
@@ -108,6 +110,7 @@ __global__ void calculateDerivatives(
     //  - 9-alpha_(He++) ne nHe++
     dydt[4] = (constants[5]*ne+constants[6])*equations[3]
         -constants[9]*ne*equations[4]; 
+/* ----- SUFFIX FLAG FOR PYTHON FRONTEND ----- */
 }
 
 __global__ void calculateJacobians(
@@ -131,6 +134,7 @@ __global__ void calculateJacobians(
     constants+=bid*NUM_CONST;
 
     float * Jacobian = d_Jacobianss[bid];
+/* ----- PREFIX FLAG FOR PYTHON FRONTEND ----- */
 
     // constraint equation, ne = nH+ + nHe+ + 2*nHe++
     float ne = equations[1]+equations[3]+equations[4]*2.0;
@@ -167,6 +171,7 @@ __global__ void calculateJacobians(
     // He++
     Jacobian[24] = -constants[9]*ne;//He++ : -alpha_(He++)ne
     Jacobian[23] = -Jacobian[24];//He+ : 9-alpha_(He++)ne
+/* ----- SUFFIX FLAG FOR PYTHON FRONTEND ----- */
 }
 
 void resetSystem(
