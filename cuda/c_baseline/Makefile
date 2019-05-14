@@ -1,9 +1,9 @@
-COMMONFILES=common_gold.c
+COMMONFILES=common/common_gold.c
 LINEARALGEBRAFILES=$(wildcard linear_algebra/*.c)
 
-ODEFILE=ode_gold.c
-RK2FILE=rk2_gold.c
-SIEFILE=sie_gold.c
+ODEFILE=../ode_system/ode_gold.c
+RK2FILE=rk2/rk2_gold.c
+SIEFILE=sie/sie_gold.c
 
 RK2EXECUTABLE=rk2_gold.so
 SIEEXECUTABLE=sie_gold.so
@@ -17,14 +17,14 @@ COMMONOBJS=$(COMMONFILES:%.c=%.o)
 ODEOBJS=$(ODEFILE:%.c=%.o)
 LINEARALGEBRAOBJS=$(LINEARALGEBRAFILES:%.c=%.o)
 
-LIB= -Ilinear_algebra -I.
+INCLUDE= -Ilinear_algebra -I. -I../ode_system -Iinclude -Icommon
 
 CFLAGS=-shared -fPIC -g -std=c99
 
 make: $(COMMONOBJS) $(ODEOBJS) $(LINEARALGEBRAOBJS)
-	gcc $(CFLAGS) $(CONFIG) -o $(RK2EXECUTABLE) $(COMMONOBJS) $(ODEOBJS) $(RK2FILE)
-	gcc $(CFLAGS) $(CONFIG) $(LIB) -o $(SIEEXECUTABLE) $(COMMONOBJS) $(ODEOBJS) $(LINEARALGEBRAOBJS) $(SIEFILE)
+	gcc $(CFLAGS) $(CONFIG) $(INCLUDE) -o $(RK2EXECUTABLE) $(COMMONOBJS) $(ODEOBJS) $(RK2FILE)
+	gcc $(CFLAGS) $(CONFIG) $(INCLUDE) -o $(SIEEXECUTABLE) $(COMMONOBJS) $(ODEOBJS) $(LINEARALGEBRAOBJS) $(SIEFILE)
 %.o: %.c
-	gcc $(CFLAGS) $(CONFIG) $(LIB) -o $@ -c $<
+	gcc $(CFLAGS) $(CONFIG) $(INCLUDE) -o $@ -c $<
 clean:
 	rm $(COMMONOBJS) $(ODEOBJS) $(LINEARALGEBRAOBJS) $(RK2EXECUTABLE) $(SIEEXECUTABLE)
