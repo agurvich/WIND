@@ -4,6 +4,7 @@
 #include "explicit_solver.h"
 #include "device.h"
 #include "linear_algebra.h"
+#include "ode.h"
 
 __device__ void checkError(float y1, float y2, int * shared_error_flag){
     // determine if any equation is above the absolute or relative tolerances
@@ -84,7 +85,8 @@ __device__ float sie_innerstep(
             tnow,
             constants,
             shared_equations,
-            Jacobians);
+            Jacobians,
+            Nequations_per_system);
 
         // invert 1-hJ into inverses
         scaleAndInvertJacobians(
@@ -136,6 +138,9 @@ __global__ void integrateSystem(
     // offset pointer to find flat jacobian and inverses in global memory
     Jacobians+= Nequations_per_system*Nequations_per_system*blockIdx.x;
     inverses+= Nequations_per_system*Nequations_per_system*blockIdx.x;
+    // offset pointer to find flat constants in global memory
+    constants+=NUM_CONST*blockIdx.x;
+
 
     extern __shared__ float total_shared[];
     // total_shared is a pointer to the beginning of this block's shared
@@ -176,8 +181,8 @@ __global__ void integrateSystem(
                     inverses,
                     Nequations_per_system );
 
-/*
-            if (threadIdx.x==0 && blockIdx.x==1){
+#ifdef DEBUGBLOCK
+            if (threadIdx.x==0 && blockIdx.x==DEBUGBLOCK){
                 printf("%02d - y1: ",this_nsteps);
                 printf("%.6f\t",shared_equations[0]);
                 printf("%.6f\t",shared_equations[1]);
@@ -186,7 +191,7 @@ __global__ void integrateSystem(
                 printf("%.6f\t",shared_equations[4]);
                 printf("\n");
             }
-*/
+#endif
             
             // overwrite the y values in shared memory
             shared_equations[threadIdx.x] = current_y;
@@ -203,8 +208,8 @@ __global__ void integrateSystem(
                     inverses,
                     Nequations_per_system );
 
-/*
-            if (threadIdx.x==0 && blockIdx.x==1){
+#ifdef DEBUGBLOCK
+            if (threadIdx.x==0 && blockIdx.x==DEBUGBLOCK){
                 printf("%02d - y2: ",this_nsteps);
                 printf("%.6f\t",shared_equations[0]);
                 printf("%.6f\t",shared_equations[1]);
@@ -212,9 +217,9 @@ __global__ void integrateSystem(
                 printf("%.6f\t",shared_equations[3]);
                 printf("%.6f\t",shared_equations[4]);
                 printf("\n");
-                printf("\n");
             }
-*/
+
+#endif
 
 #ifdef ADAPTIVETIMESTEP
             checkError(y1,y2,shared_error_flag); 
