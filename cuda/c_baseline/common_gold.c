@@ -5,33 +5,6 @@
 
 #include "common_gold.h"
 
-int checkError(float * y1, float * y2, int Neqn_p_sys){
-    double abs_error;
-    double rel_error;
-    int error_flag = 0;
-    for (int eqn_i=0; eqn_i<Neqn_p_sys; eqn_i++){
-        abs_error = fabs(y2[eqn_i]-y1[eqn_i]);
-        if (abs_error >= ABSOLUTE_TOLERANCE){
-#ifdef LOUD
-            printf("%d absolute failed: %.2e\n",eqn_i,abs_error);
-#endif
-            error_flag = 1;
-        }
-        //if (fabs(y1[eqn_i]) > ABSOLUTE_TOLERANCE && 
-            //fabs(y2[eqn_i]) > ABSOLUTE_TOLERANCE){
-            //rel_error = abs_error/fmin(fabs(y1[eqn_i]),fabs(y2[eqn_i]));
-        rel_error = fabs((y2[eqn_i] - y1[eqn_i])/(2*y2[eqn_i]-y1[eqn_i]+1e-12));
-        if (rel_error >= RELATIVE_TOLERANCE){
-#ifdef LOUD
-                printf("%d relative failed: %.2e\n",eqn_i,rel_error);
-#endif
-                error_flag = 1;
-        }// if rel_error >=RELATIVE_TOLERANCE
-        //}// if fabs(y1) > ABS_TOL && fabs(y2) > ABS_TOL
-    }// for eqn_i <Neqn_p_sys
-    return error_flag;
-}// int checkError
-
 int integrateSystem(
     float tnow,
     float tend,
