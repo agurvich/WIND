@@ -305,7 +305,7 @@ int errorLoop(
             Nsystems,
             Neqn_p_sys);
         
-#ifdef ADAPTIVETIMESTEP 
+#ifdef ADAPTIVE_TIMESTEP 
         solveSystem(
             tnow,
             tnow+timestep,

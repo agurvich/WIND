@@ -5,8 +5,8 @@ ODEFILE=../ode_system/ode_gold.c
 RK2FILE=rk2/rk2_gold.c
 SIEFILE=sie/sie_gold.c
 
-RK2EXECUTABLE=rk2_gold.so
-SIEEXECUTABLE=sie_gold.so
+RK2EXECUTABLE=../lib/rk2_gold.so
+SIEEXECUTABLE=../lib/sie_gold.so
 
 
 CONFIG= -DADAPTIVE_TIMESTEP #-DDEBUGBLOCK=0 #-DLOUD

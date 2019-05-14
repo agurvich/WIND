@@ -221,7 +221,7 @@ __global__ void integrateSystem(
 
 #endif
 
-#ifdef ADAPTIVETIMESTEP
+#ifdef ADAPTIVE_TIMESTEP
             checkError(y1,y2,shared_error_flag); 
 #endif
 
@@ -245,7 +245,7 @@ __global__ void integrateSystem(
 
                 tnow+=timestep;
 
-#ifdef ADAPTIVETIMESTEP
+#ifdef ADAPTIVE_TIMESTEP
                 // let's get a little more optimistic
                 timestep*=2;
 #endif
