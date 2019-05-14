@@ -6,8 +6,17 @@ __device__ int get_system_bid(){
     return blockIdx.z*gridDim.y + blockIdx.y;
 }
 
-__global__ void cudaRoutineFlat(int Neqn_p_sys, float * d_arr){
-    printf("float: %d - %.3f\n",threadIdx.x,d_arr[threadIdx.x]);
+__global__ void cudaRoutineFlat(int offset, float * d_arr){
+    for (int thread_index = 0; thread_index < blockDim.x; thread_index++){
+        if (threadIdx.x == thread_index){
+            printf("%.6f\t",
+                d_arr[offset+threadIdx.x]);
+        }
+        __syncthreads();
+    }
+    if (threadIdx.x == 0){
+        printf("\n");
+    }
 }
 
 __global__ void cudaRoutineFlatInt(int Neqn_p_sys, int * d_arr){
