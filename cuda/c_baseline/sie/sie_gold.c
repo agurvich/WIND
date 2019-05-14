@@ -132,7 +132,7 @@ int goldIntegrateSystem(
             tnow,tend,
             (tend-tnow)/n_integration_steps, 
             equationss_flat + Neqn_p_sys*system_i,
-            constantss_flat + NUMCONST*system_i,
+            constantss_flat + NUM_CONST*system_i,
             Jacobian,
             inverse,
             Neqn_p_sys);

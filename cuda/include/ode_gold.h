@@ -6,4 +6,4 @@ void calculate_dydt(
     int );//Neqn_p_sys);
 
 void calculate_jacobian();
-#define NUMCONST 10
+#define NUM_CONST 10

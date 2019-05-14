@@ -17,7 +17,7 @@ COMMONOBJS=$(COMMONFILES:%.c=%.o)
 ODEOBJS=$(ODEFILE:%.c=%.o)
 LINEARALGEBRAOBJS=$(LINEARALGEBRAFILES:%.c=%.o)
 
-INCLUDE= -Ilinear_algebra -I. -I../ode_system -Iinclude -Icommon
+INCLUDE= -Ilinear_algebra -I. -I../ode_system -Iinclude -Icommon -I../include
 
 CFLAGS=-shared -fPIC -g -std=c99
 
