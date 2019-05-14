@@ -68,10 +68,6 @@ def main(
     init_equations,init_constants = system.equations,system.constants
 
     if RK2:
-        constants = copy.copy(init_constants)
-        equations = copy.copy(init_equations)
-
-
         system.runIntegratorOutput(
             c_cudaIntegrateRK2,'RK2',
             output_mode = output_mode,
@@ -79,10 +75,6 @@ def main(
 
         print("---------------------------------------------------")
         output_mode = 'a'
-
-        constants = copy.copy(init_constants)
-        equations = copy.copy(init_equations)
-
 
         system.runIntegratorOutput(
             c_integrateRK2,'RK2gold',
@@ -98,9 +90,6 @@ def main(
 
 
     if SIE:
-        constants = copy.copy(init_constants)
-        equations = copy.copy(init_equations)
-
         system.dumpToCDebugInput()
         system.runIntegratorOutput(
             c_cudaIntegrateSIE,'SIE',
@@ -118,8 +107,6 @@ def main(
 
     if SIEhost:
         cublas_init()
-        constants = copy.copy(init_constants)
-        equations = copy.copy(init_equations)
 
         system.runIntegratorOutput(
             c_cudaIntegrateSIEhost,'SIEhost',

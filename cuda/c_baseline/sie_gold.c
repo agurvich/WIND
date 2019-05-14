@@ -84,6 +84,9 @@ int take_step(
     for (int nsteps=0; nsteps<n_integration_steps; nsteps++){
         // fill the derivative vector and Jacobian matrix
         calculate_dydt(tnow,equations,constants,dydt,Neqn_p_sys);
+        
+        // zero out the jacobian 
+        memset(jacobians_flat,0,sizeof(float)*Neqn_p_sys*Neqn_p_sys);
         calculate_jacobian(equations,constants,jacobians_flat);
         // invert 1-hj into inverses
         scaleAndInvertJacobians(
