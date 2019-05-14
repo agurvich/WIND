@@ -23,7 +23,9 @@ int checkError(float * y1, float * y2, int Neqn_p_sys){
             //fabs(y2[eqn_i]) > ABSOLUTE_TOLERANCE){
             //rel_error = abs_error/fmin(fabs(y1[eqn_i]),fabs(y2[eqn_i]));
         rel_error = fabs((y2[eqn_i] - y1[eqn_i])/(y2[eqn_i]+1e-12));
-        if (rel_error >= RELATIVE_TOLERANCE){
+        if (rel_error >= RELATIVE_TOLERANCE && 
+            y1[eqn_i] >= ABSOLUTE_TOLERANCE &&
+            y2[eqn_i] >= ABSOLUTE_TOLERANCE){
 #ifdef LOUD
                 printf("%d relative failed: %.2e\n",eqn_i,rel_error);
 #endif

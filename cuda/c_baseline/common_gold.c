@@ -57,6 +57,19 @@ int integrateSystem(
             jacobians_flat,
             inverses_flat,
             Neqn_p_sys);
+#ifdef DEBUGBLOCK
+            printf("%02d - y1\t",nsteps);
+            for (int eqn_i=0; eqn_i < Neqn_p_sys; eqn_i++){
+                printf("%.6f\t",y1[eqn_i]);
+            }
+            printf("\n");
+            printf("%02d - y2\t",nsteps);
+            for (int eqn_i=0; eqn_i < Neqn_p_sys; eqn_i++){
+                printf("%.6f\t",y2[eqn_i]);
+            }
+            printf("\n");
+#endif
+
 
 #ifdef ADAPTIVE_TIMESTEP
         error_flag = checkError(y1,y2,Neqn_p_sys);
@@ -75,10 +88,9 @@ int integrateSystem(
             // generically accept the solution, in general
             //  will want y2 but maybe a combination of y1 and y2 will
             //  cancel out error terms, e.g. rk2 
+
             acceptSolution(y1,y2,equations,Neqn_p_sys);
-/*
-            printf("tnow: %.4f timestep: %.4f nsteps: %d\n",tnow,timestep,nsteps);
-*/
+
             tnow+=timestep;
 
 

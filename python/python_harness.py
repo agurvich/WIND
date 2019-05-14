@@ -33,11 +33,15 @@ c_obj = ctypes.CDLL(exec_call)
 c_cudaIntegrateRK2 = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_ii")
 
 
-##  c gold standard
-curdir = os.path.split(os.getcwd())[0]
+##  c gold standard for RK2
 exec_call = os.path.join(curdir,"cuda","c_baseline","rk2_gold.so")
 c_obj = ctypes.CDLL(exec_call)
 c_integrateRK2 = getattr(c_obj,"goldIntegrateSystem")
+
+##  c gold standard for SIE
+exec_call = os.path.join(curdir,"cuda","c_baseline","sie_gold.so")
+c_obj = ctypes.CDLL(exec_call)
+c_integrateSIE = getattr(c_obj,"goldIntegrateSystem")
 
 def main(
     RK2 = False,
@@ -102,6 +106,12 @@ def main(
             c_cudaIntegrateSIE,'SIE',
             output_mode = output_mode,
             print_flag = print_flag)
+
+        system.runIntegratorOutput(
+            c_integrateSIE,'SIEgold',
+            output_mode = output_mode,
+            print_flag = print_flag)
+
 
         print("---------------------------------------------------")
         output_mode = 'a'
