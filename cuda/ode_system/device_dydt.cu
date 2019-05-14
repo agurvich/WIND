@@ -8,9 +8,7 @@ __device__ float calculate_dydt(
     // constraint equation, ne = nH+ + nHe+ + 2*nHe++
     float ne = equations[1]+equations[3]+equations[4]*2.0;
 
-    float * this_constants = blockIdx.x*NUM_CONST + constants;
-
-    /* this_constants = [
+    /* constants = [
         Gamma_(e,H0), Gamma_(gamma,H0), 
         alpha_(H+),
         Gamma_(e,He0), Gamma_(gamma,He0), 
@@ -23,18 +21,18 @@ __device__ float calculate_dydt(
 
     if (threadIdx.x == 0){
         // H0 : alpha_(H+) ne nH+ - (Gamma_(e,H0)ne + Gamma_(gamma,H0))*nH0
-        return this_constants[2]*ne*equations[1]
-            -(this_constants[0]*ne + this_constants[1])*equations[0]; 
+        return constants[2]*ne*equations[1]
+            -(constants[0]*ne + constants[1])*equations[0]; 
     }
     else if (threadIdx.x == 1){
         // H+ : (Gamma_(e,H0)ne + Gamma_(gamma,H0))*nH0 - alpha_(H+) ne nH+
-        return -this_constants[2]*ne*equations[1]
-            +(this_constants[0]*ne + this_constants[1])*equations[0]; 
+        return -constants[2]*ne*equations[1]
+            +(constants[0]*ne + constants[1])*equations[0]; 
     }
     else if (threadIdx.x == 2){
         // He0 :(alpha_(He+)+alpha_(d)) ne nHe+ - (Gamma_(e,He0)ne + Gamma_(gamma,He0)) nHe0
-        return (this_constants[7]+this_constants[8])*ne*equations[3] 
-            - (this_constants[3]*ne+this_constants[4])*equations[2];
+        return (constants[7]+constants[8])*ne*equations[3] 
+            - (constants[3]*ne+constants[4])*equations[2];
     }
     else if (threadIdx.x == 3){
         // He+ : 
@@ -42,16 +40,16 @@ __device__ float calculate_dydt(
         //  + (Gamma_(e,He0)ne + Gamma_(gamma,He0)) nHe0
         //  - (alpha_(He+)+alpha_(d)) ne nHe+ 
         //  - (Gamma_(e,He+)ne + Gamma_(gamma,He+)) nHe+
-        return this_constants[9]*ne*equations[4] 
-            + (this_constants[3]*ne+this_constants[4])*equations[2]  
-            - (this_constants[7]+this_constants[8])*ne*equations[3] 
-            - (this_constants[5]*ne+this_constants[6])*equations[3];
+        return constants[9]*ne*equations[4] 
+            + (constants[3]*ne+constants[4])*equations[2]  
+            - (constants[7]+constants[8])*ne*equations[3] 
+            - (constants[5]*ne+constants[6])*equations[3];
     }
     else if (threadIdx.x == 4){
         // He++ : (5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)) nHe+ 
         //  - 9-alpha_(He++) ne nHe++
-        return (this_constants[5]*ne+this_constants[6])*equations[3]
-        -this_constants[9]*ne*equations[4];
+        return (constants[5]*ne+constants[6])*equations[3]
+        -constants[9]*ne*equations[4];
     }
     
    else{
@@ -63,7 +61,8 @@ __device__ void calculate_jacobian(
     float tnow,
     float * constants,
     float * shared_temp_equations,
-    float * Jacobian){
+    float * Jacobian,
+    int Neqn_p_sys){
 
     // constraint equation, ne = nH+ + nHe+ + 2*nHe++
     float ne = shared_temp_equations[1]+shared_temp_equations[3]+shared_temp_equations[4]*2.0;

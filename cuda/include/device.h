@@ -8,5 +8,6 @@ __device__ void calculate_jacobian(
     float ,//tnow,
     float *,// constants,
     float *,// shared_temp_equations,
-    float *);// Jacobian)
+    float *,// Jacobian)
+    int ); // Neqn_p_sys
 ;
