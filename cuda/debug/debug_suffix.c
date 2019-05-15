@@ -3,7 +3,7 @@
 #include <dlfcn.h>
 int main(){
 
-    void * rk2lib = dlopen("../lib/sie_host.so", RTLD_LAZY);
+    void * rk2lib = dlopen("../lib/rk2.so", RTLD_LAZY);
     void * sielib = dlopen("../lib/sie.so", RTLD_LAZY);
     
 
