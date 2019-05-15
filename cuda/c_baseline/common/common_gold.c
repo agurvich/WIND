@@ -58,12 +58,12 @@ int integrateSystem(
             inverses_flat,
             Neqn_p_sys);
 #ifdef DEBUGBLOCK
-            printf("%02d - y1\t",nsteps);
+            printf("%02d - gold - y1\t",nsteps);
             for (int eqn_i=0; eqn_i < Neqn_p_sys; eqn_i++){
                 printf("%.6f\t",y1[eqn_i]);
             }
             printf("\n");
-            printf("%02d - y2\t",nsteps);
+            printf("%02d - gold - y2\t",nsteps);
             for (int eqn_i=0; eqn_i < Neqn_p_sys; eqn_i++){
                 printf("%.6f\t",y2[eqn_i]);
             }

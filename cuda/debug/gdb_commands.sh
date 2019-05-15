@@ -1,8 +1,8 @@
 #!/bin/bash
 
-LINE=81
-LINE2=224
-cuda-gdb debug -ex 'set breakpoint pending on' -ex 'dir ../SIE' -ex 'dir ../SIE_host' -ex "b sie_kernel.cu:${LINE}" -ex "b harness_kernel.cu:${LINE2}" -ex 'run'
+LINE=52
+LINE2=67
+cuda-gdb debug -ex 'set breakpoint pending on' -ex 'dir ../RK2' -ex 'dir ../c_baseline/rk2' -ex "b rk2_kernel.cu:${LINE}" -ex "b rk2_gold.c:${LINE2}" -ex 'run'
 
 
 

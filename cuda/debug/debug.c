@@ -13,6 +13,7 @@ int main(){
     //p_cudaIntegrateRK2  = dlsym(rk2lib,"_Z16cudaIntegrateSIEffiPfS_ii");
     int (*p_cudaIntegrateSIE)(float,float,int,float*,float*,int,int);
     p_cudaIntegrateSIE  = dlsym(sielib,"_Z19cudaIntegrateSystemffiPfS_ii");
+    //p_cudaIntegrateSIE  = dlsym(sielib,"goldIntegrateSystem");
 
 
     int nsteps;
