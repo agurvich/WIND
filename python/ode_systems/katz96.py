@@ -164,7 +164,7 @@ class Katz96(ODEBase):
             ['H0','H+',"He0","He+","He++"]]
      
         ## make sure that we have implemented the necessary methods
-        self.validate()            
+        #self.validate()            
 
     def init_equations(self):
         ### read the chimes grid
@@ -357,37 +357,39 @@ class Katz96(ODEBase):
         """%(ridx(0),2,ridx(1),0,1,ridx(0)) )
         derivative_good_stuff+=(
         """
-    // H+ : (Gamma_(e,H0)ne + Gamma_(gamma,H0))*nH0 - alpha_(H+) ne nH+
-    dydt[%d] = -dydt[%d];
-        """%(ridx(1),ridx(0)))
+        // H+ : (Gamma_(e,H0)ne + Gamma_(gamma,H0))*nH0 - alpha_(H+) ne nH+
+        dydt[%d] = -constants[%d]*ne*equations[%d]
+            +(constants[%d]*ne + constants[%d])*equations[%d]; 
+ 
+        """%(ridx(1),2,ridx(1),0,1,ridx(0)))
         derivative_good_stuff+=(
         """
-    // He0 :(7-alpha_(He+)+8-alpha_(d)) ne 3-nHe+ - (3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)) nHe0
-    dydt[%d] = (constants[%d]+constants[%d])*ne*equations[%d] 
-        - (constants[%d]*ne+constants[%d])*equations[%d];
+        // He0 :(7-alpha_(He+)+8-alpha_(d)) ne 3-nHe+ - (3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)) nHe0
+        dydt[%d] = (constants[%d]+constants[%d])*ne*equations[%d] 
+            - (constants[%d]*ne+constants[%d])*equations[%d];
         """%(ridx(2),7,8,ridx(3),3,4,ridx(2)))
         derivative_good_stuff+=(
         """
-    // He+ : 
-    //  9-alpha_(He++) ne nHe++ 
-    //  + (3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)) nHe0
-    //  - (7-alpha_(He+)+8-alpha_(d)) ne nHe+ 
-    //  - (5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)) nHe+
-    dydt[%d] = constants[%d]*ne*equations[%d] 
-        + (constants[%d]*ne+constants[%d])*equations[%d]  
-        - (constants[%d]+constants[%d])*ne*equations[%d] 
-        - (constants[%d]*ne+constants[%d])*equations[%d];
+        // He+ : 
+        //  9-alpha_(He++) ne nHe++ 
+        //  + (3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)) nHe0
+        //  - (7-alpha_(He+)+8-alpha_(d)) ne nHe+ 
+        //  - (5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)) nHe+
+        dydt[%d] = constants[%d]*ne*equations[%d] 
+            + (constants[%d]*ne+constants[%d])*equations[%d]  
+            - (constants[%d]+constants[%d])*ne*equations[%d] 
+            - (constants[%d]*ne+constants[%d])*equations[%d];
         """%(ridx(3),9,ridx(4),3,4,ridx(2),7,8,ridx(3),5,6,ridx(3)))
         derivative_good_stuff+=(
         """
-    // He++ : (5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)) nHe+ 
-    //  - 9-alpha_(He++) ne nHe++
-    dydt[%d] = (constants[%d]*ne+constants[%d])*equations[%d]
-        -constants[%d]*ne*equations[%d]; 
+        // He++ : (5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)) nHe+ 
+        //  - 9-alpha_(He++) ne nHe++
+        dydt[%d] = (constants[%d]*ne+constants[%d])*equations[%d]
+            -constants[%d]*ne*equations[%d]; 
         """%(ridx(4),5,6,ridx(3),9,ridx(4)))
         return derivative_good_stuff
     
-    def make_RK2_block(self,this_tile,Ntile):
+    def make_device_derivative_block(self,this_tile,Ntile):
         ridx = lambda x: x+this_tile *self.orig_Neqn_p_sys
 
         strr = """
@@ -426,12 +428,49 @@ class Katz96(ODEBase):
 
         strr+="""
     else if (threadIdx.x == %d){
-        // He++ : -alpha_(He++) ne nHe++
-        return -constants[9]*ne*equations[%d];
+        // He++ : (5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)) nHe+ 
+        //  - 9-alpha_(He++) ne nHe++
+        return (constants[5]*ne+constants[6])*equations[%d]
+            -constants[9]*ne*equations[%d];
     }
-    """%(ridx(4),ridx(4))
+    """%(ridx(4),ridx(3),ridx(4))
 
         return strr
+
+#   def make_device_jacobian_block(self,this_tile,Ntile):
+#       return self.make_jacobian_block(this_tile,Ntile)
+#       strr=("""
+#       Jacobian[0] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
+#       Jacobian[1] = -Jacobian[0]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
+#       """)
+#           
+#       strr+=("""
+#       //H+
+#       Jacobian[6] = -constants[2]*ne; // H+ -alpha_(H+)ne
+#       Jacobian[5] = -Jacobian[6]; // H0 : 2-alpha_(H+)ne
+#       """)
+#           
+#       strr+=("""
+#       // He0
+#       Jacobian[12] = -(constants[3]*ne+constants[4]); //He0 : -(Gamma_(e,He0)ne + Gamma_(gamma,He0))
+#       Jacobian[13] = Jacobian[12]; //He+ : 3-Gamma_(e,He0)ne + 4-Gamma_(gamma,He0)
+#       """)
+#           
+#       strr+=("""
+#       // He+
+#       Jacobian[19] = constants[5]*ne+constants[6]; //He++ : 5-Gamma_(e,He+)ne + 6-Gamma_(gamma,He+)
+#       Jacobian[17] = (constants[7]+constants[8])*ne; //He0 : (7-alpha_(He+)+8-alpha_(d))ne
+#       Jacobian[18] = -Jacobian[17] - 
+#           Jacobian[19]; //He+ : -((alpha_(He+)+alpha_(d)+Gamma_(e,He+))ne+Gamma_(gamma,He+))
+#       """)
+#           
+#       strr+=("""
+#       // He++
+#       Jacobian[24] = -constants[9]*ne;//He++ : -alpha_(He++)ne
+#       Jacobian[23] = -Jacobian[24];//He+ : 9-alpha_(He++)ne
+#       """)
+#       return strr
+
 
     dconstants_string = """float ne = equations[1]+equations[3]+equations[4]*2.0;
 

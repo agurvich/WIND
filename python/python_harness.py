@@ -216,9 +216,8 @@ if __name__ == '__main__':
     argv = sys.argv[1:]
     opts,args = getopt.getopt(argv,'',[
         'tnow=','tend=',
-        'nsteps=',
+        'n_integration_steps=',
         'n_output_steps=',
-        'Nsystems=',
         'RK2=','SIE=','SIEhost=',
         'PY=','CHIMES=',
         'system_name=',

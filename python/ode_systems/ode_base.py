@@ -26,7 +26,6 @@ class Precompiler(object):
             ) as handle:
            for line_i,line in enumerate(handle.readlines()):
                 if "FLAG FOR PYTHON FRONTEND" in line:
-                    print(line_i)
                     words+=[strr]
                     strr=""
                 else:
@@ -53,12 +52,6 @@ class Precompiler(object):
         self.derivative_prefix += dconstants_string
         self.jacobian_prefix += jconstants_string
 
-        print(self.derivative_prefix)
-        print('-------')
-        print(self.derivative_suffix)
-        print('-------')
-        print(self.jacobian_prefix)
-    
     def make_ode_file(
         self,
         proto_file,
@@ -66,11 +59,17 @@ class Precompiler(object):
         dconstants_string,
         jconstants_string):
 
+        if 'device' in proto_file:
+            derivative_fn = self.make_device_derivative_block
+            jconstants_string = ""
+        else:
+            derivative_fn = self.make_derivative_block
+
         ## read the prefixes/suffixes for this proto file
         self.setPrefixes(dconstants_string,proto_file,jconstants_string)
 
         strr=self.make_string(
-            self.make_derivative_block,
+            derivative_fn,
             Ntile,
             self.derivative_prefix,
             self.derivative_suffix)
@@ -163,13 +162,13 @@ class ODEBase(Precompiler):
         ## adjust name if we are tiling equations
         if Ntile >= 1:
             split_name = self.name.split('_')
-            split_name.append('neqn_%s'%str(self.Neqn_p_sys))
+            split_name.append('neqntile_%s'%str(self.Ntile))
             self.name = '_'.join(split_name)
             
         ## adjust name if we are tiling systems
         if Nsystem_tile >= 1:
             split_name = self.name.split('_')
-            split_name.append('nsystem_%s'%str(Nsystem_tile))
+            split_name.append('nsystemtile_%s'%str(Nsystem_tile))
             self.name = '_'.join(split_name)
 
         ## adjust name if we are using fixed integration steps
@@ -205,8 +204,7 @@ class ODEBase(Precompiler):
 
         self.dumpToCDebugInput()
 
-        for proto_file in ['ode_system.cu']:
-            print("making",proto_file)
+        for proto_file in ['ode_system.cu','ode_gold.c','device_dydt.cu']:
             self.make_ode_file(
                 proto_file,
                 self.Ntile,
@@ -273,7 +271,7 @@ class ODEBase(Precompiler):
                         offset = (eqntile_i*self.orig_Neqn_p_sys + row_i)
                         ## how many elements of new jacobian per row
                         offset*=self.orig_Neqn_p_sys*self.Ntile 
-                        tiled_jacobian_flat[offset,offset+self.orig_Neqn_p_sys] = this_row 
+                        tiled_jacobian_flat[offset:offset+self.orig_Neqn_p_sys] = this_row 
                 jacobian_flat = tiled_jacobian_flat
             ## indices above are in column major order to match cuBLAS specification
             return jacobian_flat.reshape(self.Neqn_p_sys,self.Neqn_p_sys).T
@@ -284,7 +282,7 @@ class ODEBase(Precompiler):
         else:
             ## tile the rates
             if self.Ntile > 1:
-                rates = np.tile(rates) 
+                rates = np.tile(rates,self.Ntile) 
             return rates
 
     def calculate_eqmss():
