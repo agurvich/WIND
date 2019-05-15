@@ -12,36 +12,38 @@ from ode_systems.katz96 import Katz96 as k96_system
 from ode_systems.NR_test import NR_test as nr_test_system
 from pysolvers.sie import integrate_sie
 
-## find the first order solver shared object library 
-curdir = os.path.split(os.getcwd())[0]
+def loadCLibraries():
+    ## find the first order solver shared object library 
+    curdir = os.path.split(os.getcwd())[0]
 
-exec_call = os.path.join(curdir,"cuda","lib","sie_host.so")
-c_obj = ctypes.CDLL(exec_call)
-cublas_init = getattr(c_obj,"_Z26initializeCublasExternallyv")
-c_cudaIntegrateSIEhost = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_ii")
-
-
-## find the first order solver shared object library that is host-locked
-exec_call = os.path.join(curdir,"cuda","lib","sie.so")
-c_obj = ctypes.CDLL(exec_call)
-c_cudaIntegrateSIE = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_ii")
-
-## get the second order library
-##  cuda
-exec_call = os.path.join(curdir,"cuda","lib","rk2.so")
-c_obj = ctypes.CDLL(exec_call)
-c_cudaIntegrateRK2 = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_ii")
+    exec_call = os.path.join(curdir,"cuda","lib","sie_host.so")
+    c_obj = ctypes.CDLL(exec_call)
+    cublas_init = getattr(c_obj,"_Z26initializeCublasExternallyv")
+    c_cudaIntegrateSIEhost = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_ii")
 
 
-##  c gold standard for RK2
-exec_call = os.path.join(curdir,"cuda","lib","rk2_gold.so")
-c_obj = ctypes.CDLL(exec_call)
-c_integrateRK2 = getattr(c_obj,"goldIntegrateSystem")
+    ## find the first order solver shared object library that is host-locked
+    exec_call = os.path.join(curdir,"cuda","lib","sie.so")
+    c_obj = ctypes.CDLL(exec_call)
+    c_cudaIntegrateSIE = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_ii")
 
-##  c gold standard for SIE
-exec_call = os.path.join(curdir,"cuda","lib","sie_gold.so")
-c_obj = ctypes.CDLL(exec_call)
-c_integrateSIE = getattr(c_obj,"goldIntegrateSystem")
+    ## get the second order library
+    ##  cuda
+    exec_call = os.path.join(curdir,"cuda","lib","rk2.so")
+    c_obj = ctypes.CDLL(exec_call)
+    c_cudaIntegrateRK2 = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_ii")
+
+
+    ##  c gold standard for RK2
+    exec_call = os.path.join(curdir,"cuda","lib","rk2_gold.so")
+    c_obj = ctypes.CDLL(exec_call)
+    c_integrateRK2 = getattr(c_obj,"goldIntegrateSystem")
+
+    ##  c gold standard for SIE
+    exec_call = os.path.join(curdir,"cuda","lib","sie_gold.so")
+    c_obj = ctypes.CDLL(exec_call)
+    c_integrateSIE = getattr(c_obj,"goldIntegrateSystem")
+    return c_cudaIntegrateSIEhost,c_cudaIntegrateSIE,c_cudaIntegrateRK2,c_integrateRK2,c_integrateSIE
 
 def main(
     RK2 = False,
@@ -65,7 +67,12 @@ def main(
     output_mode = 'a'
     print_flag = False
  
-    init_equations,init_constants = system.equations,system.constants
+    if (RK2 or SIE or SIEhost):
+        (c_cudaIntegrateSIEhost,
+        c_cudaIntegrateSIE,
+        c_cudaIntegrateRK2,
+        c_integrateRK2,
+        c_integrateSIE)=loadCLibraries()
 
     if RK2:
         system.runIntegratorOutput(
