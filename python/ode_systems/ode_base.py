@@ -140,6 +140,7 @@ class ODEBase(Precompiler):
 
         Nsystem_tile=1,
         Ntile=1,
+        dumpDebug=False,
         **kwargs):
         if len(kwargs):
             raise KeyError("Unused keys:",list(kwargs.keys()))
@@ -202,7 +203,8 @@ class ODEBase(Precompiler):
         self.tileSystems()
         self.tileEquations()
 
-        self.dumpToCDebugInput()
+        if dumpDebug:
+            self.dumpToCDebugInput()
 
         for proto_file in ['ode_system.cu','ode_gold.c','device_dydt.cu']:
             self.make_ode_file(

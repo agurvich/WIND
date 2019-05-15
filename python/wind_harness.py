@@ -54,7 +54,6 @@ def main(
     PY = False,
     system_name = 'Katz96',
     makeplots=False,
-    dumpDebug = True,
     **kwargs):
 
     if system_name == 'Katz96':

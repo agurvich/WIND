@@ -1,6 +1,6 @@
 #!/bin/bash
-export LD_LIBRARY_PATH=$CRAY_CUDATOOLKIT_DIR
-/lib64:$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=$CRAY_CUDATOOLKIT_DIR
+#/lib64:$LD_LIBRARY_PATH
 
 NAME=${1}_neqntile_${2}_nsystemtile_${3}_fixed_${4}
 DATADIR=../data/${NAME}
@@ -13,6 +13,6 @@ then
 fi
 
 device_memory_profile ${memory_out_file} & 
-python python_harness.py  --system_name=${1} --Ntile=${2} --Nsystem_tile=${3} --n_integration_steps=${4} "${@:5}"
+python wind_harness.py  --system_name=${1} --Ntile=${2} --Nsystem_tile=${3} --n_integration_steps=${4} "${@:5}"
 ## kill background nvidia-smi process
 killall nvidia-smi
