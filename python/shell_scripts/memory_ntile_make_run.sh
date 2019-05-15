@@ -5,9 +5,9 @@
 ##  any other arguments are passed to python_harness.py
 
 ## make necessary precompile files and build
-echo $1 $2 $4 args to precompile
-bash shell_scripts/precompile_system.sh $1 $2 $4
+bash shell_scripts/precompile_system.sh "${@:1}"
 
-bash profiling_tools/memory_profile.sh "${@:1}"
+## actually run the thing but with the memory profiler attached
+#bash profiling_tools/memory_profile.sh "${@:1}"
 
-#bash shell_scripts/move_debug_file.sh $1 $2 
+
