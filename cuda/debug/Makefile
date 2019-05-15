@@ -1,3 +1,6 @@
+
+DEBUGFILE=debug.c
+
 ## Library names
 EXECUTABLE	:= ../lib/sie.so
 ORDER2EXECUTABLE:= ../lib/sie2.so
@@ -11,7 +14,7 @@ BUILDDIR = $(shell pwd)
 NVCFLAGS = -g -G
 make: 
 	@## compile this guy
-	nvcc $(CFLAGS) $(NVCFLAGS) -arch=sm_35 -ldl $(INCLUDE) -o debug debug.c;
+	nvcc $(CFLAGS) $(NVCFLAGS) -arch=sm_35 -ldl $(INCLUDE) -o debug $(DEBUGFILE);
 rebuild:
 	cd ..;make clean; make
 	make

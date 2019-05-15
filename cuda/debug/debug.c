@@ -4,13 +4,13 @@
 #include <dlfcn.h>
 int main(){
 
-    void * rk2lib = dlopen("../lib/sie_host.so", RTLD_LAZY);
+    void * rk2lib = dlopen("../lib/rk2.so", RTLD_LAZY);
     void * sielib = dlopen("../lib/sie.so", RTLD_LAZY);
     
 
     int (*p_cudaIntegrateRK2)(float,float,int,float*,float*,int,int);
-    //p_cudaIntegrateRK2  = dlsym(rk2lib,"_Z19cudaIntegrateSystemffiPfS_ii");
-    p_cudaIntegrateRK2  = dlsym(rk2lib,"_Z16cudaIntegrateSIEffiPfS_ii");
+    p_cudaIntegrateRK2  = dlsym(rk2lib,"_Z19cudaIntegrateSystemffiPfS_ii");
+    //p_cudaIntegrateRK2  = dlsym(rk2lib,"_Z16cudaIntegrateSIEffiPfS_ii");
     int (*p_cudaIntegrateSIE)(float,float,int,float*,float*,int,int);
     p_cudaIntegrateSIE  = dlsym(sielib,"_Z19cudaIntegrateSystemffiPfS_ii");
 
@@ -65,7 +65,7 @@ int main(){
         new_equations[7],
         new_equations[8],
         new_equations[9]);
-    printf("SIEhost: %d nsteps\n",nsteps);
+    printf("RK2: %d nsteps\n",nsteps);
 
     dlclose(rk2lib); 
     dlclose(sielib);
