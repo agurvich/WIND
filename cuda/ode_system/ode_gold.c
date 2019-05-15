@@ -6,6 +6,7 @@ void calculate_dydt(
     float * constants,
     float * dydt,
     int Neqn_p_sys){
+/* ----- PREFIX FLAG FOR PYTHON FRONTEND ----- */
 
     // constraint equation, ne = nH+ + nHe+ + 2*nHe++
     float ne = equations[1]+equations[3]+equations[4]*2.0;
@@ -43,12 +44,14 @@ void calculate_dydt(
     //  - 9-alpha_(He++) ne nHe++
     dydt[4] = (constants[5]*ne+constants[6])*equations[3]
         -constants[9]*ne*equations[4];
+/* ----- SUFFIX FLAG FOR PYTHON FRONTEND ----- */
 }
 
 void calculate_jacobian(
     float * equations,
     float * constants,
     float * Jacobian){
+/* ----- PREFIX FLAG FOR PYTHON FRONTEND ----- */
 // constraint equation, ne = nH+ + nHe+ + 2*nHe++
     float ne = equations[1]+equations[3]+equations[4]*2.0;
 
@@ -62,6 +65,7 @@ void calculate_jacobian(
         9-alpha_(He++)
         ] 
     */
+
 
    
     // H0
@@ -85,4 +89,5 @@ void calculate_jacobian(
     // He++
     Jacobian[24] = -constants[9]*ne;//He++ : -alpha_(He++)ne
     Jacobian[23] = -Jacobian[24];//He+ : 9-alpha_(He++)ne
+/* ----- SUFFIX FLAG FOR PYTHON FRONTEND ----- */
 }

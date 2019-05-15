@@ -5,6 +5,7 @@ __device__ float calculate_dydt(
     float tnow,
     float * constants,
     float * equations){
+/* ----- PREFIX FLAG FOR PYTHON FRONTEND ----- */
     // constraint equation, ne = nH+ + nHe+ + 2*nHe++
     float ne = equations[1]+equations[3]+equations[4]*2.0;
 
@@ -18,6 +19,7 @@ __device__ float calculate_dydt(
         alpha_(He++)
         ] 
     */ 
+
 
     if (threadIdx.x == 0){
         // H0 : alpha_(H+) ne nH+ - (Gamma_(e,H0)ne + Gamma_(gamma,H0))*nH0
@@ -51,6 +53,7 @@ __device__ float calculate_dydt(
         return (constants[5]*ne+constants[6])*equations[3]
         -constants[9]*ne*equations[4];
     }
+/* ----- SUFFIX FLAG FOR PYTHON FRONTEND ----- */
     
    else{
         return NULL;
@@ -81,6 +84,7 @@ __device__ void calculate_jacobian(
    
     // NOTE could make this faster if we could do it in paralell 
     if (threadIdx.x == 0){
+/* ----- PREFIX FLAG FOR PYTHON FRONTEND ----- */
         // H0
         Jacobian[0] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
         Jacobian[1] = -Jacobian[0]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
@@ -102,6 +106,7 @@ __device__ void calculate_jacobian(
         // He++
         Jacobian[24] = -constants[9]*ne;//He++ : -alpha_(He++)ne
         Jacobian[23] = -Jacobian[24];//He+ : 9-alpha_(He++)ne
+/* ----- SUFFIX FLAG FOR PYTHON FRONTEND ----- */
     }
 
     __syncthreads();

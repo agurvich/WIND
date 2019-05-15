@@ -18,6 +18,7 @@ CUFILES+=$(wildcard common_functions/*.cu)
 
 ## which ode system to link to 
 ODEFILE = ode_system/ode_system.cu ode_system/device_dydt.cu
+GOLDODEFILE= ode_system/ode_gold.c
 
 ## compiled object names
 COMMONOBJS = $(CUFILES:%.cu=%.o)
@@ -36,8 +37,9 @@ LIB = -lcublas -lcusolver
 
 BUILDDIR = $(shell pwd)
 
+#export PRECOMPILE
 make: $(c) $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(SIEHOSTOBJS) $(ODEOBJS)
-	@#echo $(CUFILES)
+	@echo $(ODEOBJS)
 	@## link common objs and ode obj to the 1st order semi-implicit solver 
 	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(SIEEXECUTABLE) $(COMMONOBJS) $(ODEOBJS) $(SIEOBJS);
 	@## link common objs and ode obj to the 1st order semi-implicit that is host-locked
@@ -50,6 +52,9 @@ make: $(c) $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(SIEHOSTOBJS) $(ODEOBJS)
 	@## compile this source file to object
 	nvcc $(NVCFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 $(INCLUDE) $(LIB) -o $@ $<;
 
+preclean:
+	rm ode_system/precompile_ode_system.o ode_system/precompile_device_dydt.o
+	cd c_baseline;make preclean
 clean: 
 	rm $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(SIEHOSTOBJS) $(ODEOBJS) $(SIEEXECUTABLE) $(RK2EXECUTABLE) $(SIEHOSTEXECUTABLE)
 	cd c_baseline;make clean
