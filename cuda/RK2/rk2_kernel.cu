@@ -15,7 +15,9 @@ __device__ void checkError(float y1, float y2, int * shared_error_flag){
 #endif
     }
     float rel_error = fabs((y2-y1)/(2*y2-y1+1e-12));
-    if(rel_error > RELATIVE_TOLERANCE){
+    if(rel_error > RELATIVE_TOLERANCE &&
+        y1 > ABSOLUTE_TOLERANCE &&
+        y2 > ABSOLUTE_TOLERANCE){
         *shared_error_flag = 1;
 #ifdef LOUD
         printf("%d relative failed: %.2e\n",threadIdx.x,rel_error);
@@ -105,9 +107,10 @@ __global__ void integrateSystem(
                 constants,
                 shared_temp_equations,
                 Nsystems, Nequations_per_system );
-/*
-            if (threadIdx.x==0 && blockIdx.x==1){
-                printf("%02d - y1: ",this_nsteps);
+
+#ifdef DEBUGBLOCK
+            if (threadIdx.x==0 && blockIdx.x==DEBUGBLOCK){
+                printf("%02d - cuda - y1: ",this_nsteps);
                 printf("%.6f\t",shared_temp_equations[0]);
                 printf("%.6f\t",shared_temp_equations[1]);
                 printf("%.6f\t",shared_temp_equations[2]);
@@ -115,7 +118,7 @@ __global__ void integrateSystem(
                 printf("%.6f\t",shared_temp_equations[4]);
                 printf("\n");
             }
-*/
+#endif
             
             // now reset the temporary equations
             shared_temp_equations[threadIdx.x] = shared_equations[threadIdx.x];
@@ -127,18 +130,18 @@ __global__ void integrateSystem(
                 constants,
                 shared_temp_equations,
                 Nsystems, Nequations_per_system );
-/*
-            if (threadIdx.x==0 && blockIdx.x==1){
-                printf("%02d - y2: ",this_nsteps);
+
+#ifdef DEBUGBLOCK
+            if (threadIdx.x==0 && blockIdx.x==DEBUGBLOCK){
+                printf("%02d - cuda - y2: ",this_nsteps);
                 printf("%.6f\t",shared_temp_equations[0]);
                 printf("%.6f\t",shared_temp_equations[1]);
                 printf("%.6f\t",shared_temp_equations[2]);
                 printf("%.6f\t",shared_temp_equations[3]);
                 printf("%.6f\t",shared_temp_equations[4]);
                 printf("\n");
-                printf("\n");
             }
-*/
+#endif
 
 #ifdef ADAPTIVE_TIMESTEP
             checkError(y1,y2,shared_error_flag); 
