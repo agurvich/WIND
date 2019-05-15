@@ -1,20 +1,7 @@
-
-// This is the REAL "hello world" for CUDA!
-// It takes the string "Hello ", prints it, then passes it to CUDA with an array
-// of offsets. Then the offsets are added in parallel to produce the string "World!"
-// By Ingemar Ragnemalm 2010
- 
 #include <stdio.h>
-#include "explicit_solver.h"
+#include "implicit_solver.h"
 #include "ode.h"
   
-void printArray(int * arr,int N){
-    for (int i = 0; i<N;i++){
-        printf("%d ",arr[i]);
-    }
-    printf("\n");
-}
-
 int cudaIntegrateSystem(
     float tnow, // the current time
     float tend, // the time we integrating the system to
@@ -25,7 +12,7 @@ int cudaIntegrateSystem(
     int Nequations_per_system){ // the number of equations in each system
 
 #ifdef LOUD
-    printf("RK2 Received %d systems, %d equations per system\n",Nsystems,Nequations_per_system);
+    printf("SIE Received %d systems, %d equations per system\n",Nsystems,Nequations_per_system);
 #endif
 
     // copy the arrays over to the device
@@ -39,6 +26,16 @@ int cudaIntegrateSystem(
     float *equationsDevice;
     cudaMalloc((void**)&equationsDevice, equations_size); 
     cudaMemcpy( equationsDevice, equations, equations_size, cudaMemcpyHostToDevice ); 
+
+
+    float *JacobiansDevice;
+    cudaMalloc((void**)&JacobiansDevice, Nequations*equations_size); 
+    //cudaMemcpy( JacobiansDevice, Jacobians, equations_size, cudaMemcpyHostToDevice ); 
+
+
+    float *inversesDevice;
+    cudaMalloc((void**)&inversesDevice, Nequations*equations_size); 
+    //cudaMemcpy( JacobiansDevice, Jacobians, equations_size, cudaMemcpyHostToDevice ); 
 
     int nloops=0;
     int * nloopsDevice;
@@ -76,6 +73,7 @@ int cudaIntegrateSystem(
         tnow, tend,
         (tend-tnow)/n_integration_steps,
         constantsDevice,equationsDevice,
+        JacobiansDevice,inversesDevice,
         Nsystems,Nequations_per_system,
         nloopsDevice);
     

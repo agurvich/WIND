@@ -6,7 +6,6 @@ import copy
 
 ## this package imports
 from ode_systems.ode_base import ODEBase
-from ode_systems.preprocess.preprocess import reindex
 
 import odecache
 import warnings
@@ -15,56 +14,27 @@ class NR_test(ODEBase):
 
     def __init__(
         self,
-        tnow=0,
         tend=5,
-        n_output_steps=50,
-        Ntile=1,
         **kwargs):
 
-        self.name='NR_test_%d'%Ntile
-        self.Ntile = Ntile
-    
-        self.eqn_labels = [str.encode('UTF-8') for str in ['u','v']]
-    
-        ## integration time variables
-        self.tnow = tnow
-        self.tend = tend
-        self.n_output_steps = n_output_steps 
-
-
-        self.Neqn_p_sys = 2
-        self.Nsystems = 1
-
-        ## initialize equations and constants
-        self.equations = self.init_equations()
-        self.constants = self.init_constants()
-        self.eqmss = self.calculate_eqmss()
-
-        self.nconst = 4
-
-        ## tile the ICs for each system
-        if self.Ntile > 1:
-            self.equations = np.concatenate(
-                [np.tile(self.equations[
-                    i*self.Neqn_p_sys:
-                    (i+1)*self.Neqn_p_sys],
-                    self.Ntile)
-                for i in range(self.Nsystems)])
-
-        self.orig_Neqn_p_sys = self.Neqn_p_sys
-        self.Neqn_p_sys*=self.Ntile
-        
-        ## make sure that we have implemented the necessary methods
-        self.validate()
-
         ## run the ode_base __init__
-        super().__init__(**kwargs)
+        super().__init__(
+            name='NR_test',
+            nconst=4,
+            Neqn_p_sys=2,
+            tend=tend,
+            **kwargs)
+
+        self.eqn_labels = [str.encode('UTF-8') for str in ['u','v']]
+
+        ## make sure that we have implemented the necessary methods
+        #self.validate()
 
     def init_constants(self):
-        return np.tile([998., 1998.,-999., -1999.],self.Nsystems).astype(np.float32)
+        return np.array([998., 1998.,-999., -1999.]).astype(np.float32)
         
     def init_equations(self):
-        return np.tile([1.0,0.0],self.Nsystems).astype(np.float32)
+        return np.array([1.0,0.0]).astype(np.float32)
 
     def calculate_jacobian(self,system_index=0):
         if type(system_index) == int:
@@ -76,12 +46,10 @@ class NR_test(ODEBase):
             ##  of this system
             equations,constants = system_index
 
-        if self.Ntile > 1:
-            warnings.warn("This python Jacobian function is not tileable")
-
-        return np.array([
-            [constants[0], constants[1]],
-            [constants[2], constants[3]]])
+        jacobian_flat = [
+            constants[0], constants[1],
+            constants[2], constants[3]]
+        return super().calculate_jacobian(jacobian_flat=jacobian_flat)
 
     def calculate_derivative(self,system_index=0):
         if type(system_index) == int:
@@ -94,9 +62,11 @@ class NR_test(ODEBase):
             ##  of this system
             y = equations
 
-        up = 998.*y[0] + 1998.*y[1] # eq. 16.6.1
-        vp = -999.*y[0] - 1999.*y[1]
-        return np.tile(np.array((up, vp)),self.Ntile)
+        rates = np.zeros(2)
+        rates[0] = 998.*y[0] + 1998.*y[1] # eq. 16.6.1
+        rates[1] = -999.*y[0] - 1999.*y[1]
+
+        return super().calculate_derivative(rates=rates)
 
     def calculate_eqmss(self):
         eqmss = np.tile(np.array([
@@ -108,8 +78,6 @@ class NR_test(ODEBase):
     def dumpToODECache(self,group=None):
         if group is None:
             return
-
-
         group['eqmss'] = self.eqmss.reshape(self.Nsystems,self.Neqn_p_sys)
 
     def make_plots(self):
@@ -126,95 +94,35 @@ class NR_test(ODEBase):
 
 ### PRECOMPILE STUFF FOR MAKING .CU FILES
     def make_jacobian_block(self,this_tile,Ntile):
-        ridx = lambda x: reindex(x,Ntile,self.orig_Neqn_p_sys,this_tile)
-        ## TODO make this self consistent
-        #constants = np.tile([998., 1998.,-999., -1999.],self.Nsystems).astype(np.float32)
+        ridx = lambda x: self.reindex(x,Ntile,self.orig_Neqn_p_sys,this_tile)
         return """
-    this_block_jacobian[%d] = 998.0;
-    this_block_jacobian[%d] = -999.0;
-    this_block_jacobian[%d] = 1998.0;
-    this_block_jacobian[%d] = -1999.0;
+    Jacobian[%d] = constants[0];
+    Jacobian[%d] = constants[2];
+    Jacobian[%d] = constants[1];
+    Jacobian[%d] = constants[3];
 """%(ridx(0),ridx(1),ridx(2),ridx(3))
 
     def make_derivative_block(self,this_tile,Ntile):
         ridx = lambda x: x+this_tile *self.orig_Neqn_p_sys
         return """
     // eq. 16.6.1 in NR 
-    this_block_derivatives[%d] = 998.0*this_block_state[%d] + 1998. * this_block_state[%d];
-    this_block_derivatives[%d] = -999.0*this_block_state[%d] - 1999.0*this_block_state[%d];
+    dydt[%d] = constants[0]*equations[%d] + constants[1]*equations[%d];
+    dydt[%d] = constants[2]*equations[%d] + constants[3]*equations[%d];
 """%(ridx(0),ridx(0),ridx(1),ridx(1),ridx(0),ridx(1))
 
-    def make_RK2_block(self,this_tile,Ntile):
+    def make_device_derivative_block(self,this_tile,Ntile):
         ridx = lambda x: x+this_tile *self.orig_Neqn_p_sys
-
-        ## TODO make this self consistent
-        #constants = np.tile([998., 1998.,-999., -1999.],self.Nsystems).astype(np.float32)
         strr = """
     if (threadIdx.x == %d){
-        return 998.0*equations[%d] + 1998. * equations[%d];
+        return constants[0]*equations[%d] + constants[1]*equations[%d];
     }"""%(ridx(0),ridx(0),ridx(1))
 
         strr+="""
     else if (threadIdx.x == %d){
-        return -999.0*equations[%d] - 1999.0*equations[%d];
+        return constants[2]*equations[%d] + constants[3]*equations[%d];
     }"""%(ridx(1),ridx(0),ridx(1))
         return strr
 
-    derivative_prefix = """__global__ void calculateDerivatives(
-    float * d_derivatives_flat, 
-    float * constants, 
-    float * equations,
-    int Nsystems,
-    int Neqn_p_sys,
-    float time){
-    // isolate this system 
-
-    int bid = get_system_index();
-    // don't need to do anything, no system corresponds to this thread-block
-    if (bid >= Nsystems){
-        return;
-    }
-
-    int eqn_offset = bid*Neqn_p_sys;
-    float * this_block_state = equations+eqn_offset;
-    float * this_block_derivatives = d_derivatives_flat+eqn_offset;
-"""
-    jacobian_prefix = """__global__ void calculateJacobians(
-    float **d_Jacobianss, 
-    float * constants,
-    float * equations,
-    int Nsystems,
-    int Neqn_p_sys,
-    float time){
-
-    // isolate this system 
-    int bid = get_system_index();
-
-    // don't need to do anything, no system corresponds to this thread-block
-    if (bid >= Nsystems){
-        return;
-    }
-
-    int eqn_offset = bid*Neqn_p_sys;
-    float * this_block_state = equations+eqn_offset;
-    float * this_block_jacobian = d_Jacobianss[bid];
-"""
-
-    RK2_prefix = """
-#include <stdio.h>
-#include <math.h>
-
-#include "explicit_solver.h"
-
-__device__ float calculate_dydt(
-    float tnow,
-    float * constants,
-    float * equations){
-
-"""
-
-    RK2_suffix = """
-   else{
-        return NULL;
-    } 
-} // calculate_dydt\n"""
+    ## strings to prepend to calculateDerivative and calculateJacobian functions
+    dconstants_string = ""
+    jconstants_string = None

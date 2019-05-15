@@ -49,15 +49,17 @@ __global__ void checkError(
     // replace the values of v1 with the error
     int tid = get_vector_tid();
     if (tid < Nsystems*Neqn_p_sys){
-        v1[tid] = v1[tid]-v2[tid];
+        float abs_error = fabs(v1[tid]-v2[tid]);
 
-        if (fabs(v1[tid]) > ABSOLUTE_TOLERANCE){
+        if (abs_error > ABSOLUTE_TOLERANCE){
 #ifdef LOUD
             printf("ABSOLUTE %d %.2e v1 %.2e v2 \n",tid,v1[tid],v2[tid]);
 #endif
             *bool_flag = 1;
         }
-        if (fabs(v1[tid]/v2[tid]) > RELATIVE_TOLERANCE && v2[tid] > ABSOLUTE_TOLERANCE){
+        if (fabs((v1[tid]-v2[tid])/(v2[tid]+1e-12)) > RELATIVE_TOLERANCE && 
+            v1[tid] > ABSOLUTE_TOLERANCE &&
+            v2[tid] > ABSOLUTE_TOLERANCE){
 #ifdef LOUD
             printf("RELATIVE %d %.2e\n",tid,v1[tid]/v2[tid]);
 #endif

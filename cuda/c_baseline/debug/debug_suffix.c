@@ -3,19 +3,19 @@
 #include <dlfcn.h>
 int main(){
 
-    void * rk2lib = dlopen("../lib/rk2.so", RTLD_LAZY);
-    void * sielib = dlopen("../lib/sie.so", RTLD_LAZY);
+    void * rk2lib = dlopen("../../lib/rk2_gold.so", RTLD_LAZY);
+    void * sielib = dlopen("../../lib/sie_gold.so", RTLD_LAZY);
     
 
-    int (*p_cudaIntegrateRK2)(float,float,int,float*,float*,int,int);
-    p_cudaIntegrateRK2  = dlsym(rk2lib,"_Z19cudaIntegrateSystemffiPfS_ii");
-    //p_cudaIntegrateRK2  = dlsym(rk2lib,"_Z16cudaIntegrateSIEffiPfS_ii");
-    int (*p_cudaIntegrateSIE)(float,float,int,float*,float*,int,int);
-    p_cudaIntegrateSIE  = dlsym(sielib,"_Z19cudaIntegrateSystemffiPfS_ii");
+    int (*p_goldIntegrateRK2)(float,float,int,float*,float*,int,int);
+    p_goldIntegrateRK2  = dlsym(rk2lib,"goldIntegrateSystem");
+    //p_goldIntegrateRK2  = dlsym(rk2lib,"_Z19cudaIntegrateSystemffiPfS_ii");
 
+    int (*p_goldIntegrateSIE)(float,float,int,float*,float*,int,int);
+    p_goldIntegrateSIE  = dlsym(sielib,"goldIntegrateSystem");
 
     int nsteps;
-    nsteps = (*p_cudaIntegrateSIE)(
+    nsteps = (*p_goldIntegrateSIE)(
         tnow, // the current time
         tend, // the time we integrating the system to
         n_integration_steps, // the initial timestep to attempt to integrate the system with
@@ -23,6 +23,7 @@ int main(){
         equations, // a flattened array containing the y value for each equation in each system
         Nsystems, // the number of systems
         Neqn_p_sys);
+
 
     printf("%.2f %.2f %.2f %.2f %.2f ",
         equations[0],
@@ -38,11 +39,11 @@ int main(){
         equations[8],
         equations[9]);
 
-    printf("SIE: %d nsteps\n",nsteps);
+    printf("SIEgold: %d nsteps\n",nsteps);
 
 
     tnow = 0;
-    nsteps = (*p_cudaIntegrateRK2)(
+    nsteps = (*p_goldIntegrateRK2)(
         tnow, // the current time
         tend, // the time we integrating the system to
         n_integration_steps, // the initial timestep to attempt to integrate the system with
@@ -64,7 +65,7 @@ int main(){
         new_equations[7],
         new_equations[8],
         new_equations[9]);
-    printf("RK2: %d nsteps\n",nsteps);
+    printf("RK2gold: %d nsteps\n",nsteps);
 
     dlclose(rk2lib); 
     dlclose(sielib);

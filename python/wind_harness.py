@@ -12,29 +12,48 @@ from ode_systems.katz96 import Katz96 as k96_system
 from ode_systems.NR_test import NR_test as nr_test_system
 from pysolvers.sie import integrate_sie
 
-## find the first order solver shared object library 
-curdir = os.path.split(os.getcwd())[0]
-exec_call = os.path.join(curdir,"cuda","lib","sie.so")
-print(exec_call)
-c_obj = ctypes.CDLL(exec_call)
-c_cudaIntegrateRK2 = getattr(c_obj,"_Z16cudaIntegrateRK2ffiPfS_ii")
-c_cudaSIE_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_ii")
-cublas_init = getattr(c_obj,"_Z26initializeCublasExternallyv")
+def loadCLibraries():
+    ## find the first order solver shared object library 
+    curdir = os.path.split(os.getcwd())[0]
 
-## get the second order library
-exec_call = os.path.join(curdir,"cuda","lib","sie2.so")
-c_obj = ctypes.CDLL(exec_call)
-c_cudaSIM_integrate = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_ii")
+    exec_call = os.path.join(curdir,"cuda","lib","sie_host.so")
+    c_obj = ctypes.CDLL(exec_call)
+    cublas_init = getattr(c_obj,"_Z26initializeCublasExternallyv")
+    c_cudaIntegrateSIEhost = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_ii")
+
+
+    ## find the first order solver shared object library that is host-locked
+    exec_call = os.path.join(curdir,"cuda","lib","sie.so")
+    c_obj = ctypes.CDLL(exec_call)
+    c_cudaIntegrateSIE = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_ii")
+
+    ## get the second order library
+    ##  cuda
+    exec_call = os.path.join(curdir,"cuda","lib","rk2.so")
+    c_obj = ctypes.CDLL(exec_call)
+    c_cudaIntegrateRK2 = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_ii")
+
+
+    ##  c gold standard for RK2
+    exec_call = os.path.join(curdir,"cuda","lib","rk2_gold.so")
+    c_obj = ctypes.CDLL(exec_call)
+    c_integrateRK2 = getattr(c_obj,"goldIntegrateSystem")
+
+    ##  c gold standard for SIE
+    exec_call = os.path.join(curdir,"cuda","lib","sie_gold.so")
+    c_obj = ctypes.CDLL(exec_call)
+    c_integrateSIE = getattr(c_obj,"goldIntegrateSystem")
+    return c_cudaIntegrateSIEhost,c_cudaIntegrateSIE,c_cudaIntegrateRK2,c_integrateRK2,c_integrateSIE
 
 def main(
     RK2 = False,
     SIE = False,
-    SIM = False,
+    SIEhost = False,
+    gold = False,
     CHIMES = False,
     PY = False,
     system_name = 'Katz96',
-    makeplots=True,
-    dumpDebug = True,
+    makeplots=False,
     **kwargs):
 
     if system_name == 'Katz96':
@@ -48,42 +67,60 @@ def main(
     output_mode = 'a'
     print_flag = False
  
-    init_equations,init_constants = system.equations,system.constants
+    if (RK2 or SIE or SIEhost):
+        (c_cudaIntegrateSIEhost,
+        c_cudaIntegrateSIE,
+        c_cudaIntegrateRK2,
+        c_integrateRK2,
+        c_integrateSIE)=loadCLibraries()
 
     if RK2:
-        constants = copy.copy(init_constants)
-        equations = copy.copy(init_equations)
+        if not gold:
+            system.runIntegratorOutput(
+                c_cudaIntegrateRK2,'RK2',
+                output_mode = output_mode,
+                print_flag = print_flag)
 
-        system.runIntegratorOutput(
-            c_cudaIntegrateRK2,'RK2',
-            output_mode = output_mode,
-            print_flag = print_flag)
+            print("---------------------------------------------------")
+            output_mode = 'a'
 
-        print("---------------------------------------------------")
-        output_mode = 'a'
+        else:
+            system.runIntegratorOutput(
+                c_integrateRK2,'RK2gold',
+                output_mode = output_mode,
+                print_flag = print_flag)
+
+            print("---------------------------------------------------")
+            output_mode = 'a'
 
     ## initialize cublas to avoid interfering with timing
     ##  since first one seems to take longer...? 
-    cublas_init()
+
 
     if SIE:
-        constants = copy.copy(init_constants)
-        equations = copy.copy(init_equations)
+        if not gold:
+            system.runIntegratorOutput(
+                c_cudaIntegrateSIE,'SIE',
+                output_mode = output_mode,
+                print_flag = print_flag)
+            print("---------------------------------------------------")
+            output_mode = 'a'
+
+        else:
+            system.runIntegratorOutput(
+                c_integrateSIE,'SIEgold',
+                output_mode = output_mode,
+                print_flag = print_flag)
+
+
+            print("---------------------------------------------------")
+            output_mode = 'a'
+
+    if SIEhost:
+        cublas_init()
 
         system.runIntegratorOutput(
-            c_cudaSIE_integrate,'SIE',
-            output_mode = output_mode,
-            print_flag = print_flag)
-
-        print("---------------------------------------------------")
-        output_mode = 'a'
-
-    if SIM:
-        constants = copy.copy(init_constants)
-        equations = copy.copy(init_equations)
-
-        system.runIntegratorOutput(
-            c_cudaSIM_integrate,'SIM',
+            c_cudaIntegrateSIEhost,'SIEhost',
             output_mode = output_mode,
             print_flag = print_flag)
 
@@ -187,17 +224,14 @@ def main(
     if makeplots:
         system.make_plots()
 
-    if dumpDebug:
-        system.dumpToCDebugInput()
-        
 if __name__ == '__main__':
     argv = sys.argv[1:]
     opts,args = getopt.getopt(argv,'',[
         'tnow=','tend=',
-        'nsteps=',
+        'n_integration_steps=',
         'n_output_steps=',
-        'Nsystems=',
-        'RK2=','SIE=','SIM=',
+        'RK2=','SIE=','SIEhost=',
+        'gold=',
         'PY=','CHIMES=',
         'system_name=',
         'makeplots=',

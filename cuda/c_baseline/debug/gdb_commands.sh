@@ -1,12 +1,8 @@
 #!/bin/bash
 
-LINE=52
-LINE2=67
-cuda-gdb debug -ex 'set breakpoint pending on' -ex 'dir ../RK2' -ex 'dir ../c_baseline/rk2' -ex "b rk2_kernel.cu:${LINE}" -ex "b rk2_gold.c:${LINE2}" -ex 'run'
-
-
-
-#-ex "command 1" -ex "p ((@global float *) d_inversess_flat)[0]@5" -ex "p ((@global float *) d_inversess_flat)[5]@5" -ex "p ((@global float *) d_inversess_flat)[10]@5" -ex "p ((@global float *) d_inversess_flat)[15]@5" -ex "p ((@global float *) d_inversess_flat)[20]@5" -ex "end"
+LINE=223
+LINE2=62
+cuda-gdb debug -ex 'set breakpoint pending on' -ex 'dir ..' -ex 'dir ../../SIE' -ex "b sie_kernel.cu:${LINE}" -ex "b common_gold.c:${LINE2}" -ex 'run'
 
 ### print elements of an array
 #p ((@global float *)d_current_state_flat)[0]@7

@@ -3,31 +3,183 @@ import copy
 import time
 import ctypes
 import h5py
+
 import os 
+import sys
 
-from ode_systems.preprocess.preprocess import make_ode_file,make_RK2_file
+cuda_dir = os.path.realpath(__file__)
+for i in range(3):
+    cuda_dir = os.path.split(cuda_dir)[0]
+cuda_dir = os.path.join(cuda_dir,'cuda')
 
-class ODEBase(object):
+print("WIND cuda directory:",cuda_dir)
+
+class Precompiler(object):
+    def splitODEFile(self,ode_file=None):
+        strr = ""
+
+        ode_file = 'ode_system.cu' if ode_file is None else ode_file
+        words = []
+        with open(
+            os.path.join(
+                cuda_dir,'ode_system',ode_file)
+            ) as handle:
+           for line_i,line in enumerate(handle.readlines()):
+                if "FLAG FOR PYTHON FRONTEND" in line:
+                    words+=[strr]
+                    strr=""
+                else:
+                    strr+=line
+        words+=[strr]
+
+        self.derivative_prefix = words[0]
+        self.derivative_suffix = ""#words[1]
+        self.jacobian_prefix = words[2]
+        self.jacobian_suffix = words[4]
+
+    def setPrefixes(self,
+            dconstants_string,
+            ode_file=None,
+            jconstants_string=None):
+        if jconstants_string is None:
+            jconstants_string = dconstants_string
+    
+        ## open the file from disk and set the prefix string
+        self.splitODEFile(ode_file)
+        
+        ## add the string that should only be called once but should
+        ##  vary from system to system
+        self.derivative_prefix += dconstants_string
+        self.jacobian_prefix += jconstants_string
+
+    def make_ode_file(
+        self,
+        proto_file,
+        Ntile,
+        dconstants_string,
+        jconstants_string):
+
+        if 'device' in proto_file:
+            derivative_fn = self.make_device_derivative_block
+            jconstants_string = ""
+        else:
+            derivative_fn = self.make_derivative_block
+
+        ## read the prefixes/suffixes for this proto file
+        self.setPrefixes(dconstants_string,proto_file,jconstants_string)
+
+        strr=self.make_string(
+            derivative_fn,
+            Ntile,
+            self.derivative_prefix,
+            self.derivative_suffix)
+
+        strr+=self.make_string(
+            self.make_jacobian_block,
+            Ntile,
+            self.jacobian_prefix,
+            self.jacobian_suffix)
+
+        with open(os.path.join(self.datadir,'precompile_'+proto_file),'w') as handle:
+            handle.write(strr)
+
+        return strr
+        
+    def reindex(self,index,Ntile,Ndim,this_tile):
+        nrow = index // Ndim
+        return index + (Ntile-1)*Ndim*nrow + (Ndim*Ndim*Ntile+Ndim)*this_tile
+
+    def make_string(self,loop_fn,Ntile,prefix,suffix):
+        strr = prefix
+        for this_tile in range(Ntile):
+            strr+=loop_fn(this_tile,Ntile)
+        return strr + suffix
+
+    
+    def make_RK2_file(self,Ntile):
+        strr = ''
+        strr += self.make_string(
+            self.make_RK2_block,
+            Ntile,
+            self.RK2_prefix,
+            self.RK2_suffix)
+
+
+        ## read the file suffix straight
+        ##  from source
+        with open(
+            os.path.join(
+                cuda_dir,
+                'RK2',
+                'kernel_suffix.cu'),
+            'r') as handle:
+
+            for line in handle.readlines():
+                strr+=line
+        
+        ## write out to the precompile directory
+        with open(
+            os.path.join(
+                self.datadir,
+                '%s_preprocess_RK2_kernel.cu'%
+                self.name),'w') as handle:
+            handle.write(strr)
+
+class ODEBase(Precompiler):
     def __init__(
         self,
-        nsteps = 1,
-        Nsystem_tile=1,
-        **kwargs):
+        name,
+        nconst,
+        Neqn_p_sys,
 
+        tnow = 0,
+        tend=1,
+
+        n_integration_steps = 1,
+        n_output_steps=20,
+
+        Nsystem_tile=1,
+        Ntile=1,
+        dumpDebug=False,
+        **kwargs):
+        if len(kwargs):
+            raise KeyError("Unused keys:",list(kwargs.keys()))
+
+        self.name = name
+
+        self.Neqn_p_sys = Neqn_p_sys
+        self.nconst = nconst
+
+        ## integration time variables
+        self.tnow = tnow
+        self.tend = tend
+
+        self.n_integration_steps = n_integration_steps
+        self.n_output_steps = n_output_steps
+
+        self.Nsystem_tile = Nsystem_tile
+        self.Ntile = Ntile
+
+        ## adjust name if we are tiling equations
+        if Ntile >= 1:
+            split_name = self.name.split('_')
+            split_name.append('neqntile_%s'%str(self.Ntile))
+            self.name = '_'.join(split_name)
+            
+        ## adjust name if we are tiling systems
         if Nsystem_tile >= 1:
             split_name = self.name.split('_')
-            new_name = split_name[:-1]
-            new_name.append('nsystem_%s'%str(Nsystem_tile))
-            new_name+= split_name[-1:]
-            self.name = '_'.join(new_name)
+            split_name.append('nsystemtile_%s'%str(Nsystem_tile))
+            self.name = '_'.join(split_name)
 
-        if nsteps > 1:
+        ## adjust name if we are using fixed integration steps
+        if n_integration_steps >= 1:
             split_name = self.name.split('_')
-            new_name = split_name[:-1]
-            new_name.append('fixed_%s'%str(nsteps))
-            new_name+= split_name[-1:]
-            self.name = '_'.join(new_name)
+            split_name.append('fixed_%s'%str(n_integration_steps))
+            self.name = '_'.join(split_name)
 
+        ## now that we have our name figure out where we're saving our
+        ##  data to
         this_dir = __file__
         #/path/to/wind/python/ode_systems
         for iter in range(3):
@@ -38,15 +190,58 @@ class ODEBase(object):
             os.mkdir(self.datadir)
 
         self.h5name = os.path.join(self.datadir,self.name+'.hdf5')
-        self.n_integration_steps = nsteps
-        #self.dumpToCDebugInput()
 
-        self.Nsystem_tile = Nsystem_tile
-        if Nsystem_tile > 1:
-            self.equations = np.tile(self.equations,Nsystem_tile)
-            self.constants = np.tile(self.constants,Nsystem_tile)
-            self.eqmss = np.tile(self.eqmss,Nsystem_tile)
-            self.Nsystems*=Nsystem_tile
+        ## initialize equations and constants
+        self.equations = self.init_equations()
+        self.constants = self.init_constants()
+        self.eqmss = self.calculate_eqmss()
+
+        self.Nsystems = int(
+            self.equations.shape[0]//self.Neqn_p_sys)
+    
+        ## deal with any tiling
+        self.tileSystems()
+        self.tileEquations()
+
+        if dumpDebug:
+            self.dumpToCDebugInput()
+
+        for proto_file in ['ode_system.cu','ode_gold.c','device_dydt.cu']:
+            self.make_ode_file(
+                proto_file,
+                self.Ntile,
+                self.dconstants_string,
+                self.jconstants_string)
+            #self.make_RK2_file(self,self.Ntile)
+
+    def tileSystems(self):
+        self.equations = np.tile(self.equations,self.Nsystem_tile)
+        self.constants = np.tile(self.constants,self.Nsystem_tile)
+        self.eqmss = np.tile(self.eqmss,self.Nsystem_tile)
+        self.Nsystems*=self.Nsystem_tile
+
+    def tileEquations(self):
+        self.orig_Neqn_p_sys = self.Neqn_p_sys
+        self.Neqn_p_sys*=self.Ntile
+
+        ## tile the ICs
+        self.equations = np.concatenate(
+            [np.tile(self.equations[
+                i*self.Neqn_p_sys:
+                (i+1)*self.Neqn_p_sys],
+                self.Ntile)
+            for i in range(self.Nsystems)])
+
+        ## tile the eqmss
+        if self.Ntile > 1:
+            llist = []
+            for i in range(self.Nsystems):
+                foo = np.tile(
+                    self.eqmss[
+                        i*self.Neqn_p_sys//self.Ntile:
+                        (i+1)*self.Neqn_p_sys//self.Ntile],self.Ntile)
+                llist +=[foo]
+            self.eqmss = np.concatenate(llist)
 
     def validate(self):
         self.init_constants()
@@ -62,21 +257,41 @@ class ODEBase(object):
     def init_equations(self):
         raise NotImplementedError
 
-    def calculate_jacobian(self):
-        raise NotImplementedError
+    def calculate_jacobian(self,jacobian_flat=None):
+        if jacobian_flat is None:
+            raise NotImplementedError
+        else:
+            tiled_jacobian_flat = np.zeros(self.Neqn_p_sys**2)
+            ## tile the jacobian to make it block diagonal
+            if self.Ntile > 1:
+                for row_i in range(self.orig_Neqn_p_sys):
+                    this_row = jacobian_flat[
+                            self.orig_Neqn_p_sys*row_i:
+                            self.orig_Neqn_p_sys*(row_i+1)]
+                    for eqntile_i in range(self.Ntile):
+                        ## how many rows should we skip?
+                        offset = (eqntile_i*self.orig_Neqn_p_sys + row_i)
+                        ## how many elements of new jacobian per row
+                        offset*=self.orig_Neqn_p_sys*self.Ntile 
+                        tiled_jacobian_flat[offset:offset+self.orig_Neqn_p_sys] = this_row 
+                jacobian_flat = tiled_jacobian_flat
+            ## indices above are in column major order to match cuBLAS specification
+            return jacobian_flat.reshape(self.Neqn_p_sys,self.Neqn_p_sys).T
 
-    def calculate_derivative(self):
-        raise NotImplementedError
+    def calculate_derivative(self,rates=None):
+        if rates is None:
+            raise NotImplementedError
+        else:
+            ## tile the rates
+            if self.Ntile > 1:
+                rates = np.tile(rates,self.Ntile) 
+            return rates
 
     def calculate_eqmss():
         raise NotImplementedError
 
     def dumpToODECache(self):
         raise NotImplementedError
-
-    def preprocess(self):
-        make_ode_file(self,self.Ntile)
-        make_RK2_file(self,self.Ntile)
 
     derivative_suffix = "}\n"
     jacobian_suffix = "}\n"
@@ -120,7 +335,7 @@ class ODEBase(object):
             nloops+=1
             equations_over_time[nloops]=copy.copy(equations)
 
-        print('final (tcur=%.2f):'%tcur,np.round(equations_over_time.astype(float),3)[-1][:self.Neqn_p_sys])
+        print('final (tcur=%.2f):'%tcur,np.round(equations_over_time.astype(float),5)[-1][:self.Neqn_p_sys])
 
         if output_mode is not None:
         
@@ -135,16 +350,18 @@ class ODEBase(object):
                 group['times'] = times
                 group['nsteps'] = nsteps
                 group['walltimes'] = walltimes
-                print('nsteps:',nsteps)
+        print('nsteps:',nsteps)
         print("total nsteps:",np.sum(nsteps))
 
     def dumpToCDebugInput(self):
+        fname = os.path.join(
+            self.datadir,
+            self.name+'_debug.txt')
         print("writing:",self.Nsystems,
             "systems",self.Neqn_p_sys,
-            "equations per system")
-        with open(os.path.join(
-            self.datadir,
-            self.name+'_debug.txt'),'w') as handle:
+            "equations per system to:",
+            fname)
+        with open(fname,'w') as handle:
             
             handle.write(
                  "float tnow = %s;\n"%str(self.tnow))
@@ -188,8 +405,8 @@ def runCudaIntegrator(
         ctypes.c_float(np.float32(tnow)),
         ctypes.c_float(np.float32(tend)),
         ctypes.c_int(int(n_integration_steps)),
-        constants.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-        equations.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+        constants.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+        equations.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
         ctypes.c_int(Nsystems),
         ctypes.c_int(Nequations_per_system),
         )

@@ -3,6 +3,13 @@
 *.o
 *.pyc
 *.pdf
+*.so
+
+*.txt
 
 input*h
-
+core
+old
+debug_auto.c
+debug
+precompile*

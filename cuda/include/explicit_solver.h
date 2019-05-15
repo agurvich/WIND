@@ -1,2 +1,10 @@
 const int THREAD_BLOCK_LIMIT = 1024;
-__global__ void integrate_rk2(float, float,float, float *, float *, int, int, int *); 
+__global__ void integrateSystem(
+    float, // tnow
+    float, // tend
+    float, // timestep
+    float *, // equations_flat
+    float *, // constants_flat
+    int, // Nsystems
+    int, // Neqn_p_sys
+    int *);  // nsteps

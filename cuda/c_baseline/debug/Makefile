@@ -1,10 +1,6 @@
-
-DEBUGFILE=debug.c
-
 ## Library names
-EXECUTABLE	:= ../lib/sie.so
-ORDER2EXECUTABLE:= ../lib/sie2.so
-
+EXECUTABLE	:= ../lib/rk2_gold.so
+DEBUGFILE=debug.c
 ## libraries to include
 INCLUDE = -I../lib -I../include
 

@@ -2,57 +2,59 @@
 ABSOLUTE_TOLERANCE=5e-3
 RELATIVE_TOLERANCE=5e-3
 
-WINDCONFIG= -DADAPTIVETIMESTEP #-DLOUD
+WINDCONFIG= -DADAPTIVE_TIMESTEP #-DDEBUGBLOCK=0 #-DLOUD
 
 WINDCONFIG+=-DABSOLUTE_TOLERANCE=$(ABSOLUTE_TOLERANCE)
 WINDCONFIG+=-DRELATIVE_TOLERANCE=$(RELATIVE_TOLERANCE)
 
 ## Library names
-EXECUTABLE	:= lib/sie.so
-ORDER2EXECUTABLE:= lib/sie2.so
+SIEEXECUTABLE	:= lib/sie.so
+SIEHOSTEXECUTABLE   := lib/sie_host.so
+RK2EXECUTABLE:= lib/rk2.so
 
 ## Cuda source files (compiled with nvcc)
-CUFILES	:= RK2/harness.cu RK2/kernel.cu linear_algebra/gauss_jordan_elimination.cu
+CUFILES	:= linear_algebra/gauss_jordan_elimination.cu 
 CUFILES+=$(wildcard common_functions/*.cu)
 
 ## which ode system to link to 
-ODEFILE = ode_system.cu
-ODEOBJ =$(ODEFILE:%.cu=%.o) 
+ODEFILE = ode_system/ode_system.cu ode_system/device_dydt.cu
+GOLDODEFILE= ode_system/ode_gold.c
 
 ## compiled object names
-OBJS = $(CUFILES:%.cu=%.o)
-SIEOBJS = SIE/SIE.o SIE/SIE2.o
+COMMONOBJS = $(CUFILES:%.cu=%.o)
+ODEOBJS = $(ODEFILE:%.cu=%.o) 
+SIEHOSTOBJS = SIE_host/harness_kernel.o
+SIEOBJS = SIE/harness.o SIE/sie_kernel.o
+RK2OBJS = RK2/harness.o RK2/rk2_kernel.o
 
 ## compiler flags to make shared object for python
 CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG)
-NVCFLAGS = -shared #-g -G -O0
+NVCFLAGS = -shared -g -G
 
 ## libraries to include
-INCLUDE = -Iinclude -IRK2 -Icommon_functions -Ilinear_algebra##-I/sw/xe/magma/1.5.0/cnl5.2_gnu4.8.2/include
+INCLUDE = -Iinclude -IRK2 -Icommon_functions -Iode_system -Ilinear_algebra
 LIB = -lcublas -lcusolver
 
 BUILDDIR = $(shell pwd)
 
-make: $(CUFILES) $(OBJS) $(SIEOBJS) $(ODEFILE)
-	@## compile the ODE equations
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(ODEOBJ) -c $(ODEFILE);
-	@## link to the first order solver 
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(EXECUTABLE) $(OBJS) $(ODEOBJ) SIE/SIE.o;
-	@## link the the second order solver
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(ORDER2EXECUTABLE) $(OBJS) $(ODEOBJ) SIE/SIE2.o;
-
+#export PRECOMPILE
+make: $(c) $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(SIEHOSTOBJS) $(ODEOBJS)
+	@echo $(ODEOBJS)
+	@## link common objs and ode obj to the 1st order semi-implicit solver 
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(SIEEXECUTABLE) $(COMMONOBJS) $(ODEOBJS) $(SIEOBJS);
+	@## link common objs and ode obj to the 1st order semi-implicit that is host-locked
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(SIEHOSTEXECUTABLE) $(COMMONOBJS) $(ODEOBJS) $(SIEHOSTOBJS);
+	@## link common objs and ode obj to the 2nd order explicit solver 
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(RK2EXECUTABLE) $(COMMONOBJS) $(ODEOBJS) $(RK2OBJS);
+	cd c_baseline;make
 %.o: %.cu
-	@## compile this guy
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $@ -c $<;
+	@#echo compiling $@ from $<
+	@## compile this source file to object
+	nvcc $(NVCFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 $(INCLUDE) $(LIB) -o $@ $<;
 
-SIE/SIE2.o: SIE/SIE_harness.cu
-	@## compile SIM by passing -MIDPOINT define flag
-	nvcc $(NVCFLAGS) $(CFLAGS) -DMIDPOINT -arch=sm_35 $(INCLUDE) $(LIB) -o $@ -c $<;
-
+preclean:
+	rm ode_system/precompile_ode_system.o ode_system/precompile_device_dydt.o
+	cd c_baseline;make preclean
 clean: 
-	rm $(OBJS)
-	rm $(SIEOBJS)
-	rm $(EXECUTABLE)
-	rm $(ORDER2EXECUTABLE)
-	rm *.*o 
-	rm lib/*.*o
+	rm $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(SIEHOSTOBJS) $(ODEOBJS) $(SIEEXECUTABLE) $(RK2EXECUTABLE) $(SIEHOSTEXECUTABLE)
+	cd c_baseline;make clean
