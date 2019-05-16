@@ -100,5 +100,6 @@ int integrateSystem(
         }
     }
 
+    free(y1);free(y2);free(dydt);
     return nsteps;
 } 

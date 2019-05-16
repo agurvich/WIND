@@ -138,6 +138,8 @@ int goldIntegrateSystem(
             Neqn_p_sys);
     }
     
+    free(Jacobian);
+    free(inverse);
     // return how many steps were taken
     return nloops;
 } // goldIntegrateSystem

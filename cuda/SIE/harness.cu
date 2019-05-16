@@ -85,6 +85,11 @@ int cudaIntegrateSystem(
     // free up the memory on the device
     cudaFree(constantsDevice);
     cudaFree(equationsDevice);
+    cudaFree(JacobiansDevice);
+    cudaFree(inversesDevice);
+    cudaFree(tendDevice);
+    cudaFree(tnowDevice);
+    cudaFree(nloopsDevice);
 
     // return how many steps were taken
     return nloops;
