@@ -43,6 +43,7 @@ __device__ float rk2_innerstep(
         timestep = fmin(tstop - tnow, timestep);
 
         //calculate the derivative for this equation
+        __syncthreads();
         dydt = calculate_dydt(
             tnow,
             constants,
@@ -51,8 +52,8 @@ __device__ float rk2_innerstep(
         // update value of temporary equations
         shared_temp_equations[threadIdx.x] += timestep*dydt;
         tnow+=timestep;
-
     } // while(tnow < tstop)
+    __syncthreads();
     return shared_temp_equations[threadIdx.x];
 }// rk2_innerstep
 
@@ -98,6 +99,7 @@ __global__ void integrateSystem(
             timestep = fmin(tend-tnow,timestep);
 
             // now reset the temporary equations
+            __syncthreads();
             shared_temp_equations[threadIdx.x] = shared_equations[threadIdx.x];
             __syncthreads();
 
@@ -171,9 +173,6 @@ __global__ void integrateSystem(
                 timestep*=2;
 #endif
             }// if shared_error_flag -> else
-
-            __syncthreads();
-
         }// while tnow < tend
 
         // copy the y values back to global memory

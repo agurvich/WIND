@@ -163,9 +163,11 @@ __global__ void integrateSystem(
         //printf("%d thread %d block\n",threadIdx.x,blockIdx.x);
         while (tnow < tend){
             this_nsteps+=3;
+
             // make sure we don't overintegrate
             timestep = fmin(tend-tnow,timestep);
             // save this to reset the value before calculating y2
+            __syncthreads();
             current_y = shared_equations[threadIdx.x];
             // shared_equations will have the y2 value 
             //  saved in it from the previous loop
