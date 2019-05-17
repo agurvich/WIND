@@ -1,11 +1,11 @@
 ## WIND Configuration Options
-ABSOLUTE_TOLERANCE=5e-3
-RELATIVE_TOLERANCE=5e-3
+ABSOLUTE=5e-3
+RELATIVE=5e-3
 
 WINDCONFIG= -DADAPTIVE_TIMESTEP #-DDEBUGBLOCK=0 #-DLOUD
-
-WINDCONFIG+=-DABSOLUTE_TOLERANCE=$(ABSOLUTE_TOLERANCE)
-WINDCONFIG+=-DRELATIVE_TOLERANCE=$(RELATIVE_TOLERANCE)
+WINDCONFIG+=-DABSOLUTE_TOLERANCE=$(ABSOLUTE)
+WINDCONFIG+=-DRELATIVE_TOLERANCE=$(RELATIVE)
+export WINDCONFIG
 
 ## Library names
 SIEEXECUTABLE	:= lib/sie.so
@@ -29,7 +29,7 @@ RK2OBJS = RK2/harness.o RK2/rk2_kernel.o
 
 ## compiler flags to make shared object for python
 CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG)
-NVCFLAGS = -shared -g -G
+NVCFLAGS = -shared -O3 #-g -G
 
 ## libraries to include
 INCLUDE = -Iinclude -IRK2 -Icommon_functions -Iode_system -Ilinear_algebra
