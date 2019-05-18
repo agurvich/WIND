@@ -53,7 +53,6 @@ __device__ float rk2_innerstep(
         shared_temp_equations[threadIdx.x] += timestep*dydt;
         tnow+=timestep;
     } // while(tnow < tstop)
-    __syncthreads();
     return shared_temp_equations[threadIdx.x];
 }// rk2_innerstep
 
@@ -88,6 +87,7 @@ __global__ void integrateSystem(
     // ensure thread within limit
     if (tid < Nsystems*Nequations_per_system ) {
         // copy the y values to shared memory
+
         shared_equations[threadIdx.x] = equations[tid];
         *shared_error_flag = 0;
         __syncthreads();
@@ -99,7 +99,6 @@ __global__ void integrateSystem(
             timestep = fmin(tend-tnow,timestep);
 
             // now reset the temporary equations
-            __syncthreads();
             shared_temp_equations[threadIdx.x] = shared_equations[threadIdx.x];
             __syncthreads();
 
@@ -146,9 +145,9 @@ __global__ void integrateSystem(
 #endif
 
 #ifdef ADAPTIVE_TIMESTEP
+            // has a syncthreads in it
             checkError(y1,y2,shared_error_flag); 
 #endif
-
             if (*shared_error_flag){
                 // refine and start over
                 timestep/=2;
@@ -159,13 +158,13 @@ __global__ void integrateSystem(
                 // accept this step and update the shared array
                 //  using local extrapolation (see NR e:17.2.3)
                 shared_equations[threadIdx.x] = 2*y2-y1;
+                __syncthreads();
 
 /*
                 if (threadIdx.x==0 && blockIdx.x==3){
                     printf("tnow: %.4f timestep: %.4f nsteps: %d bid: %d\n",tnow,timestep,this_nsteps,blockIdx.x);
                 }
 */
-
                 tnow+=timestep;
 
 #ifdef ADAPTIVE_TIMESTEP

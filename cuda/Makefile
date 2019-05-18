@@ -29,7 +29,7 @@ RK2OBJS = RK2/harness.o RK2/rk2_kernel.o
 
 ## compiler flags to make shared object for python
 CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG)
-NVCFLAGS = -shared -O3 #-g -G
+NVCFLAGS = -shared -g -G #-O3 #
 
 ## libraries to include
 INCLUDE = -Iinclude -IRK2 -Icommon_functions -Iode_system -Ilinear_algebra

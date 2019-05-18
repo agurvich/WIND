@@ -17,7 +17,7 @@ int cudaIntegrateSystem(
 
     // copy the arrays over to the device
     int Nequations = Nsystems*Nequations_per_system;
-    int equations_size = Nequations*sizeof(float);
+    long equations_size = Nequations*sizeof(float);
 
     float *constantsDevice;
     cudaMalloc((void**)&constantsDevice, Nsystems*NUM_CONST*sizeof(float)); 
