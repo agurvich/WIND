@@ -8,4 +8,4 @@
 bash shell_scripts/precompile_system.sh "${@:1}"
 
 ## actually run the thing
-#python wind_harness.py  --system_name=${1} --Ntile=${2} --Nsystem_tile=${3} --n_integration_steps=${4} "${@:5}"
+#python wind_harness.py  --system_name=${1} --Ntile=${2} --Nsystem_tile=${3} --n_integration_steps=${4} --absolute=${5} --relative=${6} "${@:7}"

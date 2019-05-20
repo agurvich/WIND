@@ -9,7 +9,9 @@ int cudaIntegrateSystem(
     float * constants, // the constants for each system
     float * equations, // a flattened array containing the y value for each equation in each system
     int Nsystems, // the number of systems
-    int Nequations_per_system){ // the number of equations in each system
+    int Nequations_per_system,// the number of equations in each system
+    float ABSOLUTE, // the absolute tolerance
+    float RELATIVE){ // the relative tolerance
 
 #ifdef LOUD
     printf("SIE Received %d systems, %d equations per system\n",Nsystems,Nequations_per_system);
@@ -17,7 +19,7 @@ int cudaIntegrateSystem(
 
     // copy the arrays over to the device
     int Nequations = Nsystems*Nequations_per_system;
-    int equations_size = Nequations*sizeof(float);
+    long equations_size = Nequations*sizeof(float);
 
     float *constantsDevice;
     cudaMalloc((void**)&constantsDevice, Nsystems*NUM_CONST*sizeof(float)); 
@@ -75,7 +77,8 @@ int cudaIntegrateSystem(
         constantsDevice,equationsDevice,
         JacobiansDevice,inversesDevice,
         Nsystems,Nequations_per_system,
-        nloopsDevice);
+        nloopsDevice,
+        ABSOLUTE,RELATIVE);
     
     // copy the new state back
     cudaMemcpy(equations, equationsDevice, equations_size, cudaMemcpyDeviceToHost ); 
@@ -85,6 +88,11 @@ int cudaIntegrateSystem(
     // free up the memory on the device
     cudaFree(constantsDevice);
     cudaFree(equationsDevice);
+    cudaFree(JacobiansDevice);
+    cudaFree(inversesDevice);
+    cudaFree(tendDevice);
+    cudaFree(tnowDevice);
+    cudaFree(nloopsDevice);
 
     // return how many steps were taken
     return nloops;

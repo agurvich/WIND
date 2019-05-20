@@ -6,19 +6,22 @@
 #include "linear_algebra.h"
 #include "ode.h"
 
-__device__ void checkError(float y1, float y2, int * shared_error_flag){
+__device__ void checkError(
+    float y1, float y2,
+    int * shared_error_flag,
+    float ABSOLUTE, float RELATIVE){
     // determine if any equation is above the absolute or relative tolerances
     float abs_error = fabs(y2 - y1);
-    if(abs_error > ABSOLUTE_TOLERANCE){
+    if(abs_error > ABSOLUTE){
         *shared_error_flag = 1;
 #ifdef LOUD
         printf("%d absolute failed: %.2e\n",threadIdx.x,abs_error);
 #endif
     }
     float rel_error = fabs((y2-y1)/(y2+1e-12));
-    if(rel_error > RELATIVE_TOLERANCE && 
-        fabs(y1) > ABSOLUTE_TOLERANCE &&
-        fabs(y2) > ABSOLUTE_TOLERANCE){
+    if(rel_error > RELATIVE && 
+        fabs(y1) > ABSOLUTE &&
+        fabs(y2) > ABSOLUTE){
         *shared_error_flag = 1;
 #ifdef LOUD
         printf("%d relative failed: %.2e\n",threadIdx.x,rel_error);
@@ -130,7 +133,9 @@ __global__ void integrateSystem(
     float * inverses,
     int Nsystems, // the number of systems
     int Nequations_per_system,
-    int * nsteps){ // the number of equations in each system
+    int * nsteps, // the number of equations in each system
+    float ABSOLUTE, // the absolute tolerance
+    float RELATIVE){  // the relative tolerance
 
     // unique thread ID , based on local ID in block and block ID
     int tid = threadIdx.x + ( blockDim.x * blockIdx.x);
@@ -163,9 +168,11 @@ __global__ void integrateSystem(
         //printf("%d thread %d block\n",threadIdx.x,blockIdx.x);
         while (tnow < tend){
             this_nsteps+=3;
+
             // make sure we don't overintegrate
             timestep = fmin(tend-tnow,timestep);
             // save this to reset the value before calculating y2
+            __syncthreads();
             current_y = shared_equations[threadIdx.x];
             // shared_equations will have the y2 value 
             //  saved in it from the previous loop
@@ -222,7 +229,10 @@ __global__ void integrateSystem(
 #endif
 
 #ifdef ADAPTIVE_TIMESTEP
-            checkError(y1,y2,shared_error_flag); 
+            checkError(
+                y1,y2,
+                shared_error_flag,
+                ABSOLUTE,RELATIVE); 
 #endif
 
             if (*shared_error_flag){

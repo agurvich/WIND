@@ -5,19 +5,23 @@
 #include "device.h"
 #include "ode.h"
 
-__device__ void checkError(float y1, float y2, int * shared_error_flag){
+__device__ void checkError(
+    float y1, float y2, 
+    int * shared_error_flag,
+    float ABSOLUTE,
+    float RELATIVE){
     // determine if any equation is above the absolute or relative tolerances
     float abs_error = fabs(y2 - y1);
-    if(abs_error > ABSOLUTE_TOLERANCE){
+    if(abs_error > ABSOLUTE){
         *shared_error_flag = 1;
 #ifdef LOUD
         printf("%d absolute failed: %.2e\n",threadIdx.x,abs_error);
 #endif
     }
     float rel_error = fabs((y2-y1)/(2*y2-y1+1e-12));
-    if(rel_error > RELATIVE_TOLERANCE &&
-        y1 > ABSOLUTE_TOLERANCE &&
-        y2 > ABSOLUTE_TOLERANCE){
+    if(rel_error > RELATIVE &&
+        y1 > ABSOLUTE &&
+        y2 > ABSOLUTE){
         *shared_error_flag = 1;
 #ifdef LOUD
         printf("%d relative failed: %.2e\n",threadIdx.x,rel_error);
@@ -43,6 +47,7 @@ __device__ float rk2_innerstep(
         timestep = fmin(tstop - tnow, timestep);
 
         //calculate the derivative for this equation
+        __syncthreads();
         dydt = calculate_dydt(
             tnow,
             constants,
@@ -51,7 +56,6 @@ __device__ float rk2_innerstep(
         // update value of temporary equations
         shared_temp_equations[threadIdx.x] += timestep*dydt;
         tnow+=timestep;
-
     } // while(tnow < tstop)
     return shared_temp_equations[threadIdx.x];
 }// rk2_innerstep
@@ -64,7 +68,9 @@ __global__ void integrateSystem(
     float * equations, // a flattened array containing the y value for each equation in each system
     int Nsystems, // the number of systems
     int Nequations_per_system,
-    int * nsteps){ // the number of equations in each system
+    int * nsteps, // the number of equations in each system
+    float ABSOLUTE, // the absolute tolerance
+    float RELATIVE){  // the relative tolerance
 
     // unique thread ID , based on local ID in block and block ID
     int tid = threadIdx.x + ( blockDim.x * blockIdx.x);
@@ -87,6 +93,7 @@ __global__ void integrateSystem(
     // ensure thread within limit
     if (tid < Nsystems*Nequations_per_system ) {
         // copy the y values to shared memory
+
         shared_equations[threadIdx.x] = equations[tid];
         *shared_error_flag = 0;
         __syncthreads();
@@ -106,7 +113,7 @@ __global__ void integrateSystem(
                 1,
                 constants,
                 shared_temp_equations,
-                Nsystems, Nequations_per_system );
+                Nsystems, Nequations_per_system);
 
 #ifdef DEBUGBLOCK
             if (threadIdx.x==0 && blockIdx.x==DEBUGBLOCK){
@@ -144,9 +151,12 @@ __global__ void integrateSystem(
 #endif
 
 #ifdef ADAPTIVE_TIMESTEP
-            checkError(y1,y2,shared_error_flag); 
+            // has a syncthreads in it
+            checkError(
+                y1,y2,
+                shared_error_flag,
+                ABSOLUTE,RELATIVE); 
 #endif
-
             if (*shared_error_flag){
                 // refine and start over
                 timestep/=2;
@@ -157,13 +167,13 @@ __global__ void integrateSystem(
                 // accept this step and update the shared array
                 //  using local extrapolation (see NR e:17.2.3)
                 shared_equations[threadIdx.x] = 2*y2-y1;
+                __syncthreads();
 
 /*
                 if (threadIdx.x==0 && blockIdx.x==3){
                     printf("tnow: %.4f timestep: %.4f nsteps: %d bid: %d\n",tnow,timestep,this_nsteps,blockIdx.x);
                 }
 */
-
                 tnow+=timestep;
 
 #ifdef ADAPTIVE_TIMESTEP
@@ -171,9 +181,6 @@ __global__ void integrateSystem(
                 timestep*=2;
 #endif
             }// if shared_error_flag -> else
-
-            __syncthreads();
-
         }// while tnow < tend
 
         // copy the y values back to global memory

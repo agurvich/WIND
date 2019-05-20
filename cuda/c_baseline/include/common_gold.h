@@ -25,7 +25,9 @@ int take_step(
 int checkError(
     float *,// y1,
     float *,// y2,
-    int);// Neqn_p_sys);
+    int,// Neqn_p_sys);
+    float, //absolute
+    float); //relative
 
 
 int integrateSystem(
@@ -38,4 +40,6 @@ int integrateSystem(
     float *,// jacobians_flat, // NULL for rk2
     float *,// inverses_flat, // NULL for rk2
 
-    int); //Neqn_p_sys);
+    int, //Neqn_p_sys);
+    float, // absolute
+    float); // relative
