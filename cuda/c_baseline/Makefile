@@ -22,7 +22,7 @@ LINEARALGEBRAOBJS=$(LINEARALGEBRAFILES:%.c=%.o)
 
 INCLUDE= -Ilinear_algebra -I. -I../ode_system -Iinclude -Icommon -I../include
 
-CFLAGS=-shared -fPIC -std=c99 -g #-O3 
+CFLAGS=-shared -fPIC -std=c99 -O3 #-g #
 
 make: $(COMMONOBJS) $(GOLDODEOBJS) $(LINEARALGEBRAOBJS)
 	gcc $(CFLAGS) $(WINDCONFIG) $(INCLUDE) -o $(RK2EXECUTABLE) $(COMMONOBJS) $(GOLDODEOBJS) $(RK2FILE)
