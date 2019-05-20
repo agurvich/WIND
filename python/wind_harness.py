@@ -19,19 +19,19 @@ def loadCLibraries():
     exec_call = os.path.join(curdir,"cuda","lib","sie_host.so")
     c_obj = ctypes.CDLL(exec_call)
     cublas_init = getattr(c_obj,"_Z26initializeCublasExternallyv")
-    c_cudaIntegrateSIEhost = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_ii")
+    c_cudaIntegrateSIEhost = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_iiff")
 
 
     ## find the first order solver shared object library that is host-locked
     exec_call = os.path.join(curdir,"cuda","lib","sie.so")
     c_obj = ctypes.CDLL(exec_call)
-    c_cudaIntegrateSIE = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_ii")
+    c_cudaIntegrateSIE = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_iiff")
 
     ## get the second order library
     ##  cuda
     exec_call = os.path.join(curdir,"cuda","lib","rk2.so")
     c_obj = ctypes.CDLL(exec_call)
-    c_cudaIntegrateRK2 = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_ii")
+    c_cudaIntegrateRK2 = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_iiff")
 
 
     ##  c gold standard for RK2
@@ -206,21 +206,8 @@ def main(
                 group['walltimes'] = my_driver.walltimes
 
         output_mode = 'a'
-
-    with h5py.File(system.h5name,'a') as handle:
-        handle.attrs['Nsystems'] = system.Nsystems
-        handle.attrs['Nequations_per_system'] = system.Neqn_p_sys
-        handle.attrs['equation_labels'] = system.eqn_labels
-        try:
-            group = handle.create_group('Equilibrium')
-        except:
-            del handle['Equilibrium']
-            group = handle.create_group('Equilibrium')
-            print("overwriting: Equilibrium")
-        
-        ## dump equilibrium to group and system config info
-        system.dumpToODECache(group)
-        
+     
+    system.dumpToODECache()
     if makeplots:
         system.make_plots()
 
@@ -236,7 +223,9 @@ if __name__ == '__main__':
         'system_name=',
         'makeplots=',
         'Ntile=','Nsystem_tile=',
-        'dumpDebug='])
+        'dumpDebug=',
+        'absolute=',
+        'relative='])
 
     #options:
     #--snap(low/high) : snapshot numbers to loop through

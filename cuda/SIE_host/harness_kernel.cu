@@ -259,7 +259,9 @@ int errorLoop(
     float * d_half_current_state_flat,
     float * d_constants,
     int Nsystems, // number of systems
-    int Neqn_p_sys){
+    int Neqn_p_sys,
+    float ABSOLUTE,
+    float RELATIVE){
 
     int * error_flag = (int *) malloc(sizeof(int));
     int * d_error_flag;
@@ -342,7 +344,7 @@ int errorLoop(
 #ifdef useCUDA
         checkError<<<vector_gridDim,threads_per_block>>>(
             d_current_state_flat,d_half_current_state_flat,d_error_flag,
-            Nsystems,Neqn_p_sys);
+            Nsystems,Neqn_p_sys,ABSOLUTE,RELATIVE);
 
         // copy back the bool flag and determine if we done did it
         cudaMemcpy(error_flag,d_error_flag,sizeof(int),cudaMemcpyDeviceToHost);
@@ -426,7 +428,9 @@ int cudaIntegrateSIE(
     float * constants, // the constants for each system
     float * equations, // a flattened array containing the y value for each equation in each system
     int Nsystems, // the number of systems
-    int Neqn_p_sys){ // the number of equations in each system
+    int Neqn_p_sys,
+    float ABSOLUTE,
+    float RELATIVE){ // the number of equations in each system
 
 #ifdef LOUD
     printf("SIE Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
@@ -501,7 +505,9 @@ int cudaIntegrateSIE(
         d_half_current_state_flat,
         d_constants,
         Nsystems, // number of systems
-        Neqn_p_sys);
+        Neqn_p_sys,
+        ABSOLUTE,
+        RELATIVE);
     
 #ifdef LOUD
     printf("nsteps taken: %d - tnow: %.2f\n",nsteps,tend);

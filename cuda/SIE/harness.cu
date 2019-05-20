@@ -9,7 +9,9 @@ int cudaIntegrateSystem(
     float * constants, // the constants for each system
     float * equations, // a flattened array containing the y value for each equation in each system
     int Nsystems, // the number of systems
-    int Nequations_per_system){ // the number of equations in each system
+    int Nequations_per_system,// the number of equations in each system
+    float ABSOLUTE, // the absolute tolerance
+    float RELATIVE){ // the relative tolerance
 
 #ifdef LOUD
     printf("SIE Received %d systems, %d equations per system\n",Nsystems,Nequations_per_system);
@@ -75,7 +77,8 @@ int cudaIntegrateSystem(
         constantsDevice,equationsDevice,
         JacobiansDevice,inversesDevice,
         Nsystems,Nequations_per_system,
-        nloopsDevice);
+        nloopsDevice,
+        ABSOLUTE,RELATIVE);
     
     // copy the new state back
     cudaMemcpy(equations, equationsDevice, equations_size, cudaMemcpyDeviceToHost ); 

@@ -9,5 +9,7 @@ __global__ void integrateSystem(
     float *, // Inverses_flat 
     int, // Nsystems
     int, // Neqn_p_sys
-    int *);  // nsteps
+    int *,// nsteps
+    float, // absolute tolerance
+    float); // absolute_tolerance
  

@@ -8,49 +8,62 @@ Nstepss=(1 5 10 15 20 25 30 40 45 50 100 200 500)
 ## have to recompile in fixed step mode
 n_integration_steps=1
 
-absolutes=('5e-3' '1e-3' '5e-4' '1e-4')
-relatives=('5e-4' '1e-4' '5e-3' '1e-3') # 
+absolutes=('5e-3') #'1e-3' '5e-4' '1e-4')
+relatives=('5e-4') # '1e-4' '5e-3' '1e-3') # 
 
-for ABSOLUTE in "${absolutes[@]}"
+## TODO this must be ../data, should fix that...
+maindata=../data
+## make the final directory for all the files in this grid
+if [ ! -d ${maindata} ]
+    then
+    mkdir ${maindata}
+fi
+
+function changenamedatadir(){
+    ind=`expr index ${5} -`
+    abs_string=${5:0:ind-1}${5:ind}
+    ind=`expr index ${6} -`
+    rel_string=${6:0:ind-1}${6:ind}
+    export NAME=${1}_neqntile.${2}_nsystemtile.${3}_fixed.${4}_abs.${abs_string}_rel.${rel_string}
+    export DATADIR=${maindata}/${NAME}
+}
+
+for Ntile in "${Ntiles[@]}"
 do
-    for RELATIVE in "${relatives[@]}"
+    echo "Making a tempory directory to produce precompile files..."
+    ## 2 -> dummy value for ${n_integration_steps} that should never overlap
+    changenamedatadir ${SYSTEM_NAME} ${Ntile} ${Nsystem_tiles[0]} 2 ${absolutes[0]} ${relatives[0]}
+    ## compile the new system for this Neqn_tile
+    bash shell_scripts/precompile_system.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tiles[0]} 2 ${absolutes[0]} ${relatives[0]} true false 
+    ## i feel a little better by moving it before automated-ly rm'ing it
+    mv ${DATADIR} ${maindata}/trash
+    rm -r ${maindata}/trash
+    echo "...done with temporary directory"
+
+    for ABSOLUTE in "${absolutes[@]}"
     do
-        ## overwrite and make them match, seems more stable that way
-        ##RELATIVE=${ABSOLUTE}
-
-        ## make the final directory for all the files in this grid
-        maindata=../data/data_${ABSOLUTE:0:2}${ABSOLUTE:3}_${RELATIVE:0:2}${RELATIVE:3}
-        if [ ! -d ${maindata} ]
-            then
-            mkdir ${maindata}
-        fi
-
-        ## compile the support files as well as the common files-- second true makes clean
-        bash shell_scripts/precompile_system.sh ${SYSTEM_NAME} ${Ntiles[0]} ${Nsystem_tiles[0]} ${n_integration_steps} true  true ${ABSOLUTE} ${RELATIVE}
-        for Ntile in "${Ntiles[@]}"
+        for RELATIVE in "${relatives[@]}"
         do
-            ## compile the new system for this Neqn_tile
-            bash shell_scripts/precompile_system.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tiles[0]} ${n_integration_steps} true  false ${ABSOLUTE} ${RELATIVE}
             for Nsystem_tile in "${Nsystem_tiles[@]}"
             do
-                NAME=${SYSTEM_NAME}_neqntile_${Ntile}_nsystemtile_${Nsystem_tile}_fixed_${n_integration_steps} 
-                DATADIR=${maindata}/${NAME}
+                changenamedatadir ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} ${ABSOLUTE} ${RELATIVE}
                 if [ ! -d ${DATADIR} ]
                     then
-                    bash shell_scripts/precompile_system.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} false false ${ABSOLUTE} ${RELATIVE}
-                    echo  ${NAME} not found in ${DATADIR}
+                    echo  ${NAME} not found in ${maindata}
+                    ## create the datadir
+                    bash shell_scripts/precompile_system.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} ${ABSOLUTE} ${RELATIVE} false false 
                     ## run SIE on the gpu with memory profiling
-                    bash profiling_tools/memory_profile.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} --SIE=True "${@:2}"
+                    bash profiling_tools/memory_profile.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} ${ABSOLUTE} ${RELATIVE} --SIE=True "${@:1}"
                     ## run RK2 on the gpu with memory profiling
-                    bash profiling_tools/memory_profile.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} --RK2=True "${@:2}"
+                    bash profiling_tools/memory_profile.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} ${ABSOLUTE} ${RELATIVE} --RK2=True "${@:1}"
                     ## run SIE on the cpu with memory profiling
-                    bash profiling_tools/python_memory_profile.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} --SIE=True --gold=True "${@:2}"
+                    bash profiling_tools/python_memory_profile.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} ${ABSOLUTE} ${RELATIVE} --SIE=True --gold=True "${@:1}"
                     ## run RK2 on the cpu with memory profiling
-                    bash profiling_tools/python_memory_profile.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} --RK2=True --gold=True "${@:2}"
-                    ## move this file to where it belongs
-                    mv ../data/${NAME} ${maindata}
+                    bash profiling_tools/python_memory_profile.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} ${ABSOLUTE} ${RELATIVE} --RK2=True --gold=True "${@:1}"
+                else
+                    echo "Nothing to do for" ${NAME}
                 fi
             done ## for Nsystem_tile
-        done ## for Ntile
-    done ## for RELATIVE
-done ## for ABSOLUTE
+        done ## for RELATIVE
+    done ## for ABSOLUTE
+done ## for Ntile

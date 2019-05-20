@@ -9,6 +9,7 @@ from ode_systems.ode_base import ODEBase
 
 import odecache
 import warnings
+import h5py
 
 class NR_test(ODEBase):
 
@@ -75,10 +76,19 @@ class NR_test(ODEBase):
         ]),self.Ntile)
         return eqmss
     
-    def dumpToODECache(self,group=None):
-        if group is None:
-            return
-        group['eqmss'] = self.eqmss.reshape(self.Nsystems,self.Neqn_p_sys)
+    def dumpToODECache(self):
+        with h5py.File(self.h5name,'a') as handle:  
+            try:
+                group = handle.create_group('Equilibrium')
+            except:
+                del handle['Equilibrium']
+                group = handle.create_group('Equilibrium')
+                print("overwriting: Equilibrium")
+
+            group['eqmss'] = self.eqmss.reshape(self.Nsystems,self.Neqn_p_sys)
+
+            ## call the base class method
+            super().dumpToODECache(handle)
 
     def make_plots(self):
         print("Making plots to ../plots")

@@ -45,21 +45,22 @@ __global__ void addVectors(
 __global__ void checkError(
     float * v1, float * v2,
     int * bool_flag,
-    int Nsystems, int Neqn_p_sys){
+    int Nsystems, int Neqn_p_sys,
+    float ABSOLUTE, float RELATIVE){
     // replace the values of v1 with the error
     int tid = get_vector_tid();
     if (tid < Nsystems*Neqn_p_sys){
         float abs_error = fabs(v1[tid]-v2[tid]);
 
-        if (abs_error > ABSOLUTE_TOLERANCE){
+        if (abs_error > ABSOLUTE){
 #ifdef LOUD
             printf("ABSOLUTE %d %.2e v1 %.2e v2 \n",tid,v1[tid],v2[tid]);
 #endif
             *bool_flag = 1;
         }
-        if (fabs((v1[tid]-v2[tid])/(v2[tid]+1e-12)) > RELATIVE_TOLERANCE && 
-            v1[tid] > ABSOLUTE_TOLERANCE &&
-            v2[tid] > ABSOLUTE_TOLERANCE){
+        if (fabs((v1[tid]-v2[tid])/(v2[tid]+1e-12)) > RELATIVE && 
+            v1[tid] > ABSOLUTE &&
+            v2[tid] > ABSOLUTE){
 #ifdef LOUD
             printf("RELATIVE %d %.2e\n",tid,v1[tid]/v2[tid]);
 #endif
@@ -90,14 +91,14 @@ __global__ void updateTimestep(
     float * scale_factor,
     int * max_index){
     // changes the value of the pointer in global memory on the device without copying back the derivatives
-    //float ABSOLUTE_TOLERANCE = 1e-4;
+    //float ABSOLUTE = 1e-4;
     // -1 because cublas is 1 index. whyyyy
     /*
-    if ( derivatives_flat[*max_index-1] < 1000*ABSOLUTE_TOLERANCE){
-        *timestep = 1000*ABSOLUTE_TOLERANCE;
+    if ( derivatives_flat[*max_index-1] < 1000*ABSOLUTE){
+        *timestep = 1000*ABSOLUTE;
     }
     else{
-        *timestep = ABSOLUTE_TOLERANCE/derivatives_flat[*max_index-1];
+        *timestep = ABSOLUTE/derivatives_flat[*max_index-1];
     }
     */
     *timestep = 1 * (*scale_factor);

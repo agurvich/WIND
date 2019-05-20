@@ -7,4 +7,6 @@ __global__ void integrateSystem(
     float *, // constants_flat
     int, // Nsystems
     int, // Neqn_p_sys
-    int *);  // nsteps
+    int *,  // nsteps
+    float,// absolute tolerance
+    float); // relative tolerance

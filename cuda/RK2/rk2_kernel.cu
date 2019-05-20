@@ -5,19 +5,23 @@
 #include "device.h"
 #include "ode.h"
 
-__device__ void checkError(float y1, float y2, int * shared_error_flag){
+__device__ void checkError(
+    float y1, float y2, 
+    int * shared_error_flag,
+    float ABSOLUTE,
+    float RELATIVE){
     // determine if any equation is above the absolute or relative tolerances
     float abs_error = fabs(y2 - y1);
-    if(abs_error > ABSOLUTE_TOLERANCE){
+    if(abs_error > ABSOLUTE){
         *shared_error_flag = 1;
 #ifdef LOUD
         printf("%d absolute failed: %.2e\n",threadIdx.x,abs_error);
 #endif
     }
     float rel_error = fabs((y2-y1)/(2*y2-y1+1e-12));
-    if(rel_error > RELATIVE_TOLERANCE &&
-        y1 > ABSOLUTE_TOLERANCE &&
-        y2 > ABSOLUTE_TOLERANCE){
+    if(rel_error > RELATIVE &&
+        y1 > ABSOLUTE &&
+        y2 > ABSOLUTE){
         *shared_error_flag = 1;
 #ifdef LOUD
         printf("%d relative failed: %.2e\n",threadIdx.x,rel_error);
@@ -64,7 +68,9 @@ __global__ void integrateSystem(
     float * equations, // a flattened array containing the y value for each equation in each system
     int Nsystems, // the number of systems
     int Nequations_per_system,
-    int * nsteps){ // the number of equations in each system
+    int * nsteps, // the number of equations in each system
+    float ABSOLUTE, // the absolute tolerance
+    float RELATIVE){  // the relative tolerance
 
     // unique thread ID , based on local ID in block and block ID
     int tid = threadIdx.x + ( blockDim.x * blockIdx.x);
@@ -107,7 +113,7 @@ __global__ void integrateSystem(
                 1,
                 constants,
                 shared_temp_equations,
-                Nsystems, Nequations_per_system );
+                Nsystems, Nequations_per_system);
 
 #ifdef DEBUGBLOCK
             if (threadIdx.x==0 && blockIdx.x==DEBUGBLOCK){
@@ -146,7 +152,10 @@ __global__ void integrateSystem(
 
 #ifdef ADAPTIVE_TIMESTEP
             // has a syncthreads in it
-            checkError(y1,y2,shared_error_flag); 
+            checkError(
+                y1,y2,
+                shared_error_flag,
+                ABSOLUTE,RELATIVE); 
 #endif
             if (*shared_error_flag){
                 // refine and start over

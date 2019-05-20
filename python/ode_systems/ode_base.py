@@ -11,8 +11,7 @@ cuda_dir = os.path.realpath(__file__)
 for i in range(3):
     cuda_dir = os.path.split(cuda_dir)[0]
 cuda_dir = os.path.join(cuda_dir,'cuda')
-
-print("WIND cuda directory:",cuda_dir)
+#print("WIND cuda directory:",cuda_dir)
 
 class Precompiler(object):
     def splitODEFile(self,ode_file=None):
@@ -121,8 +120,7 @@ class Precompiler(object):
         with open(
             os.path.join(
                 self.datadir,
-                '%s_preprocess_RK2_kernel.cu'%
-                self.name),'w') as handle:
+                'preprocess_RK2_kernel.cu'),'w') as handle:
             handle.write(strr)
 
 class ODEBase(Precompiler):
@@ -141,6 +139,9 @@ class ODEBase(Precompiler):
         Nsystem_tile=1,
         Ntile=1,
         dumpDebug=False,
+
+        absolute=5e-3,
+        relative=5e-3,
         **kwargs):
         if len(kwargs):
             raise KeyError("Unused keys:",list(kwargs.keys()))
@@ -160,23 +161,22 @@ class ODEBase(Precompiler):
         self.Nsystem_tile = Nsystem_tile
         self.Ntile = Ntile
 
-        ## adjust name if we are tiling equations
-        if Ntile >= 1:
-            split_name = self.name.split('_')
-            split_name.append('neqntile_%s'%str(self.Ntile))
-            self.name = '_'.join(split_name)
-            
-        ## adjust name if we are tiling systems
-        if Nsystem_tile >= 1:
-            split_name = self.name.split('_')
-            split_name.append('nsystemtile_%s'%str(Nsystem_tile))
-            self.name = '_'.join(split_name)
+        self.absolute = absolute
+        self.relative = relative
 
-        ## adjust name if we are using fixed integration steps
-        if n_integration_steps >= 1:
-            split_name = self.name.split('_')
-            split_name.append('fixed_%s'%str(n_integration_steps))
-            self.name = '_'.join(split_name)
+        ## format the absolute and relative tolerances
+        abs_string = ("%.0e"%self.absolute).replace('e-0','e')
+        rel_string = ("%.0e"%self.relative).replace('e-0','e')
+
+        self.name = '_'.join(
+            [self.name,
+            'neqntile.%s'%str(self.Ntile),
+            'nsystemtile.%s'%str(Nsystem_tile),
+            'fixed.%s'%str(n_integration_steps),
+            'abs.%s'%abs_string,
+            'rel.%s'%rel_string
+            ])
+        print("created:",self.name)
 
         ## now that we have our name figure out where we're saving our
         ##  data to
@@ -189,7 +189,7 @@ class ODEBase(Precompiler):
         if not os.path.isdir(self.datadir):
             os.mkdir(self.datadir)
 
-        self.h5name = os.path.join(self.datadir,self.name+'.hdf5')
+        self.h5name = os.path.join(self.datadir,'cache.hdf5')
 
         ## initialize equations and constants
         self.equations = self.init_equations()
@@ -287,11 +287,24 @@ class ODEBase(Precompiler):
                 rates = np.tile(rates,self.Ntile) 
             return rates
 
-    def calculate_eqmss():
+    def calculate_eqmss(self):
         raise NotImplementedError
 
-    def dumpToODECache(self):
-        raise NotImplementedError
+    def dumpToODECache(self,handle=None):
+        if handle is not None:
+            ## dump all the runtime metadata to the hdf5 file
+            handle.attrs['Nsystems'] = self.Nsystems
+            handle.attrs['Nequations_per_system'] = self.Neqn_p_sys
+            handle.attrs['equation_labels'] = self.eqn_labels
+            handle.attrs['absolute'] = self.absolute
+            handle.attrs['relative'] = self.relative
+            handle.attrs['Ntile'] = self.Ntile
+            handle.attrs['Nsystem_tile'] = self.Nsystem_tile
+            handle.attrs['n_integration_steps'] = self.n_integration_steps
+            handle.attrs['n_output_steps'] = self.n_output_steps
+        else:
+            raise NotImplementedError
+
 
     derivative_suffix = "}\n"
     jacobian_suffix = "}\n"
@@ -327,6 +340,7 @@ class ODEBase(Precompiler):
                     self.n_integration_steps,
                     constants,equations,
                     self.Nsystems,self.Neqn_p_sys,
+                    self.absolute,self.relative,
                     print_flag = print_flag)]
 
             walltimes+=[time.time()-init_time]
@@ -335,7 +349,7 @@ class ODEBase(Precompiler):
             nloops+=1
             equations_over_time[nloops]=copy.copy(equations)
 
-        print('final (tcur=%.2f):'%tcur,np.round(equations_over_time.astype(float),5)[-1][:self.Neqn_p_sys])
+        print('final (tcur=%.2f):'%tcur,np.round(equations_over_time.astype(float),5)[-1][:self.orig_Neqn_p_sys])
 
         if output_mode is not None:
         
@@ -357,10 +371,10 @@ class ODEBase(Precompiler):
         fname = os.path.join(
             self.datadir,
             self.name+'_debug.txt')
-        print("writing:",self.Nsystems,
-            "systems",self.Neqn_p_sys,
-            "equations per system to:",
-            fname)
+        #print("writing:",self.Nsystems,
+            #"systems",self.Neqn_p_sys,
+            #"equations per system to:",
+            #fname)
         with open(fname,'w') as handle:
             
             handle.write(
@@ -395,6 +409,7 @@ def runCudaIntegrator(
     n_integration_steps,
     constants,equations,
     Nsystems,Nequations_per_system,
+    absolute,relative,
     print_flag=1):
 
     if print_flag:
@@ -409,6 +424,8 @@ def runCudaIntegrator(
         equations.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
         ctypes.c_int(Nsystems),
         ctypes.c_int(Nequations_per_system),
+        ctypes.c_float(absolute),
+        ctypes.c_float(relative)
         )
 
     if print_flag:

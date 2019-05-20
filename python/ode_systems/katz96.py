@@ -4,6 +4,7 @@ import time
 import os
 import copy
 import warnings
+import h5py
 
 ## chimes_driver imports
 from chimes_driver.utils.table_utils import create_table_grid 
@@ -181,7 +182,8 @@ class Katz96(ODEBase):
         self.metallicity_arr,self.shieldLength_arr,
         self.init_chem_arr) = create_table_grid(
             self.driver_pars,
-            self.global_variable_pars)
+            self.global_variable_pars,
+            print_flag=False)
 
         helium_mass_fractions = self.metallicity_arr[:,1]
         y_heliums = helium_mass_fractions / (4*(1-helium_mass_fractions))
@@ -292,15 +294,23 @@ class Katz96(ODEBase):
 
         return eqmss
 
-    def dumpToODECache(self,group=None):
-        if group is None:
-            return
-        group['eqmss'] = self.eqmss.reshape(self.Nsystems,self.Neqn_p_sys)
-        group['grid_nHs'] = np.tile(np.log10(self.nH_arr),self.Nsystem_tile)
-        group['grid_temperatures'] = np.tile(np.log10(self.temperature_arr),self.Nsystem_tile)
-        group['grid_solar_metals'] = np.tile(
-            np.log10(self.metallicity_arr[:,0]/WIERSMA_ZSOLAR),
-            self.Nsystem_tile)
+    def dumpToODECache(self):
+        with h5py.File(self.h5name,'a') as handle:  
+            try:
+                group = handle.create_group('Equilibrium')
+            except:
+                del handle['Equilibrium']
+                group = handle.create_group('Equilibrium')
+                print("overwriting: Equilibrium")
+            group['eqmss'] = self.eqmss.reshape(self.Nsystems,self.Neqn_p_sys)
+            group['grid_nHs'] = np.tile(np.log10(self.nH_arr),self.Nsystem_tile)
+            group['grid_temperatures'] = np.tile(np.log10(self.temperature_arr),self.Nsystem_tile)
+            group['grid_solar_metals'] = np.tile(
+                np.log10(self.metallicity_arr[:,0]/WIERSMA_ZSOLAR),
+                self.Nsystem_tile)
+
+            ## call the base class method
+            super().dumpToODECache(handle)
 
     def make_plots(self):
         print("Making plots to ../plots")

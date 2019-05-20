@@ -15,7 +15,9 @@ int integrateSystem(
     float * jacobians_flat, // NULL for rk2
     float * inverses_flat, // NULL for rk2
 
-    int Neqn_p_sys){
+    int Neqn_p_sys,
+    float ABSOLUTE,
+    float RELATIVE){
     
     
     // allocate place to store full and half step
@@ -72,7 +74,9 @@ int integrateSystem(
 
 
 #ifdef ADAPTIVE_TIMESTEP
-        error_flag = checkError(y1,y2,Neqn_p_sys);
+        error_flag = checkError(
+            y1,y2,Neqn_p_sys,
+            ABSOLUTE,RELATIVE);
 #endif
         if (error_flag && unsolved <10){
             // refine the timestep

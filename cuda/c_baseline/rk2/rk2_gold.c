@@ -5,30 +5,35 @@
 #include "common_gold.h"
 #include "ode_gold.h"
 
-int checkError(float * y1, float * y2, int Neqn_p_sys){
+int checkError(
+    float * y1, 
+    float * y2,
+    int Neqn_p_sys,
+    float ABSOLUTE,
+    float RELATIVE){
     double abs_error;
     double rel_error;
     int error_flag = 0;
     for (int eqn_i=0; eqn_i<Neqn_p_sys; eqn_i++){
         abs_error = fabs(y2[eqn_i]-y1[eqn_i]);
-        if (abs_error >= ABSOLUTE_TOLERANCE){
+        if (abs_error >= ABSOLUTE){
 #ifdef LOUD
             printf("%d absolute failed: %.2e\n",eqn_i,abs_error);
 #endif
             error_flag = 1;
         }
-        //if (fabs(y1[eqn_i]) > ABSOLUTE_TOLERANCE && 
-            //fabs(y2[eqn_i]) > ABSOLUTE_TOLERANCE){
+        //if (fabs(y1[eqn_i]) > ABSOLUTE && 
+            //fabs(y2[eqn_i]) > ABSOLUTE){
             //rel_error = abs_error/fmin(fabs(y1[eqn_i]),fabs(y2[eqn_i]));
         rel_error = fabs((y2[eqn_i] - y1[eqn_i])/(2*y2[eqn_i]-y1[eqn_i]+1e-12));
-        if (rel_error >= RELATIVE_TOLERANCE && 
-            y1[eqn_i] >= ABSOLUTE_TOLERANCE &&
-            y2[eqn_i] >= ABSOLUTE_TOLERANCE){
+        if (rel_error >= RELATIVE && 
+            y1[eqn_i] >= ABSOLUTE &&
+            y2[eqn_i] >= ABSOLUTE){
 #ifdef LOUD
                 printf("%d relative failed: %.2e\n",eqn_i,rel_error);
 #endif
                 error_flag = 1;
-        }// if rel_error >=RELATIVE_TOLERANCE
+        }// if rel_error >=RELATIVE
         //}// if fabs(y1) > ABS_TOL && fabs(y2) > ABS_TOL
     }// for eqn_i <Neqn_p_sys
     return error_flag;
@@ -82,7 +87,9 @@ int goldIntegrateSystem(
     float * constantss_flat, // the constants for each system
     float * equationss_flat, // a flattened array containing the y value for each equation in each system
     int Nsystems, // the number of systems
-    int Neqn_p_sys){ // the number of equations in each system
+    int Neqn_p_sys, // the number of equations in each system
+    float ABSOLUTE, // the absolute tolerance
+    float RELATIVE){ // the relative tolerance
 
 #ifdef LOUD
     printf("RK2gold Received %d systems, %d equations per system\n",Nsystems,Neqn_p_sys);
@@ -97,7 +104,9 @@ int goldIntegrateSystem(
             constantss_flat + NUM_CONST*system_i,
             NULL,
             NULL,
-            Neqn_p_sys);
+            Neqn_p_sys,
+            ABSOLUTE,
+            RELATIVE);
     }
     
     // return how many steps were taken
