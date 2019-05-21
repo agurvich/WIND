@@ -7,11 +7,12 @@ int main(){
     void * sielib = dlopen("../lib/sie.so", RTLD_LAZY);
     
 
-    int (*p_cudaIntegrateRK2)(float,float,int,float*,float*,int,int);
-    p_cudaIntegrateRK2  = dlsym(rk2lib,"_Z19cudaIntegrateSystemffiPfS_ii");
+    int (*p_cudaIntegrateRK2)(float,float,int,float*,float*,int,int,float,float);
+    p_cudaIntegrateRK2  = dlsym(rk2lib,"_Z19cudaIntegrateSystemffiPfS_iiff");
     //p_cudaIntegrateRK2  = dlsym(rk2lib,"_Z16cudaIntegrateSIEffiPfS_ii");
-    int (*p_cudaIntegrateSIE)(float,float,int,float*,float*,int,int);
-    p_cudaIntegrateSIE  = dlsym(sielib,"_Z19cudaIntegrateSystemffiPfS_ii");
+    int (*p_cudaIntegrateSIE)(float,float,int,float*,float*,int,int,float,float);
+    p_cudaIntegrateSIE  = dlsym(sielib,"_Z19cudaIntegrateSystemffiPfS_iiff");
+    //p_cudaIntegrateSIE  = dlsym(sielib,"goldIntegrateSystem");
 
 
     int nsteps;
@@ -22,7 +23,9 @@ int main(){
         constants, // the constants for each system
         equations, // a flattened array containing the y value for each equation in each system
         Nsystems, // the number of systems
-        Neqn_p_sys);
+        Neqn_p_sys,
+        5e-3,
+        5e-3);
 
     printf("%.2f %.2f %.2f %.2f %.2f ",
         equations[0],
@@ -49,7 +52,9 @@ int main(){
         constants, // the constants for each system
         new_equations, // a flattened array containing the y value for each equation in each system
         Nsystems, // the number of systems
-        Neqn_p_sys);
+        Neqn_p_sys,
+        5e-3,
+        5e-3);
 
     printf("%.2f %.2f %.2f %.2f %.2f ",
         new_equations[0],

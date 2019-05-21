@@ -8,8 +8,8 @@ Nstepss=(1 5 10 15 20 25 30 40 45 50 100 200 500)
 ## have to recompile in fixed step mode
 n_integration_steps=1
 
-absolutes=('5e-3') #'1e-3' '5e-4' '1e-4')
-relatives=('5e-4') # '1e-4' '5e-3' '1e-3') # 
+absolutes=('5e-3' '1e-3' '5e-4' '1e-4')
+relatives=('5e-4' '1e-4' '5e-3' '1e-3') # 
 
 ## TODO this must be ../data, should fix that...
 maindata=../data

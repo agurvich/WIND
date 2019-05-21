@@ -1,4 +1,4 @@
-#include "inputKatz96_30_1_1.h"
+#include "inputKatz96_1_1_1.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <dlfcn.h>
@@ -8,11 +8,11 @@ int main(){
     void * sielib = dlopen("../../lib/sie_gold.so", RTLD_LAZY);
     
 
-    int (*p_goldIntegrateRK2)(float,float,int,float*,float*,int,int);
+    int (*p_goldIntegrateRK2)(float,float,int,float*,float*,int,int,float,float);
     p_goldIntegrateRK2  = dlsym(rk2lib,"goldIntegrateSystem");
     //p_goldIntegrateRK2  = dlsym(rk2lib,"_Z19cudaIntegrateSystemffiPfS_ii");
 
-    int (*p_goldIntegrateSIE)(float,float,int,float*,float*,int,int);
+    int (*p_goldIntegrateSIE)(float,float,int,float*,float*,int,int,float,float);
     p_goldIntegrateSIE  = dlsym(sielib,"goldIntegrateSystem");
 
     int nsteps;
@@ -23,7 +23,9 @@ int main(){
         constants, // the constants for each system
         equations, // a flattened array containing the y value for each equation in each system
         Nsystems, // the number of systems
-        Neqn_p_sys);
+        Neqn_p_sys,
+        5e-3,
+        5e-3);
 
 
     printf("%.2f %.2f %.2f %.2f %.2f ",
@@ -51,7 +53,9 @@ int main(){
         constants, // the constants for each system
         new_equations, // a flattened array containing the y value for each equation in each system
         Nsystems, // the number of systems
-        Neqn_p_sys);
+        Neqn_p_sys,
+        5e-3,
+        5e-3);
 
     printf("%.2f %.2f %.2f %.2f %.2f ",
         new_equations[0],
