@@ -24,8 +24,8 @@ int main(){
         equations, // a flattened array containing the y value for each equation in each system
         Nsystems, // the number of systems
         Neqn_p_sys,
-        5e-3,
-        5e-3);
+        absolute,
+        relative);
 
     printf("%.2f %.2f %.2f %.2f %.2f ",
         equations[0],
@@ -53,8 +53,8 @@ int main(){
         new_equations, // a flattened array containing the y value for each equation in each system
         Nsystems, // the number of systems
         Neqn_p_sys,
-        5e-3,
-        5e-3);
+        absolute,
+        relative);
 
     printf("%.2f %.2f %.2f %.2f %.2f ",
         new_equations[0],
