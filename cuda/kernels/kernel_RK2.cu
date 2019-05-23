@@ -1,7 +1,8 @@
+#define RK2
 #include <stdio.h>
 #include <math.h>
 
-#include "explicit_solver.h"
+#include "solver.h"
 #include "device.h"
 #include "ode.h"
 

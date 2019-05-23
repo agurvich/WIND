@@ -1,20 +1,7 @@
-
-// This is the REAL "hello world" for CUDA!
-// It takes the string "Hello ", prints it, then passes it to CUDA with an array
-// of offsets. Then the offsets are added in parallel to produce the string "World!"
-// By Ingemar Ragnemalm 2010
- 
 #include <stdio.h>
-#include "explicit_solver.h"
+#include "solver.h"
 #include "ode.h"
   
-void printArray(int * arr,int N){
-    for (int i = 0; i<N;i++){
-        printf("%d ",arr[i]);
-    }
-    printf("\n");
-}
-
 int cudaIntegrateSystem(
     float tnow, // the current time
     float tend, // the time we integrating the system to
@@ -27,12 +14,16 @@ int cudaIntegrateSystem(
     float RELATIVE){ // the relative tolerance
 
 #ifdef LOUD
+#ifdef SIE
+    printf("SIE Received %d systems, %d equations per system\n",Nsystems,Nequations_per_system);
+#else
     printf("RK2 Received %d systems, %d equations per system\n",Nsystems,Nequations_per_system);
+#endif
 #endif
 
     // copy the arrays over to the device
     int Nequations = Nsystems*Nequations_per_system;
-    int equations_size = Nequations*sizeof(float);
+    long equations_size = Nequations*sizeof(float);
 
     float *constantsDevice;
     cudaMalloc((void**)&constantsDevice, Nsystems*NUM_CONST*sizeof(float)); 
@@ -41,6 +32,16 @@ int cudaIntegrateSystem(
     float *equationsDevice;
     cudaMalloc((void**)&equationsDevice, equations_size); 
     cudaMemcpy( equationsDevice, equations, equations_size, cudaMemcpyHostToDevice ); 
+
+#ifdef SIE
+    float *JacobiansDevice;
+    cudaMalloc((void**)&JacobiansDevice, Nequations*equations_size); 
+    //cudaMemcpy( JacobiansDevice, Jacobians, equations_size, cudaMemcpyHostToDevice ); 
+
+    float *inversesDevice;
+    cudaMalloc((void**)&inversesDevice, Nequations*equations_size); 
+    //cudaMemcpy( JacobiansDevice, Jacobians, equations_size, cudaMemcpyHostToDevice ); 
+#endif
 
     int nloops=0;
     int * nloopsDevice;
@@ -78,6 +79,9 @@ int cudaIntegrateSystem(
         tnow, tend,
         (tend-tnow)/n_integration_steps,
         constantsDevice,equationsDevice,
+#ifdef SIE
+        JacobiansDevice,inversesDevice,
+#endif
         Nsystems,Nequations_per_system,
         nloopsDevice,
         ABSOLUTE,RELATIVE);
@@ -90,11 +94,12 @@ int cudaIntegrateSystem(
     // free up the memory on the device
     cudaFree(constantsDevice);
     cudaFree(equationsDevice);
+#ifdef SIE
+    cudaFree(JacobiansDevice);cudaFree(inversesDevice);
+#endif
     cudaFree(tendDevice);
     cudaFree(tnowDevice);
     cudaFree(nloopsDevice);
-
-    // return how many steps were taken
 
     // return how many steps were taken
     return nloops;

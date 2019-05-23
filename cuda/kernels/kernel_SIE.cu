@@ -1,7 +1,8 @@
+#define SIE
 #include <stdio.h>
 #include <math.h>
 
-#include "explicit_solver.h"
+#include "solver.h"
 #include "device.h"
 #include "linear_algebra.h"
 #include "ode.h"
