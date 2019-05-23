@@ -22,8 +22,8 @@ GOLDODEFILE= ode_system/ode_gold.c
 COMMONOBJS = $(CUFILES:%.cu=%.o)
 ODEOBJS = $(ODEFILE:%.cu=%.o) 
 SIEHOSTOBJS = SIE_host/harness_kernel.o
-SIEOBJS = common_functions/harness_SIE.o kernels/kernel_SIE.o
-RK2OBJS = common_functions/harness_RK2.o kernels/kernel_RK2.o
+SIEOBJS = harnesses/harness_SIE.o kernels/kernel_SIE.o
+RK2OBJS = harnesses/harness_RK2.o kernels/kernel_RK2.o
 
 ## compiler flags to make shared object for python
 CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG)
@@ -52,9 +52,9 @@ make: $(c) $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(SIEHOSTOBJS) $(ODEOBJS)
 kernels/kernel_%.o:
 	@#echo compiling $@ with $*
 	nvcc $(NVCFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 -D$* $(INCLUDE) $(LIB) -o $@ kernels/kernel.cu
-common_functions/harness_%.o:
+harnesses/harness_%.o:
 	@#echo compiling $@ with $*
-	nvcc $(NVCFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 -D$* $(INCLUDE) $(LIB) -o $@ common_functions/harness.cu
+	nvcc $(NVCFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 -D$* $(INCLUDE) $(LIB) -o $@ harnesses/harness.cu
 preclean:
 	rm ode_system/precompile_ode_system.o ode_system/precompile_device_dydt.o
 	cd c_baseline;make preclean
