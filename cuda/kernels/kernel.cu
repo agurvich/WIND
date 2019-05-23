@@ -1,11 +1,13 @@
-#define SIE
 #include <stdio.h>
 #include <math.h>
 
 #include "solver.h"
 #include "device.h"
-#include "linear_algebra.h"
 #include "ode.h"
+
+#ifdef SIE
+#include "linear_algebra.h"
+#endif
 
 __device__ void checkError(
     float y1, float y2,
@@ -19,7 +21,12 @@ __device__ void checkError(
         printf("%d absolute failed: %.2e\n",threadIdx.x,abs_error);
 #endif
     }
+#if SIE
     float rel_error = fabs((y2-y1)/(y2+1e-12));
+#else
+    float rel_error = fabs((y2-y1)/(2*y2-y1+1e-12));
+#endif
+
     if(rel_error > RELATIVE && 
         fabs(y1) > ABSOLUTE &&
         fabs(y2) > ABSOLUTE){
@@ -31,6 +38,7 @@ __device__ void checkError(
     __syncthreads();
 }
 
+#ifdef SIE
 __device__ void  scaleAndInvertJacobians(
     float timestep,
     float * Jacobians,
@@ -55,16 +63,18 @@ __device__ void  scaleAndInvertJacobians(
 
     __syncthreads();
 }
+#endif
     
-__device__ float sie_innerstep(
+__device__ float innerstep(
     float tnow, // the current time
     float tstop, // the time we want to stop
     int n_integration_steps, // the timestep to take
     float * constants, // the constants for each system
     float * shared_equations, // place to store the current state
+#ifdef SIE
     float * shared_dydts,
-    float * Jacobians,
-    float * inverses,
+    float * Jacobians,float * inverses,
+#endif
     int Nequations_per_system){ // the number of equations in each system
 
     float dydt = 0;
@@ -82,8 +92,9 @@ __device__ float sie_innerstep(
             constants,
             shared_equations);
 
-        shared_dydts[threadIdx.x] = dydt;
 
+#ifdef SIE
+        shared_dydts[threadIdx.x] = dydt;
         // calculate the jacobian for the whole system
         calculate_jacobian(
             tnow,
@@ -105,24 +116,17 @@ __device__ float sie_innerstep(
             this_index = eqn_i*Nequations_per_system + threadIdx.x;
             // accumulate values directly into shared_equations[eqn_i]-- J and inverses is actualy transposed
             shared_equations[threadIdx.x]+=inverses[this_index]*shared_dydts[eqn_i]*timestep;
-            //atomicAdd(
-            //   &shared_equations[eqn_i],
-            //   inverses[this_index]*dydt*timestep);
         }
-        //  NOTE could replace this with an array columns wherein
-        //  you loop through the rows of inverse and save the columns
-        //  into local memory, then loop through Neqn_p_sys and round
-        //  robin accumulate them into shared memory. Might be faster 
-        //  than atomically adding. Alternatively, apparently atomic adds
-        //  into global memory are faster than atomic adds into shared-- 
-        //  somehow. 
-
+#else
+        shared_equations[threadIdx.x] += timestep*dydt;
+#endif
+        tnow+=timestep;
     } // while(tnow < tstop)
 
     // make sure the last loop finished accumulating
     __syncthreads();
     return shared_equations[threadIdx.x];
-}// sie_innerstep
+}// innerstep
 
 __global__ void integrateSystem(
     float tnow, // the current time
@@ -130,8 +134,10 @@ __global__ void integrateSystem(
     float timestep,
     float * constants, // the constants for each system
     float * equations, // a flattened array containing the y value for each equation in each system
+#ifdef SIE
     float * Jacobians,
     float * inverses,
+#endif
     int Nsystems, // the number of systems
     int Nequations_per_system,
     int * nsteps, // the number of equations in each system
@@ -141,12 +147,14 @@ __global__ void integrateSystem(
     // unique thread ID , based on local ID in block and block ID
     int tid = threadIdx.x + ( blockDim.x * blockIdx.x);
 
+#ifdef SIE
     // offset pointer to find flat jacobian and inverses in global memory
     Jacobians+= Nequations_per_system*Nequations_per_system*blockIdx.x;
     inverses+= Nequations_per_system*Nequations_per_system*blockIdx.x;
+#endif
+
     // offset pointer to find flat constants in global memory
     constants+=NUM_CONST*blockIdx.x;
-
 
     extern __shared__ float total_shared[];
     // total_shared is a pointer to the beginning of this block's shared
@@ -179,14 +187,15 @@ __global__ void integrateSystem(
             //  saved in it from the previous loop
 
             // take the full step
-            y1 = sie_innerstep(
+            y1 = innerstep(
                     tnow, tnow+timestep,
                     1,
                     constants,
                     shared_equations,
+#ifdef SIE
                     shared_dydts,
-                    Jacobians,
-                    inverses,
+                    Jacobians,inverses,
+#endif
                     Nequations_per_system );
 
 #ifdef DEBUGBLOCK
@@ -206,14 +215,15 @@ __global__ void integrateSystem(
             __syncthreads();
 
             // take the half step
-            y2 = sie_innerstep(
+            y2 = innerstep(
                     tnow, tnow+timestep,
                     2,
                     constants,
                     shared_equations,
+#ifdef SIE
                     shared_dydts,
-                    Jacobians,
-                    inverses,
+                    Jacobians,inverses,
+#endif
                     Nequations_per_system );
 
 #ifdef DEBUGBLOCK
@@ -244,16 +254,13 @@ __global__ void integrateSystem(
             } // if shared_error_flag
             else{
                 // accept this step and update the shared array
-                //shared_equations[threadIdx.x] = y2;
+#ifdef RK2
+                shared_equations[threadIdx.x] = 2*y2-y1;
+                __syncthreads();
+#else
                 // shared_equations already has y2 in it from last
-                //  call to sie_innerstep
-
-/*
-                if (threadIdx.x==0 && blockIdx.x==3){
-                    printf("tnow: %.4f timestep: %.4f nsteps: %d bid: %d\n",tnow,timestep,this_nsteps,blockIdx.x);
-                }
-*/
-
+                //  call to innerstep if SIE
+#endif
                 tnow+=timestep;
 
 #ifdef ADAPTIVE_TIMESTEP

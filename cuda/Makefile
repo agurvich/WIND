@@ -49,9 +49,12 @@ make: $(c) $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(SIEHOSTOBJS) $(ODEOBJS)
 	@#echo compiling $@ from $<
 	@## compile this source file to object
 	nvcc $(NVCFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 $(INCLUDE) $(LIB) -o $@ $<;
-common_functions/harness_%.o: %
-	@#echo compiling $@ with $<
-	nvcc $(NVCFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 -D$< $(INCLUDE) $(LIB) -o $@ common_functions/harness.cu
+kernels/kernel_%.o:
+	@#echo compiling $@ with $*
+	nvcc $(NVCFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 -D$* $(INCLUDE) $(LIB) -o $@ kernels/kernel.cu
+common_functions/harness_%.o:
+	@#echo compiling $@ with $*
+	nvcc $(NVCFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 -D$* $(INCLUDE) $(LIB) -o $@ common_functions/harness.cu
 preclean:
 	rm ode_system/precompile_ode_system.o ode_system/precompile_device_dydt.o
 	cd c_baseline;make preclean

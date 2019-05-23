@@ -1,10 +1,10 @@
 #!/bin/bash
 
-LINE=52
-LINE2=67
-cuda-gdb debug -ex 'set breakpoint pending on' -ex 'dir ../RK2' -ex 'dir ../c_baseline/rk2' -ex "b rk2_kernel.cu:${LINE}" -ex "b rk2_gold.c:${LINE2}" -ex 'run'
+LINE=79
+LINE2=43
+cuda-gdb debug -ex 'set breakpoint pending on' -ex 'dir ../kernels'  -ex "b kernel.cu:${LINE}" -ex "b old_kernel_RK2.cu:${LINE2}" -ex 'run'
 
-
+#-ex 'dir ../c_baseline/rk2'
 
 #-ex "command 1" -ex "p ((@global float *) d_inversess_flat)[0]@5" -ex "p ((@global float *) d_inversess_flat)[5]@5" -ex "p ((@global float *) d_inversess_flat)[10]@5" -ex "p ((@global float *) d_inversess_flat)[15]@5" -ex "p ((@global float *) d_inversess_flat)[20]@5" -ex "end"
 
