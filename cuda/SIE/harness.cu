@@ -31,12 +31,12 @@ int cudaIntegrateSystem(
 
 
     float *JacobiansDevice;
-    cudaMalloc((void**)&JacobiansDevice, Nequations*equations_size); 
+    cudaMalloc((void**)&JacobiansDevice, Nequations_per_system*equations_size); 
     //cudaMemcpy( JacobiansDevice, Jacobians, equations_size, cudaMemcpyHostToDevice ); 
 
 
     float *inversesDevice;
-    cudaMalloc((void**)&inversesDevice, Nequations*equations_size); 
+    cudaMalloc((void**)&inversesDevice, Nequations_per_system*equations_size); 
     //cudaMemcpy( JacobiansDevice, Jacobians, equations_size, cudaMemcpyHostToDevice ); 
 
     int nloops=0;
