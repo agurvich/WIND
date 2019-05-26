@@ -2,12 +2,12 @@ import numpy as np
 import copy
 
 def integrate_rk2(
-    tnow,
-    tend,
-    timestep,
-    equations,
+    tnow,tend,
+    n_integration_steps,
     constants,
+    equations,
     f_func,
+    J_func,
     Neqn_p_sys,
     absolute,
     relative,
@@ -17,7 +17,10 @@ def integrate_rk2(
     y1 = np.zeros(Neqn_p_sys)
     y2 = np.zeros(Neqn_p_sys)
 
+    nsteps = 0
+    timestep = (tend-tnow)/n_integration_steps
     while tnow < tend:
+        nsteps+=3
         timestep = min(timestep,tend-tnow)
         y1 = copy.copy(equations)
         y2 = copy.copy(equations)
@@ -48,7 +51,7 @@ def integrate_rk2(
             tnow+=timestep
             timestep*=2#(tend-tnow)
             
-    return equations
+    return nsteps,equations
 
 def rk2_step(
     tnow,

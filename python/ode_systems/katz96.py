@@ -13,9 +13,9 @@ from chimes_driver.driver_class import ChimesDriver
 
 
 ## this package imports
-from ode_systems.ode_base import ODEBase
+from wind.python.ode_systems.ode_base import ODEBase
 
-import odecache
+import wind.python.odecache
 
 home_directory = os.environ['HOME']
 

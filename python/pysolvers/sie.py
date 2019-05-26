@@ -20,7 +20,9 @@ def integrate_sie(
     y2 = np.zeros(Neqn_p_sys)
 
     unsolved = 0
+    nsteps=0
     while tnow < tend:
+        nsteps+=3
         timestep = min(timestep,tend-tnow)
         y1 = copy.copy(equations)
         y2 = copy.copy(equations)
@@ -54,7 +56,7 @@ def integrate_sie(
                 DEBUG.append((tnow,copy.copy(equations),J_func(tnow,equations,constants)[0]))
             timestep*=2#(tend-tnow)
             
-    return equations
+    return nsteps,equations
 
 def sie_step(
     tnow,

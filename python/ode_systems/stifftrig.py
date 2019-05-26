@@ -7,9 +7,9 @@ import warnings
 import h5py
 
 ## this package imports
-from ode_systems.ode_base import ODEBase
+from wind.python.ode_systems.ode_base import ODEBase
 
-import odecache
+import wind.python.odecache
 
 class StiffTrig(ODEBase):
     def __init__(
@@ -55,9 +55,10 @@ class StiffTrig(ODEBase):
         constants,
         system_index=0):
 
+        ## transpose because column major order inherited forever ago
         jacobian = np.array([
             [-1, constants[1]],
-            [-constants[0],-1]])
+            [-constants[0],-1]]).T
         jacobian_flat = jacobian.flatten()
         return super().calculate_jacobian(jacobian_flat=jacobian_flat)
 
@@ -70,7 +71,7 @@ class StiffTrig(ODEBase):
 
         rates = np.zeros(2)
         rates[0] = -equations[0] + constants[1]*equations[1]
-        rates[1] = -equations[1] + constants[0]*equations[0]
+        rates[1] = -equations[1] - constants[0]*equations[0]
         
         return super().calculate_derivative(rates=rates)
 
