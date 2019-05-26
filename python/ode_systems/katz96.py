@@ -497,4 +497,18 @@ class Katz96(ODEBase):
 """
 
     ## copy the dconstants string
-    jconstants_string = None
+    jconstants_string = """// constraint equation, ne = nH+ + nHe+ + 2*nHe++
+    float ne = equations[1]+equations[3]+equations[4]*2.0;
+
+    /* constants = [
+        0-Gamma_(e,H0), 1-Gamma_(gamma,H0), 
+        2-alpha_(H+),
+        3-Gamma_(e,He0), 4-Gamma_(gamma,He0), 
+        5-Gamma_(e,He+), 6-Gamma_(gamma,He+),
+        7-alpha_(He+),
+        8-alpha_(d),
+        9-alpha_(He++)
+        ] 
+    */
+    if (threadIdx.x==){
+"""
