@@ -149,4 +149,4 @@ class StiffTrig(ODEBase):
     dconstants_string = """"""
 
     ## copy the dconstants string
-    jconstants_string = None
+    jconstants_string = """"""

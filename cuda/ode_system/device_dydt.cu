@@ -66,6 +66,7 @@ __device__ void calculate_jacobian(
     float * equations,
     float * Jacobian,
     int Neqn_p_sys){
+    if (threadIdx.x == 0){
 /* ----- PREFIX FLAG FOR PYTHON FRONTEND ----- */
 
     // constraint equation, ne = nH+ + nHe+ + 2*nHe++
@@ -82,9 +83,8 @@ __device__ void calculate_jacobian(
         ] 
     */
 
-   
     // NOTE could make this faster if we could do it in paralell 
-    if (threadIdx.x == 0){
+
 
         // H0
         Jacobian[0] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))

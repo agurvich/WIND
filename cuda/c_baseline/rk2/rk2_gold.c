@@ -26,9 +26,9 @@ int checkError(
             //fabs(y2[eqn_i]) > ABSOLUTE){
             //rel_error = abs_error/fmin(fabs(y1[eqn_i]),fabs(y2[eqn_i]));
         rel_error = fabs((y2[eqn_i] - y1[eqn_i])/(2*y2[eqn_i]-y1[eqn_i]+1e-12));
-        if (rel_error >= RELATIVE && 
-            y1[eqn_i] >= ABSOLUTE &&
-            y2[eqn_i] >= ABSOLUTE){
+        if (rel_error > RELATIVE && 
+            fabs(y1[eqn_i]) > ABSOLUTE &&
+            fabs(y2[eqn_i]) > ABSOLUTE){
 #ifdef LOUD
                 printf("%d relative failed: %.2e\n",eqn_i,rel_error);
 #endif

@@ -110,7 +110,7 @@ __device__ float sie_innerstep(
         }
         //  NOTE could replace this with an array columns wherein
         //  you loop through the rows of inverse and save the columns
-        //  into local memory, then loop through Neqn_p_sys and round
+        //  into local memory, then loop through Nequations_per_system and round
         //  robin accumulate them into shared memory. Might be faster 
         //  than atomically adding. Alternatively, apparently atomic adds
         //  into global memory are faster than atomic adds into shared-- 
@@ -190,12 +190,10 @@ __global__ void integrateSystem(
 
 #ifdef DEBUGBLOCK
             if (threadIdx.x==0 && blockIdx.x==DEBUGBLOCK){
-                printf("%02d - y1: ",this_nsteps);
-                printf("%.6f\t",shared_equations[0]);
-                printf("%.6f\t",shared_equations[1]);
-                printf("%.6f\t",shared_equations[2]);
-                printf("%.6f\t",shared_equations[3]);
-                printf("%.6f\t",shared_equations[4]);
+                printf("%02d - cuda - y1 ",this_nsteps);
+                for (int i=0; i<Nequations_per_system; i++){
+                    printf("%.6f\t",shared_equations[i]);
+                }
                 printf("\n");
             }
 #endif
@@ -217,12 +215,10 @@ __global__ void integrateSystem(
 
 #ifdef DEBUGBLOCK
             if (threadIdx.x==0 && blockIdx.x==DEBUGBLOCK){
-                printf("%02d - y2: ",this_nsteps);
-                printf("%.6f\t",shared_equations[0]);
-                printf("%.6f\t",shared_equations[1]);
-                printf("%.6f\t",shared_equations[2]);
-                printf("%.6f\t",shared_equations[3]);
-                printf("%.6f\t",shared_equations[4]);
+                printf("%02d - cuda - y2 ",this_nsteps);
+                for (int i=0; i<Nequations_per_system; i++){
+                    printf("%.6f\t",shared_equations[i]);
+                    }
                 printf("\n");
             }
 

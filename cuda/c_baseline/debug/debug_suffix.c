@@ -27,19 +27,11 @@ int main(){
         5e-3);
 
 
-    printf("%.2f %.2f %.2f %.2f %.2f ",
-        equations[0],
-        equations[1],
-        equations[2],
-        equations[3],
-        equations[4]);
-
-    printf("%.2f %.2f %.2f %.2f %.2f\n",
-        equations[5],
-        equations[6],
-        equations[7],
-        equations[8],
-        equations[9]);
+    for (int i=0; i<Neqn_p_sys; i++){
+        printf("%.2f ",
+            equations[i]);
+    }
+    printf("\n");
 
     printf("SIEgold: %d nsteps\n",nsteps);
 
@@ -56,19 +48,12 @@ int main(){
         5e-3,
         5e-3);
 
-    printf("%.2f %.2f %.2f %.2f %.2f ",
-        new_equations[0],
-        new_equations[1],
-        new_equations[2],
-        new_equations[3],
-        new_equations[4]);
+    for (int i=0; i<Neqn_p_sys; i++){
+        printf("%.2f ",
+            equations[i]);
+    }
+    printf("\n");
 
-    printf("%.2f %.2f %.2f %.2f %.2f\n",
-        new_equations[5],
-        new_equations[6],
-        new_equations[7],
-        new_equations[8],
-        new_equations[9]);
     printf("RK2gold: %d nsteps\n",nsteps);
 
     dlclose(rk2lib); 

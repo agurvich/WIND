@@ -1,8 +1,11 @@
 #!/bin/bash
 
-LINE=52
-LINE2=67
-cuda-gdb debug -ex 'set breakpoint pending on' -ex 'dir ../RK2' -ex 'dir ../c_baseline/rk2' -ex "b rk2_kernel.cu:${LINE}" -ex "b rk2_gold.c:${LINE2}" -ex 'run'
+LINE=150
+LINE2=39
+FILE1=rk2_kernel.cu
+FILE2=rk2_gold.c
+
+cuda-gdb debug -ex 'set breakpoint pending on' -ex 'dir ../RK2' -ex 'dir ../c_baseline/rk2' -ex "b ${FILE1}:${LINE}" -ex "b ${FILE2}:${LINE2}" -ex 'run'
 
 
 
