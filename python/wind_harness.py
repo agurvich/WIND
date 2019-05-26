@@ -10,6 +10,8 @@ import getopt,sys
 
 from ode_systems.katz96 import Katz96 as k96_system
 from ode_systems.NR_test import NR_test as nr_test_system
+from ode_systems.stifftrig import StiffTrig as stifftrig_system
+
 from pysolvers.sie import integrate_sie
 
 def loadCLibraries():
@@ -52,7 +54,7 @@ def main(
     gold = False,
     CHIMES = False,
     PY = False,
-    system_name = 'Katz96',
+    system_name = 'StiffTrig',#'Katz96',
     makeplots=False,
     **kwargs):
 
@@ -60,9 +62,10 @@ def main(
         system = k96_system(**kwargs)
     elif system_name == 'NR_test':
         system = nr_test_system(**kwargs)
-
+    elif system_name == 'StiffTrig':
+        system = stifftrig_system(**kwargs)
     else:
-        raise ValueError("pick Katz96 or NR_test")
+        raise ValueError("pick Katz96 or NR_test or StiffTrig")
  
     output_mode = 'a'
     print_flag = False
