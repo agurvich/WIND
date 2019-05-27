@@ -1,6 +1,9 @@
 ## WIND Configuration Options
-WINDCONFIG= -DADAPTIVE_TIMESTEP #-DDEBUGBLOCK=0 #-DLOUD
+WINDCONFIG= -DADAPTIVE_TIMESTEP #-DDEBUGBLOCK=1 #-DLOUD
 export WINDCONFIG
+OPTFLAGS = -O3 #-g #
+export OPTFLAGS
+NVCFLAGS = -shared  #-G #
 
 ## Library names
 SIEEXECUTABLE	:= lib/sie.so
@@ -23,8 +26,9 @@ SIEOBJS = harnesses/harness_SIE.o kernels/kernel_SIE.o
 RK2OBJS = harnesses/harness_RK2.o kernels/kernel_RK2.o
 
 ## compiler flags to make shared object for python
-CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG)
-NVCFLAGS = -shared -O3 #-g -G #
+CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG) $(OPTFLAGS)
+
+
 
 ## libraries to include
 INCLUDE = -Iinclude -Icommon_functions -Iode_system -Ilinear_algebra
@@ -32,7 +36,6 @@ LIB = -lcublas -lcusolver
 
 BUILDDIR = $(shell pwd)
 
-#export PRECOMPILE
 make: $(c) $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(SIEHOSTOBJS) $(ODEOBJS) baseline
 	@#echo $(ODEOBJS)
 	@## link common objs and ode obj to the 1st order semi-implicit solver 
@@ -54,9 +57,9 @@ harnesses/harness_%.o:
 	@#echo compiling $@ with $*
 	nvcc $(NVCFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 -D$* $(INCLUDE) $(LIB) -o $@ harnesses/harness.cu
 preclean:
-	rm ode_system/precompile_ode_system.o ode_system/precompile_device_dydt.o
+	rm -f ode_system/precompile_ode_system.o ode_system/precompile_device_dydt.o
 	cd c_baseline;make preclean
 clean: 
 	cd c_baseline;make clean
-	rm $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(SIEHOSTOBJS) $(SIEEXECUTABLE) $(RK2EXECUTABLE) $(SIEHOSTEXECUTABLE) $(ODEOBJS)
+	rm -f $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(SIEHOSTOBJS) $(SIEEXECUTABLE) $(RK2EXECUTABLE) $(SIEHOSTEXECUTABLE) $(ODEOBJS)
 

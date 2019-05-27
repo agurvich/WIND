@@ -16,7 +16,9 @@ LINEARALGEBRAOBJS=$(LINEARALGEBRAFILES:%.c=%.o)
 
 INCLUDE= -Ilinear_algebra -I. -I../ode_system -Iinclude -Icommon -I../include
 
-CFLAGS=-shared -fPIC -std=c99 -O3 #-g #
+OPTFLAGS=-O3 #-g #
+CFLAGS=-shared -fPIC -std=c99 $(OPTFLAGS)
+
 
 make: $(GOLDODEOBJS) $(LINEARALGEBRAOBJS) $(RK2OBJS) $(SIEOBJS)
 	gcc $(CFLAGS) $(WINDCONFIG) $(INCLUDE) -o $(RK2EXECUTABLE) $(GOLDODEOBJS) $(RK2OBJS)
@@ -26,6 +28,6 @@ common/common_gold_%.o:
 %.o: %.c
 	gcc $(CFLAGS) $(WINDCONFIG) $(INCLUDE) -o $@ -c $<
 preclean:
-	rm ../ode_system/precompile_ode_gold.o
+	rm -f ../ode_system/precompile_ode_gold.o
 clean:
-	rm $(RK2OBJS) $(SIEOBJS) $(GOLDODEOBJS) $(LINEARALGEBRAOBJS) $(RK2EXECUTABLE) $(SIEEXECUTABLE)
+	rm -f $(RK2OBJS) $(SIEOBJS) $(GOLDODEOBJS) $(LINEARALGEBRAOBJS) $(RK2EXECUTABLE) $(SIEEXECUTABLE)

@@ -12,4 +12,4 @@ void configureGrid(
     dim3 *, 
     dim3 *, 
     dim3 *);
-#define NUM_CONST 10
+#define NUM_CONST 2
