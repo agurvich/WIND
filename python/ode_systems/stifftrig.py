@@ -41,7 +41,7 @@ class StiffTrig(ODEBase):
 
     def init_constants(self):
         ## use the grid to create flat arrays of rate coefficients and abundance arrays
-        freq0=3
+        freq0=6
         constants = np.array([
             2*np.pi*freq0,
             2*np.pi*freq0
