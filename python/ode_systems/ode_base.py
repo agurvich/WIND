@@ -272,11 +272,15 @@ class ODEBase(Precompiler):
                         ## how many rows should we skip?
                         offset = (eqntile_i*self.orig_Neqn_p_sys + row_i)
                         ## how many elements of new jacobian per row
-                        offset*=self.orig_Neqn_p_sys*self.Ntile 
+                        offset*=self.orig_Neqn_p_sys*self.Ntile
+                        ## how many columns to skip
+                        offset+=self.orig_Neqn_p_sys*eqntile_i 
+
                         tiled_jacobian_flat[offset:offset+self.orig_Neqn_p_sys] = this_row 
                 jacobian_flat = tiled_jacobian_flat
             ## indices above are in column major order to match cuBLAS specification
-            return jacobian_flat.astype(np.float32).reshape(self.Neqn_p_sys,self.Neqn_p_sys).T
+            return_val = jacobian_flat.astype(np.float32).reshape(self.Neqn_p_sys,self.Neqn_p_sys).T
+            return return_val
 
     def calculate_derivative(self,rates=None):
         if rates is None:
