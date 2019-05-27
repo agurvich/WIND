@@ -202,7 +202,6 @@ class ODEBase(Precompiler):
         ## deal with any tiling
         self.tileSystems()
         self.tileEquations()
-
         if dumpDebug:
             self.dumpToCDebugInput()
 
@@ -331,6 +330,7 @@ class ODEBase(Precompiler):
         times+=[tcur]
         nsteps = []
         walltimes = []
+
 
         while nloops < self.n_output_steps:#while tcur < tend:
             init_time = time.time()
