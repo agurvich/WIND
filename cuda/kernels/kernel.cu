@@ -262,7 +262,13 @@ __global__ void integrateSystem(
 
 #ifdef ADAPTIVE_TIMESTEP
                 // let's get a little more optimistic
+#ifdef RK2
+                // increase one refinement level
                 timestep*=2;
+#else
+                // go for gold
+                timestep=(tend-tnow);
+
 #endif
             }// if shared_error_flag -> else
 
