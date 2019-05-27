@@ -36,7 +36,7 @@ LIB = -lcublas -lcusolver
 BUILDDIR = $(shell pwd)
 
 #export PRECOMPILE
-make: $(c) $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(SIEHOSTOBJS) $(ODEOBJS)
+make: $(c) $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(SIEHOSTOBJS) $(ODEOBJS) baseline
 	@echo $(ODEOBJS)
 	@## link common objs and ode obj to the 1st order semi-implicit solver 
 	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(SIEEXECUTABLE) $(COMMONOBJS) $(ODEOBJS) $(SIEOBJS);
@@ -44,6 +44,7 @@ make: $(c) $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(SIEHOSTOBJS) $(ODEOBJS)
 	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(SIEHOSTEXECUTABLE) $(COMMONOBJS) $(ODEOBJS) $(SIEHOSTOBJS);
 	@## link common objs and ode obj to the 2nd order explicit solver 
 	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $(RK2EXECUTABLE) $(COMMONOBJS) $(ODEOBJS) $(RK2OBJS);
+baseline:
 	cd c_baseline;make
 %.o: %.cu
 	@#echo compiling $@ from $<
