@@ -5,5 +5,8 @@ void calculate_dydt(
     float *,// dydyt,
     int );//Neqn_p_sys);
 
-void calculate_jacobian();
+void calculate_jacobian(
+    float *,// equations,
+    float *,// constants,
+    float *);// Jacobian);
 #define NUM_CONST 10
