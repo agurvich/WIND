@@ -19,9 +19,9 @@ if [ ! -d ${maindata} ]
 fi
 
 function changenamedatadir(){
-    ind=`expr index ${5} -`
+    ind=`echo ${5} | sed -n 's/[-].*//p' | wc -c`
     abs_string=${5:0:ind-1}${5:ind}
-    ind=`expr index ${6} -`
+    ind=`echo ${6} | sed -n 's/[-].*//p' | wc -c`
     rel_string=${6:0:ind-1}${6:ind}
     export NAME=${1}_neqntile.${2}_nsystemtile.${3}_fixed.${4}_abs.${abs_string}_rel.${rel_string}
     export DATADIR=${maindata}/${NAME}
