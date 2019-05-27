@@ -9,14 +9,14 @@ RK2OBJS=rk2/rk2_gold.o common/common_gold_RK2.o
 SIEOBJS=sie/sie_gold.o common/common_gold_SIE.o
 
 
-WINDCONFIG= -DADAPTIVE_TIMESTEP -DDEBUGBLOCK=0 #-DLOUD
+WINDCONFIG= -DADAPTIVE_TIMESTEP #-DDEBUGBLOCK=0 #-DLOUD
 
 GOLDODEOBJS=$(GOLDODEFILE:%.c=%.o)
 LINEARALGEBRAOBJS=$(LINEARALGEBRAFILES:%.c=%.o)
 
 INCLUDE= -Ilinear_algebra -I. -I../ode_system -Iinclude -Icommon -I../include
 
-CFLAGS=-shared -fPIC -std=c99 -g #-O3 #
+CFLAGS=-shared -fPIC -std=c99 -O3 #-g #
 
 make: $(GOLDODEOBJS) $(LINEARALGEBRAOBJS) $(RK2OBJS) $(SIEOBJS)
 	gcc $(CFLAGS) $(WINDCONFIG) $(INCLUDE) -o $(RK2EXECUTABLE) $(GOLDODEOBJS) $(RK2OBJS)

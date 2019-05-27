@@ -1,5 +1,5 @@
 ## WIND Configuration Options
-WINDCONFIG= -DADAPTIVE_TIMESTEP -DDEBUGBLOCK=0 #-DLOUD
+WINDCONFIG= -DADAPTIVE_TIMESTEP #-DDEBUGBLOCK=0 #-DLOUD
 export WINDCONFIG
 
 ## Library names
@@ -24,7 +24,7 @@ RK2OBJS = harnesses/harness_RK2.o kernels/kernel_RK2.o
 
 ## compiler flags to make shared object for python
 CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG)
-NVCFLAGS = -shared -g -G #-O3 #
+NVCFLAGS = -shared -O3 #-g -G #
 
 ## libraries to include
 INCLUDE = -Iinclude -Icommon_functions -Iode_system -Ilinear_algebra
@@ -57,5 +57,6 @@ preclean:
 	rm ode_system/precompile_ode_system.o ode_system/precompile_device_dydt.o
 	cd c_baseline;make preclean
 clean: 
-	rm $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(SIEHOSTOBJS) $(ODEOBJS) $(SIEEXECUTABLE) $(RK2EXECUTABLE) $(SIEHOSTEXECUTABLE)
 	cd c_baseline;make clean
+	rm $(COMMONOBJS) $(SIEOBJS) $(RK2OBJS) $(SIEHOSTOBJS) $(SIEEXECUTABLE) $(RK2EXECUTABLE) $(SIEHOSTEXECUTABLE) $(ODEOBJS)
+
