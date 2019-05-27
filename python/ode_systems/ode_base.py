@@ -430,10 +430,10 @@ class ODEBase(Precompiler):
                 "int Neqn_p_sys = %s;\n" % str(self.Neqn_p_sys))
 
             handle.write(
-                "float absolute = %.2e;\n" % str(self.absolute))
+                "float absolute = %.2e;\n" % self.absolute)
 
             handle.write(
-                "float relative = %.2e;\n" % str(self.relative))
+                "float relative = %.2e;\n" % self.relative)
 
 def runCudaIntegrator(
     integrator,

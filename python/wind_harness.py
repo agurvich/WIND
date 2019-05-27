@@ -90,7 +90,6 @@ def main(
                 output_mode = output_mode,
                 print_flag = print_flag,
                 python=True)
-
         elif gold:
             system.runIntegratorOutput(
                 c_integrateRK2,'RK2gold',
@@ -98,8 +97,6 @@ def main(
                 print_flag = print_flag)
 
             print("---------------------------------------------------")
-            output_mode = 'a'
-
         else:
             system.runIntegratorOutput(
                 c_cudaIntegrateRK2,'RK2',
@@ -107,7 +104,7 @@ def main(
                 print_flag = print_flag)
 
             print("---------------------------------------------------")
-            output_mode = 'a'
+        output_mode = 'a'
 
     if SIE:
         if pysolver:
@@ -117,17 +114,8 @@ def main(
                 print_flag = print_flag,
                 python=True)
             print("---------------------------------------------------")
-            output_mode = 'a'
 
         elif gold:
-            system.runIntegratorOutput(
-                c_cudaIntegrateSIE,'SIE',
-                output_mode = output_mode,
-                print_flag = print_flag)
-            print("---------------------------------------------------")
-            output_mode = 'a'
-
-        else:
             system.runIntegratorOutput(
                 c_integrateSIE,'SIEgold',
                 output_mode = output_mode,
@@ -135,7 +123,16 @@ def main(
 
 
             print("---------------------------------------------------")
-            output_mode = 'a'
+
+        else:
+            system.runIntegratorOutput(
+                c_cudaIntegrateSIE,'SIE',
+                output_mode = output_mode,
+                print_flag = print_flag)
+            print("---------------------------------------------------")
+
+        output_mode = 'a'
+
 
 ## untested/defunct solvers:
     if SIEhost:
