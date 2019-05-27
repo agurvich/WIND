@@ -326,7 +326,7 @@ class ODEBase(Precompiler):
         dt = (self.tend-self.tnow)/self.n_output_steps
         equations_over_time = np.zeros((self.n_output_steps+1,len(equations)))
         nloops=0
-        equations_over_time[nloops]=copy.copy(equations)
+        equations_over_time[nloops]=copy.deepcopy(equations)
         times = []
         times+=[tcur]
         nsteps = []
@@ -367,8 +367,6 @@ class ODEBase(Precompiler):
                         self.Neqn_p_sys*(system_i+1)] = this_equations
 
                 nsteps+=[systems_nsteps]
-                equations_over_time[nloops]=copy.copy(equations)
-                 
 
             walltimes+=[time.time()-init_time]
             tcur+=dt

@@ -13,7 +13,11 @@ def integrate_rk2(
     relative,
     DEBUG=None):
 
-    equations = np.array(equations,dtype=np.float64)
+    tnow = np.float32(tnow)
+    tend = np.float32(tend)
+    equations = np.array(equations,dtype=np.float32)
+    constants = np.array(constants,dtype=np.float32)
+
     y1 = np.zeros(Neqn_p_sys)
     y2 = np.zeros(Neqn_p_sys)
 
@@ -49,7 +53,7 @@ def integrate_rk2(
             if DEBUG is not None:
                 DEBUG.append((tnow,copy.copy(equations)))
             tnow+=timestep
-            timestep*=2#(tend-tnow)
+            timestep=timestep*2
             
     return nsteps,equations
 
@@ -74,8 +78,8 @@ def checkError(y1,y2,absolute,relative):
         return True
     ## have to handle individually
     for y1_i,y2_i in zip(y1,y2):
-        if ( y1_i > absolute and 
-                y2_i > absolute and 
+        if ( np.abs(y1_i) > absolute and 
+                np.abs(y2_i) > absolute and 
                 np.abs((y2_i-y1_i)/(2*y2_i-y1_i+1e-12)) > relative):
             return True
     return False

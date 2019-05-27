@@ -4,9 +4,9 @@ import copy
 def integrate_sie(
     tnow,
     tend,
-    timestep,
-    equations,
+    n_integration_steps,
     constants,
+    equations,
     f_func,
     J_func,
     Neqn_p_sys,
@@ -14,13 +14,17 @@ def integrate_sie(
     relative,
     DEBUG=None):
 
-    equations = np.array(equations,dtype=np.float64)
-    constants = np.array(constants,dtype=np.float64)
+    tnow = np.float32(tnow)
+    tend = np.float32(tend)
+    equations = np.array(equations,dtype=np.float32)
+    constants = np.array(constants,dtype=np.float32)
+
     y1 = np.zeros(Neqn_p_sys)
     y2 = np.zeros(Neqn_p_sys)
 
     unsolved = 0
     nsteps=0
+    timestep = (tend-tnow)/n_integration_steps
     while tnow < tend:
         nsteps+=3
         timestep = min(timestep,tend-tnow)
@@ -49,12 +53,11 @@ def integrate_sie(
         if checkError(y1,y2,absolute,relative):
             timestep/=2
         else:
-            #import pdb; pdb.set_trace()
             equations = copy.copy(y2)
             tnow+=timestep
             if DEBUG is not None:
                 DEBUG.append((tnow,copy.copy(equations),J_func(tnow,equations,constants)[0]))
-            timestep*=2#(tend-tnow)
+            timestep=(tend-tnow)
             
     return nsteps,equations
 
@@ -84,8 +87,8 @@ def checkError(y1,y2,absolute,relative):
         return True
     ## have to handle individually
     for y1_i,y2_i in zip(y1,y2):
-        if ( y1_i > absolute and 
-                y2_i > absolute and 
+        if ( np.abs(y1_i) > absolute and 
+                np.abs(y2_i) > absolute and 
                 np.abs((y2_i-y1_i)/(2*y2_i-y1_i+1e-12)) > relative):
             return True
     return False
