@@ -78,9 +78,10 @@ __device__ float innerstep(
     int Nequations_per_system){ // the number of equations in each system
 
     float dydt = 0;
-
     float timestep = (tstop-tnow)/n_integration_steps;
+#ifdef SIE
     int this_index;
+#endif
     for (int nsteps=0; nsteps<n_integration_steps; nsteps++){
         // limit step size based on remaining time
         timestep = fmin(tstop - tnow, timestep);
@@ -170,10 +171,12 @@ __global__ void integrateSystem(
 
     int this_nsteps = 0;
     // ensure thread within limit
+    int unsolved = 0;
     if (tid < Nsystems*Nequations_per_system ) {
         *shared_error_flag = 0;
         // copy the y values to shared memory
         shared_equations[threadIdx.x] = equations[tid];
+        __syncthreads();
 
         //printf("%d thread %d block\n",threadIdx.x,blockIdx.x);
         while (tnow < tend){
@@ -182,7 +185,6 @@ __global__ void integrateSystem(
             // make sure we don't overintegrate
             timestep = fmin(tend-tnow,timestep);
             // save this to reset the value before calculating y2
-            __syncthreads();
             current_y = shared_equations[threadIdx.x];
             // shared_equations will have the y2 value 
             //  saved in it from the previous loop
@@ -243,13 +245,16 @@ __global__ void integrateSystem(
                 ABSOLUTE,RELATIVE); 
 #endif
 
-            if (*shared_error_flag){
+            if (*shared_error_flag && unsolved <10){
+                unsolved++;
                 // refine and start over
                 timestep/=2;
                 *shared_error_flag = 0;
                 shared_equations[threadIdx.x] = current_y;
+                __syncthreads();
             } // if shared_error_flag
             else{
+                unsolved=0;
                 // accept this step and update the shared array
 #ifdef RK2
                 shared_equations[threadIdx.x] = 2*y2-y1;
@@ -268,6 +273,7 @@ __global__ void integrateSystem(
 #else
                 // go for gold
                 timestep=(tend-tnow);
+#endif
 
 #endif
             }// if shared_error_flag -> else
