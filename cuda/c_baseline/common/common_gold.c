@@ -74,7 +74,7 @@ int integrateSystem(
     int nsteps =0;
     int unsolved = 0;
     int error_flag = 0;
-    while (tnow < tend && unsolved<20){
+    while (tnow < tend){
         // make sure we don't overintegrate
         timestep = fmin(tend-tnow,timestep);
 
@@ -142,7 +142,7 @@ int integrateSystem(
 #ifdef RK2
             timestep*=2;
 #else
-            timestep=(tend-tnow);
+            timestep = (tend-tnow);
 #endif
             unsolved =0;
         }

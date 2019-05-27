@@ -1,7 +1,10 @@
+// set flag for any includes that depend on it, like solver.h
+#define SIE
+
 #include <stdio.h>
 #include <cublas_v2.h>
 
-#include "implicit_solver.h"
+#include "solver.h"
 #include "ode.h"
 #include "utils.h"
 #include "cuda_utils.h"

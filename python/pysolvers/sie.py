@@ -50,14 +50,17 @@ def integrate_sie(
             f_func,
             J_func)
 
-        if checkError(y1,y2,absolute,relative):
+        if checkError(y1,y2,absolute,relative) and unsolved < 10:
+            unsolved+=1
             timestep/=2
         else:
             equations = copy.copy(y2)
             tnow+=timestep
             if DEBUG is not None:
                 DEBUG.append((tnow,copy.copy(equations),J_func(tnow,equations,constants)[0]))
+
             timestep=(tend-tnow)
+            unsolved=0
             
     return nsteps,equations
 

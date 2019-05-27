@@ -7,7 +7,7 @@ FILE2=rk2_gold.c
 
 cuda-gdb debug -ex 'set breakpoint pending on' -ex 'dir ../RK2' -ex 'dir ../c_baseline/rk2' -ex "b ${FILE1}:${LINE}" -ex "b ${FILE2}:${LINE2}" -ex 'run'
 
-
+#-ex 'dir ../c_baseline/rk2'
 
 #-ex "command 1" -ex "p ((@global float *) d_inversess_flat)[0]@5" -ex "p ((@global float *) d_inversess_flat)[5]@5" -ex "p ((@global float *) d_inversess_flat)[10]@5" -ex "p ((@global float *) d_inversess_flat)[15]@5" -ex "p ((@global float *) d_inversess_flat)[20]@5" -ex "end"
 
