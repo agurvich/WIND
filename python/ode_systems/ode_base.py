@@ -60,7 +60,6 @@ class Precompiler(object):
 
         if 'device' in proto_file:
             derivative_fn = self.make_device_derivative_block
-            jconstants_string = ""
         else:
             derivative_fn = self.make_derivative_block
 

@@ -510,5 +510,4 @@ class Katz96(ODEBase):
         9-alpha_(He++)
         ] 
     */
-    if (threadIdx.x==){
 """
