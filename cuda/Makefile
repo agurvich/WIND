@@ -3,7 +3,7 @@ WINDCONFIG= -DADAPTIVE_TIMESTEP #-DDEBUGBLOCK=1 #-DLOUD
 export WINDCONFIG
 OPTFLAGS = -O3 #-g #
 export OPTFLAGS
-NVCFLAGS = -shared  #-G #
+NVCFLAGS = -shared  #-G 
 
 ## Library names
 SIEEXECUTABLE	:= lib/sie.so

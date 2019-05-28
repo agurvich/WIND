@@ -16,7 +16,7 @@ LINEARALGEBRAOBJS=$(LINEARALGEBRAFILES:%.c=%.o)
 
 INCLUDE= -Ilinear_algebra -I. -I../ode_system -Iinclude -Icommon -I../include
 
-OPTFLAGS=-O3 #-g #
+#OPTFLAGS=-O3 #-g #
 CFLAGS=-shared -fPIC -std=c99 $(OPTFLAGS)
 
 
