@@ -133,7 +133,7 @@ class ODEBase(Precompiler):
         tend=1,
 
         n_integration_steps = 1,
-        n_output_steps=20,
+        n_output_steps=1,
 
         Nsystem_tile=1,
         Ntile=1,

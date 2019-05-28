@@ -1,7 +1,7 @@
 #!/bin/bash
 
-SYSTEM_NAME=StiffTrig #Katz96
-Ntiles=(75) #1 5 10 15 20 25 30 40 45 50 100 200 500)
+SYSTEM_NAME=Katz96
+Ntiles=(30) #1 5 10 15 20 25 30 40 45 50 100 200 500)
 Nsystem_tiles=(1 5 10 20 50 100 200 500 1000) # (1) #
 
 ## have to recompile in fixed step mode
@@ -46,21 +46,39 @@ do
             for Nsystem_tile in "${Nsystem_tiles[@]}"
             do
                 changenamedatadir ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} ${ABSOLUTE} ${RELATIVE}
-                if [ ! -d ${DATADIR} ]
+                ## create the datadir
+                bash shell_scripts/precompile_system.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} ${ABSOLUTE} ${RELATIVE} false false 
+                memory_out_file="${DATADIR}/SIE_memory.csv"
+                if [ ! -f ${memory_out_file} ]
                     then
-                    echo  ${NAME} not found in ${maindata}
-                    ## create the datadir
-                    bash shell_scripts/precompile_system.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} ${ABSOLUTE} ${RELATIVE} false false 
-                    ## run SIE on the gpu with memory profiling
-                    bash profiling_tools/memory_profile.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} ${ABSOLUTE} ${RELATIVE} --SIE=True "${@:1}"
-                    ## run RK2 on the gpu with memory profiling
-                    #bash profiling_tools/memory_profile.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} ${ABSOLUTE} ${RELATIVE} --RK2=True "${@:1}"
-                    ## run SIE on the cpu with memory profiling
-                    bash profiling_tools/python_memory_profile.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} ${ABSOLUTE} ${RELATIVE} --SIE=True --gold=True "${@:1}"
-                    ## run RK2 on the cpu with memory profiling
-                    bash profiling_tools/python_memory_profile.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} ${ABSOLUTE} ${RELATIVE} --RK2=True --gold=True "${@:1}"
+                        ## run SIE on the gpu with memory profiling
+                        bash profiling_tools/memory_profile.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} ${ABSOLUTE} ${RELATIVE} --SIE=True "${@:1}"
                 else
-                    echo "Nothing to do for" ${NAME}
+                    echo "Nothing to do for SIE" ${NAME}
+                fi
+                memory_out_file="${DATADIR}/RK2_memory.csv"
+                if [ ! -f ${memory_out_file} ]
+                    then
+                        ## run RK2 on the gpu with memory profiling
+                        bash profiling_tools/memory_profile.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} ${ABSOLUTE} ${RELATIVE} --RK2=True --n_output_steps=4 "${@:1}"
+                else
+                    echo "Nothing to do for RK2" ${NAME}
+                fi
+                memory_out_file="${DATADIR}/SIEgold_memory.dat"
+                if [ ! -f ${memory_out_file} ]
+                    then
+                        ## run SIE on the cpu with memory profiling
+                        bash profiling_tools/python_memory_profile.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} ${ABSOLUTE} ${RELATIVE} --SIE=True --gold=True "${@:1}"
+                else
+                    echo "Nothing to do for SIEgold" ${NAME}
+                fi
+                memory_out_file="${DATADIR}/RK2gold_memory.dat"
+                if [ ! -f ${memory_out_file} ]
+                    then
+                        ## run RK2 on the cpu with memory profiling
+                        bash profiling_tools/python_memory_profile.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tile} ${n_integration_steps} ${ABSOLUTE} ${RELATIVE} --RK2=True --gold=True "${@:1}"
+                else
+                    echo "Nothing to do for RK2gold" ${NAME}
                 fi
             done ## for Nsystem_tile
         done ## for RELATIVE

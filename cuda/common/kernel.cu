@@ -255,7 +255,12 @@ __global__ void integrateSystem(
                 ABSOLUTE,RELATIVE); 
 #endif
 
+#ifdef RK2
+            if (*shared_error_flag && unsolved <20){
+#else
             if (*shared_error_flag && unsolved <10){
+#endif
+
                 unsolved++;
                 // refine and start over
                 timestep/=2;
