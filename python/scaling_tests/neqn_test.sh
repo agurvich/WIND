@@ -33,7 +33,7 @@ do
     ## 2 -> dummy value for ${n_integration_steps} that should never overlap
     changenamedatadir ${SYSTEM_NAME} ${Ntile} ${Nsystem_tiles[0]} 2 ${absolutes[0]} ${relatives[0]}
     ## compile the new system for this Neqn_tile
-    bash shell_scripts/precompile_system.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tiles[0]} 2 ${absolutes[0]} ${relatives[0]} true false 
+    bash shell_scripts/precompile_system.sh ${SYSTEM_NAME} ${Ntile} ${Nsystem_tiles[0]} 2 ${absolutes[0]} ${relatives[0]} true true 
     ## i feel a little better by moving it before automated-ly rm'ing it
     mv ${DATADIR} ${maindata}/trash
     rm -r ${maindata}/trash

@@ -62,15 +62,15 @@ baseline:
 	@## compile this source file to object
 	nvcc $(NVCFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 $(INCLUDE) $(LIB) -o $@ $<;
 ### solver specific files
+%device_dydt.o:
+	@#echo compiling $@ with $(*D) only $(*F) leftover
+	nvcc $(NVCFLAGS) $($(*D)OPTFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 $(INCLUDE) $(LIB) -o $*device_dydt.o ode_system/$(*F)device_dydt.cu;
 SIE/%.o:
 	@#echo compiling $@ with SIE flags
 	nvcc $(NVCFLAGS) $(SIEOPTFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 -DSIE $(INCLUDE) $(LIB) -o $@ common/$*.cu
 RK2/%.o:
 	@#echo compiling $@ with RK2 flags
 	nvcc $(NVCFLAGS) $(RK2OPTFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 -DRK2 $(INCLUDE) $(LIB) -o $@ common/$*.cu
-%device_dydt.o:
-	@#echo compiling $@ with $(*D) only $(*F) leftover
-	nvcc $(NVCFLAGS) $($(*D)OPTFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 $(INCLUDE) $(LIB) -o $*device_dydt.o ode_system/$(*F)device_dydt.cu;
 ### Clean up
 preclean:
 	rm -f SIE/precompile_device_dydt.o 
