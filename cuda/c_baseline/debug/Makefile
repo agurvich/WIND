@@ -10,7 +10,7 @@ BUILDDIR = $(shell pwd)
 CFLAGS = -g
 make: 
 	@## compile this guy
-	cc $(CFLAGS) $(NVCFLAGS) -ldl $(INCLUDE) -o debug $(DEBUGFILE);
+	nvcc $(CFLAGS) $(NVCFLAGS) -ldl $(INCLUDE) -o debug $(DEBUGFILE);
 rebuild:
 	cd ..;make clean; make
 	make

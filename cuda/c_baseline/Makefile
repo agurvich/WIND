@@ -17,16 +17,16 @@ LINEARALGEBRAOBJS=$(LINEARALGEBRAFILES:%.c=%.o)
 INCLUDE= -Ilinear_algebra -I. -I../ode_system -Iinclude -Icommon -I../include
 
 #OPTFLAGS=-O3 #-g #
-CFLAGS=-shared -fPIC -std=c99 $(OPTFLAGS)
+CFLAGS=-shared --compiler-options '-fPIC' $(OPTFLAGS)
 
 
 make: $(GOLDODEOBJS) $(LINEARALGEBRAOBJS) $(RK2OBJS) $(SIEOBJS)
-	gcc $(CFLAGS) $(WINDCONFIG) $(INCLUDE) -o $(RK2EXECUTABLE) $(GOLDODEOBJS) $(RK2OBJS)
-	gcc $(CFLAGS) $(WINDCONFIG) $(INCLUDE) -o $(SIEEXECUTABLE) $(GOLDODEOBJS) $(LINEARALGEBRAOBJS) $(SIEOBJS)
+	nvcc $(CFLAGS) $(WINDCONFIG) $(INCLUDE) -o $(RK2EXECUTABLE) $(GOLDODEOBJS) $(RK2OBJS)
+	nvcc $(CFLAGS) $(WINDCONFIG) $(INCLUDE) -o $(SIEEXECUTABLE) $(GOLDODEOBJS) $(LINEARALGEBRAOBJS) $(SIEOBJS)
 common/common_gold_%.o:
-	gcc $(CFLAGS) $(WINDCONFIG) $(INCLUDE) -D$* -o $@ -c common/common_gold.c
+	nvcc $(CFLAGS) $(WINDCONFIG) $(INCLUDE) -D$* -o $@ -c common/common_gold.c
 %.o: %.c
-	gcc $(CFLAGS) $(WINDCONFIG) $(INCLUDE) -o $@ -c $<
+	nvcc $(CFLAGS) $(WINDCONFIG) $(INCLUDE) -o $@ -c $<
 preclean:
 	rm -f ../ode_system/precompile_ode_gold.o
 clean:

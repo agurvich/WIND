@@ -1,4 +1,4 @@
-#include "inputKatz96_30_50_1.h"
+#include "inputKatz96_1_1_1.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <dlfcn.h>
@@ -6,18 +6,18 @@ int main(){
 
     void * rk2lib = dlopen("../lib/rk2.so", RTLD_LAZY);
     //void * rk2lib = dlopen("../lib/sie_gold.so", RTLD_LAZY);
-    //void * sielib = dlopen("../lib/sie.so", RTLD_LAZY);
-    void * sielib = dlopen("../lib/rk2_gold.so", RTLD_LAZY);
+    void * sielib = dlopen("../lib/sie.so", RTLD_LAZY);
+    //void * sielib = dlopen("../lib/rk2_gold.so", RTLD_LAZY);
     
 
     int (*p_cudaIntegrateRK2)(float,float,int,float*,float*,int,int,float,float);
     p_cudaIntegrateRK2  = dlsym(rk2lib,"_Z19cudaIntegrateSystemffiPfS_iiff");
     //p_cudaIntegrateRK2  = dlsym(rk2lib,"goldIntegrateSystem");
     int (*p_cudaIntegrateSIE)(float,float,int,float*,float*,int,int,float,float);
-    //p_cudaIntegrateSIE  = dlsym(sielib,"_Z19cudaIntegrateSystemffiPfS_iiff");
-    p_cudaIntegrateSIE  = dlsym(sielib,"goldIntegrateSystem");
+    p_cudaIntegrateSIE  = dlsym(sielib,"_Z19cudaIntegrateSystemffiPfS_iiff");
+    //p_cudaIntegrateSIE  = dlsym(sielib,"goldIntegrateSystem");
 
-    tend=200;
+    tend=10;
 
     int nsteps;
     nsteps = (*p_cudaIntegrateSIE)(
@@ -37,8 +37,8 @@ int main(){
     }
     printf("\n");
 
-    printf("gold: %d nsteps\n",nsteps);
-    //printf("SIE: %d nsteps\n",nsteps);
+    //printf("gold: %d nsteps\n",nsteps);
+    printf("SIE: %d nsteps\n",nsteps);
 
 
     tnow = 0;
