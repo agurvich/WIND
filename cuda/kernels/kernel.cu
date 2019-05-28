@@ -43,8 +43,8 @@ __device__ void  scaleAndInvertJacobians(
     float timestep,
     float * Jacobians,
     float * inverses,
-    int Nequations_per_system){
-
+    int Nequations_per_system,
+    float * shared_array){
 
     int this_index;
     // loop through each row and perform 1-hJ
@@ -59,7 +59,8 @@ __device__ void  scaleAndInvertJacobians(
     gjeInvertMatrix(
         Jacobians,
         inverses,
-        Nequations_per_system);
+        Nequations_per_system,
+        shared_array);
 
     __syncthreads();
 }
@@ -93,9 +94,8 @@ __device__ float innerstep(
             constants,
             shared_equations);
 
-
 #ifdef SIE
-        shared_dydts[threadIdx.x] = dydt;
+
         // calculate the jacobian for the whole system
         calculate_jacobian(
             tnow,
@@ -109,7 +109,12 @@ __device__ float innerstep(
             timestep,
             Jacobians,
             inverses,
-            Nequations_per_system);
+            Nequations_per_system,
+            shared_dydts);
+
+        // fill the shared array with 
+        shared_dydts[threadIdx.x] = dydt;
+        __syncthreads();
 
         /* --  calculate h x (1-hJ)^-1 f  and add it into y(n) -- */
         //  accumulate matrix rows into elements of f
@@ -165,7 +170,9 @@ __global__ void integrateSystem(
     //  when initializing the kernel (<<dimGrid,dimBlock,sbytes>>)
     int * shared_error_flag = (int *) &total_shared[0];
     float * shared_equations = (float *) &total_shared[1];
+#ifdef SIE
     float * shared_dydts = (float *) &shared_equations[Nequations_per_system];
+#endif
 
     float y1,y2,current_y;
 

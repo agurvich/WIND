@@ -7,4 +7,5 @@ __global__ void gjeInvertMatrixBatched(
 __device__ void gjeInvertMatrix(
     float *, // d_matrix
     float *, // d_inverse
-    int); // Ndim
+    int, // Ndim
+    float *); //shared_array
