@@ -60,7 +60,7 @@ def main(
     gold = False,
     CHIMES = False,
     pysolver = False,
-    system_name = 'Katz96',
+    system_name = 'StiffTrig',
     makeplots=False,
     **kwargs):
 

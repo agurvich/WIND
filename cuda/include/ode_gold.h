@@ -9,4 +9,4 @@ void calculate_jacobian(
     float *,// equations,
     float *,// constants,
     float *);// Jacobian);
-#define NUM_CONST 10
+#define NUM_CONST 2
