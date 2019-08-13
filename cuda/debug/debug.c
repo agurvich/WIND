@@ -1,4 +1,4 @@
-#include "inputStiffTrig_75_1_2.h"
+#include "inputKatz96_1_1_1.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <dlfcn.h>

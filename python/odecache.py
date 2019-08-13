@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import h5py
 from abg_python.all_utils import nameAxes,bufferAxesLabels,fitLeastSq,add_curve_label
-from distinct_colours import get_distinct
+from abg_python.distinct_colours import get_distinct
 import pandas as pd
 import os
 
