@@ -10,6 +10,10 @@ import pandas as pd
 import os
 
 
+all_colors = get_distinct(9)
+
+arch_colors = all_colors[5:]
+
 plot_labels = {
     'SIE':'SIE-gpu',
     'SIEgold':'SIE-cpu',
@@ -18,14 +22,14 @@ plot_labels = {
 }
 
 linestyles = {
-    'SIE':'--',
-    'SIEgold':':',
-    'RK2':'--',
-    'RK2gold':':'
+    'SIE':'-',
+    'SIEgold':'--',
+    'RK2':'-',
+    'RK2gold':'--'
 }
 
 
-all_colors = get_distinct(5)
+
 
 colors = {
     'SIE':all_colors[0],
@@ -461,6 +465,7 @@ class MultiODECache(object):
         slopes = None,
         units = None,
         var_label = None,
+        bestfit_key = None,
         **kwargs):
         
         var_label = 'eqn' if var_label is None else var_label
@@ -468,6 +473,7 @@ class MultiODECache(object):
         units = 's' if units is None else units
         xss,yss,eqn_labels = [],[],[]
         pos_rels = np.repeat(0.9,len(self[0].solvers)) if pos_rels is None else pos_rels
+        bestfit_key = 'best_tts' if bestfit_key is None else bestfit_key
         ## what is the x value of each ode_cache?
         if x_function is None:
             raise ValueError("Provide an x-lambda function")
@@ -487,16 +493,20 @@ class MultiODECache(object):
         ## accumulator arrays to hold best fit
         test_xss = []
         test_yss = []
+        bestfits = []
         ## loop through each solver
         for solver_i,solver in enumerate([
             'RK2','RK2gold','SIE','SIEgold']):
             ## generate y values
-            ys = np.array([
-                y_function(ode_cache,solver) for ode_cache 
-                in self.ode_caches])
-            xs = np.array([
-                x_function(ode_cache) for ode_cache 
-                in self.ode_caches])
+            try:
+                ys = np.array([
+                    y_function(ode_cache,solver) for ode_cache 
+                    in self.ode_caches])
+                xs = np.array([
+                    x_function(ode_cache) for ode_cache 
+                    in self.ode_caches])
+            except:
+                continue
             
             if do_fit:
         
@@ -510,6 +520,7 @@ class MultiODECache(object):
                 slope_label = "$^%d$"%slope * (slope >1)
                 a = pars[0]
                 ## figure out what is the best set of units to use
+                bestfits+=[(solver,b,a)]
 
                 b_scale = -np.floor(np.log10(b))
                 if b_scale >= 4:
@@ -598,6 +609,29 @@ class MultiODECache(object):
                     fontsize=14,
                     weight = 'bold')
         fig.set_size_inches(8,4.5) 
+        
+
+        keys,vals0,vals1 = zip(*bestfits)
+        keys = list(keys)
+        vals0 = list(vals0)
+        vals1 = list(vals1)
+        ## TODO remove this because this failed only on BW
+        ##  and I'm rerunning
+        if 'RK2gold' not in keys:
+            keys=keys[:1]+['RK2gold']+keys[1:]
+            vals0=vals0[:1]+[np.nan]+vals0[1:]
+            vals1=vals1[:1]+[np.nan]+vals1[1:]
+            eqn_labels = eqn_labels[:1]+['']+eqn_labels[1:]
+
+        if 'SIEgold' not in keys:
+            keys+=['SIEgold']
+            vals0+=[np.nan]
+            vals1+=[np.nan]
+            eqn_labels += ['']
+            
+        bestdict = dict(zip(keys,zip(vals0,vals1,slopes,eqn_labels)))
+        setattr(self,bestfit_key,bestdict) 
+
         return fig,ax
         
 
@@ -730,3 +764,85 @@ class MultiODECache(object):
                                 self.clock_rate) 
         except IOError:
             print("Can't find %s"%gpufile)
+
+class MultiArch(object):
+    def __getitem__(self,index):
+        return self.archs[index]
+
+    def __repr__(self):
+        return str(self.archs)
+
+    def __init__(self,archs):
+        self.archs = archs
+
+    def plot_scaling(
+        self,
+        axs=None,
+        scaling=None,
+        **kwargs):
+
+        if axs is None:
+            fig,axs = plt.subplots(2,2,sharex=True,sharey=True)
+            axs = axs.flatten()
+        else:
+            fig = axs[0].get_figure()
+
+        scaling = 'best_tts' if scaling is None else scaling
+        fn = lambda b,a,slope,xs: b + a*xs**slope
+        test_xs = 10**np.linspace(
+            np.log10(1),np.log10(1000),25)
+
+        for solver,ax in zip(
+            getattr(self[-1],scaling).keys(),
+            axs):
+
+            try:
+                bestfit_dict = getattr(self.archs[0],scaling)
+                b,a,slope,eqn_label = bestfit_dict[solver] 
+                baseline_ys = fn(b,a,slope,test_xs)
+            except:
+                continue
+
+            for arch_i,arch in enumerate(self.archs[1:]):
+                bestfit_dict = getattr(arch,scaling)
+
+
+                ##unpack the values
+                try:
+                    b,a,slope,eqn_label = bestfit_dict[solver] 
+                except:
+                    continue
+
+                ax.plot(
+                    test_xs,
+                    baseline_ys/fn(b,a,slope,test_xs),
+                    color = arch_colors[arch_i],
+                    label=arch.name,
+                    ##ls = linestyles[solver],
+                    lw = 2.5)
+
+            nameAxes(
+                ax,
+                None,
+                logflag=(1,1),
+                subtitle=solver,
+                make_legend=1,
+                **kwargs)
+
+        plt.subplots_adjust(hspace=0,wspace=0)
+        bufferAxesLabels(
+            axs,
+            2,2,
+            ylabels=True,
+            share_ylabel='Speedup vs. %s'%self.archs[0].name,
+            xlabels=True,
+            share_xlabel = 'Neqn_p_sys')
+        fig.set_size_inches(8,8)
+
+
+
+
+
+
+
+

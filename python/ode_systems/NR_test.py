@@ -5,9 +5,9 @@ import os
 import copy
 
 ## this package imports
-from ode_systems.ode_base import ODEBase
+from wind.python.ode_systems.ode_base import ODEBase
 
-import odecache
+import wind.python.odecache
 import warnings
 import h5py
 

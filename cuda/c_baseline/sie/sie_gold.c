@@ -7,42 +7,6 @@
 #include "ode_gold.h"
 #include "linear_algebra.h"
 
-int checkError(
-    float * y1,
-    float * y2,
-    int Neqn_p_sys,
-    float ABSOLUTE, 
-    float RELATIVE){
-
-    double abs_error;
-    double rel_error;
-    int error_flag = 0;
-    for (int eqn_i=0; eqn_i<Neqn_p_sys; eqn_i++){
-        abs_error = fabs(y2[eqn_i]-y1[eqn_i]);
-        if (abs_error >= ABSOLUTE){
-#ifdef LOUD
-            printf("%d absolute failed: %.2e\n",eqn_i,abs_error);
-#endif
-            error_flag = 1;
-        }
-        //if (fabs(y1[eqn_i]) > ABSOLUTE && 
-            //fabs(y2[eqn_i]) > ABSOLUTE){
-            //rel_error = abs_error/fmin(fabs(y1[eqn_i]),fabs(y2[eqn_i]));
-        rel_error = fabs((y2[eqn_i] - y1[eqn_i])/(y2[eqn_i]+1e-12));
-        if (rel_error >= RELATIVE && 
-            y1[eqn_i] >= ABSOLUTE &&
-            y2[eqn_i] >= ABSOLUTE){
-#ifdef LOUD
-                printf("%d relative failed: %.2e\n",eqn_i,rel_error);
-#endif
-                error_flag = 1;
-        }// if rel_error >=RELATIVE
-        //}// if fabs(y1) > ABS_TOL && fabs(y2) > ABS_TOL
-    }// for eqn_i <Neqn_p_sys
-    return error_flag;
-}// int checkError
-
-
 void acceptSolution(float * y1, float * y2, float * equations,int Neqn_p_sys){
     // take the solution to be y2
     memcpy((void *)equations,(void *)y2,sizeof(float)*Neqn_p_sys);

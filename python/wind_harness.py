@@ -8,30 +8,38 @@ import h5py
 
 import getopt,sys
 
-from ode_systems.katz96 import Katz96 as k96_system
-from ode_systems.NR_test import NR_test as nr_test_system
-from pysolvers.sie import integrate_sie
+from wind.python.ode_systems.katz96 import Katz96 as k96_system
+from wind.python.ode_systems.NR_test import NR_test as nr_test_system
+from wind.python.ode_systems.stifftrig import StiffTrig as stifftrig_system
 
-def loadCLibraries():
+from wind.python.pysolvers.sie import integrate_sie as py_integrateSIE
+from wind.python.pysolvers.rk2 import integrate_rk2 as py_integrateRK2
+
+def loadCLibraries(cuda=True):
     ## find the first order solver shared object library 
     curdir = os.path.split(os.getcwd())[0]
+    if not cuda:
+        curdir = os.path.split(curdir)[0]
 
-    exec_call = os.path.join(curdir,"cuda","lib","sie_host.so")
-    c_obj = ctypes.CDLL(exec_call)
-    cublas_init = getattr(c_obj,"_Z26initializeCublasExternallyv")
-    c_cudaIntegrateSIEhost = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_iiff")
+    if cuda:
+        exec_call = os.path.join(curdir,"cuda","lib","sie_host.so")
+        c_obj = ctypes.CDLL(exec_call)
+        cublas_init = getattr(c_obj,"_Z26initializeCublasExternallyv")
+        c_cudaIntegrateSIEhost = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_iiff")
 
 
-    ## find the first order solver shared object library that is host-locked
-    exec_call = os.path.join(curdir,"cuda","lib","sie.so")
-    c_obj = ctypes.CDLL(exec_call)
-    c_cudaIntegrateSIE = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_iiff")
+        ## find the first order solver shared object library that is host-locked
+        exec_call = os.path.join(curdir,"cuda","lib","sie.so")
+        c_obj = ctypes.CDLL(exec_call)
+        c_cudaIntegrateSIE = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_iiff")
 
-    ## get the second order library
-    ##  cuda
-    exec_call = os.path.join(curdir,"cuda","lib","rk2.so")
-    c_obj = ctypes.CDLL(exec_call)
-    c_cudaIntegrateRK2 = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_iiff")
+        ## get the second order library
+        ##  cuda
+        exec_call = os.path.join(curdir,"cuda","lib","rk2.so")
+        c_obj = ctypes.CDLL(exec_call)
+        c_cudaIntegrateRK2 = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_iiff")
+    else:
+        c_cudaIntegrateSIEhost=c_cudaIntegrateSIE=c_cudaIntegrateRK2=None
 
 
     ##  c gold standard for RK2
@@ -51,8 +59,8 @@ def main(
     SIEhost = False,
     gold = False,
     CHIMES = False,
-    PY = False,
-    system_name = 'Katz96',
+    pysolver = False,
+    system_name = 'StiffTrig',
     makeplots=False,
     **kwargs):
 
@@ -60,9 +68,10 @@ def main(
         system = k96_system(**kwargs)
     elif system_name == 'NR_test':
         system = nr_test_system(**kwargs)
-
+    elif system_name == 'StiffTrig':
+        system = stifftrig_system(**kwargs)
     else:
-        raise ValueError("pick Katz96 or NR_test")
+        raise ValueError("pick Katz96 or NR_test or StiffTrig")
  
     output_mode = 'a'
     print_flag = False
@@ -75,38 +84,38 @@ def main(
         c_integrateSIE)=loadCLibraries()
 
     if RK2:
-        if not gold:
+        if pysolver:
             system.runIntegratorOutput(
-                c_cudaIntegrateRK2,'RK2',
+                py_integrateRK2,'pyRK2',
                 output_mode = output_mode,
-                print_flag = print_flag)
-
-            print("---------------------------------------------------")
-            output_mode = 'a'
-
-        else:
+                print_flag = print_flag,
+                python=True)
+        elif gold:
             system.runIntegratorOutput(
                 c_integrateRK2,'RK2gold',
                 output_mode = output_mode,
                 print_flag = print_flag)
 
             print("---------------------------------------------------")
-            output_mode = 'a'
-
-    ## initialize cublas to avoid interfering with timing
-    ##  since first one seems to take longer...? 
-
-
-    if SIE:
-        if not gold:
+        else:
             system.runIntegratorOutput(
-                c_cudaIntegrateSIE,'SIE',
+                c_cudaIntegrateRK2,'RK2',
                 output_mode = output_mode,
                 print_flag = print_flag)
-            print("---------------------------------------------------")
-            output_mode = 'a'
 
-        else:
+            print("---------------------------------------------------")
+        output_mode = 'a'
+
+    if SIE:
+        if pysolver:
+            system.runIntegratorOutput(
+                py_integrateSIE,'pySIE',
+                output_mode = output_mode,
+                print_flag = print_flag,
+                python=True)
+            print("---------------------------------------------------")
+
+        elif gold:
             system.runIntegratorOutput(
                 c_integrateSIE,'SIEgold',
                 output_mode = output_mode,
@@ -114,8 +123,18 @@ def main(
 
 
             print("---------------------------------------------------")
-            output_mode = 'a'
 
+        else:
+            system.runIntegratorOutput(
+                c_cudaIntegrateSIE,'SIE',
+                output_mode = output_mode,
+                print_flag = print_flag)
+            print("---------------------------------------------------")
+
+        output_mode = 'a'
+
+
+## untested/defunct solvers:
     if SIEhost:
         cublas_init()
 
@@ -123,46 +142,6 @@ def main(
             c_cudaIntegrateSIEhost,'SIEhost',
             output_mode = output_mode,
             print_flag = print_flag)
-
-    if PY:
-        yss = []
-        for system_index in range(system.Nsystems):
-            this_equations = system.equations[
-                system_index*system.Neqn_p_sys:
-                (system_index+1)*system.Neqn_p_sys]
-
-            this_constants = system.constants[
-                system_index*system.nconst:
-                (system_index+1)*system.nconst]
-
-            dt = (system.tend-system.tnow)/system.n_output_steps
-
-            init = time.time()
-            (t_arr_sol, y_arr_sol) = integrate_sie(
-                this_equations, 
-                this_constants,
-                dt,
-                system.tend, 
-                system.calculate_derivative,
-                system.calculate_jacobian)
-
-            yss+=[y_arr_sol]
-
-        print(np.shape(yss))
-        yss = np.array(yss)
-        yss = np.transpose(yss,axes=(1,0,2))
-        wall = time.time() - init
-        nsteps = system.tend/dt
-        with h5py.File(system.h5name,output_mode) as handle:
-            if 'PY' in handle.keys():
-                del handle['PY']
-                print("Overwriting PY")
-            group = handle.create_group('PY')
-            ## not memory efficient but it will jive with ODECache at least
-            group['equations_over_time'] = yss
-            group['times'] = t_arr_sol
-            group['nsteps'] = [nsteps]
-            group['walltimes'] = [wall]
 
     if CHIMES:
         my_driver = ChimesDriver(
@@ -219,7 +198,7 @@ if __name__ == '__main__':
         'n_output_steps=',
         'RK2=','SIE=','SIEhost=',
         'gold=',
-        'PY=','CHIMES=',
+        'pysolver=','CHIMES=',
         'system_name=',
         'makeplots=',
         'Ntile=','Nsystem_tile=',

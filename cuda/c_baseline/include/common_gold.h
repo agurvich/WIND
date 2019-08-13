@@ -1,5 +1,3 @@
-
-
 /* ------ <solver>_gold.c ------ */
 void acceptSolution(
     float *,// y1,
@@ -28,7 +26,6 @@ int checkError(
     int,// Neqn_p_sys);
     float, //absolute
     float); //relative
-
 
 int integrateSystem(
     float ,//tnow,

@@ -60,7 +60,6 @@ class Precompiler(object):
 
         if 'device' in proto_file:
             derivative_fn = self.make_device_derivative_block
-            jconstants_string = ""
         else:
             derivative_fn = self.make_derivative_block
 
@@ -134,7 +133,7 @@ class ODEBase(Precompiler):
         tend=1,
 
         n_integration_steps = 1,
-        n_output_steps=20,
+        n_output_steps=1,
 
         Nsystem_tile=1,
         Ntile=1,
@@ -202,7 +201,6 @@ class ODEBase(Precompiler):
         ## deal with any tiling
         self.tileSystems()
         self.tileEquations()
-
         if dumpDebug:
             self.dumpToCDebugInput()
 
@@ -272,11 +270,15 @@ class ODEBase(Precompiler):
                         ## how many rows should we skip?
                         offset = (eqntile_i*self.orig_Neqn_p_sys + row_i)
                         ## how many elements of new jacobian per row
-                        offset*=self.orig_Neqn_p_sys*self.Ntile 
+                        offset*=self.orig_Neqn_p_sys*self.Ntile
+                        ## how many columns to skip
+                        offset+=self.orig_Neqn_p_sys*eqntile_i 
+
                         tiled_jacobian_flat[offset:offset+self.orig_Neqn_p_sys] = this_row 
                 jacobian_flat = tiled_jacobian_flat
             ## indices above are in column major order to match cuBLAS specification
-            return jacobian_flat.reshape(self.Neqn_p_sys,self.Neqn_p_sys).T
+            return_val = jacobian_flat.astype(np.float32).reshape(self.Neqn_p_sys,self.Neqn_p_sys).T
+            return return_val
 
     def calculate_derivative(self,rates=None):
         if rates is None:
@@ -285,7 +287,7 @@ class ODEBase(Precompiler):
             ## tile the rates
             if self.Ntile > 1:
                 rates = np.tile(rates,self.Ntile) 
-            return rates
+            return rates.astype(np.float32)
 
     def calculate_eqmss(self):
         raise NotImplementedError
@@ -315,7 +317,8 @@ class ODEBase(Precompiler):
         integrator_fn,
         integrator_name,
         output_mode=None,
-        print_flag = 0):
+        print_flag = 0,
+        python=False):
 
         equations = copy.copy(self.equations)
         constants = copy.copy(self.constants)
@@ -325,23 +328,48 @@ class ODEBase(Precompiler):
         dt = (self.tend-self.tnow)/self.n_output_steps
         equations_over_time = np.zeros((self.n_output_steps+1,len(equations)))
         nloops=0
-        equations_over_time[nloops]=copy.copy(equations)
+        equations_over_time[nloops]=copy.deepcopy(equations)
         times = []
         times+=[tcur]
         nsteps = []
         walltimes = []
 
+
         while nloops < self.n_output_steps:#while tcur < tend:
             init_time = time.time()
-            nsteps+=[
-                runCudaIntegrator(
-                    integrator_fn,
-                    tcur,tcur+dt,
-                    self.n_integration_steps,
-                    constants,equations,
-                    self.Nsystems,self.Neqn_p_sys,
-                    self.absolute,self.relative,
-                    print_flag = print_flag)]
+            if not python:
+                nsteps+=[
+                    runCudaIntegrator(
+                        integrator_fn,
+                        tcur,tcur+dt,
+                        self.n_integration_steps,
+                        constants,equations,
+                        self.Nsystems,self.Neqn_p_sys,
+                        self.absolute,self.relative,
+                        print_flag = print_flag)]
+            else:
+                systems_nsteps=0
+                for system_i in range(self.Nsystems):
+                    this_nsteps,this_equations = integrator_fn(
+                            tcur,tcur+dt,
+                            self.n_integration_steps,
+                            constants[
+                                self.nconst*system_i:
+                                self.nconst*(system_i+1)],
+                            equations[
+                                self.Neqn_p_sys*system_i:
+                                self.Neqn_p_sys*(system_i+1)],
+                            self.calculate_derivative,
+                            self.calculate_jacobian,
+                            self.Neqn_p_sys,
+                            self.absolute,self.relative)
+                    systems_nsteps+=this_nsteps
+
+                    equations[
+                        self.Neqn_p_sys*system_i:
+                        self.Neqn_p_sys*(system_i+1)] = this_equations
+
+                nsteps+=[systems_nsteps]
 
             walltimes+=[time.time()-init_time]
             tcur+=dt
@@ -366,6 +394,7 @@ class ODEBase(Precompiler):
                 group['walltimes'] = walltimes
         print('nsteps:',nsteps)
         print("total nsteps:",np.sum(nsteps))
+        return np.array(times),np.array(equations_over_time)
 
     def dumpToCDebugInput(self):
         fname = os.path.join(
@@ -402,6 +431,12 @@ class ODEBase(Precompiler):
 
             handle.write(
                 "int Neqn_p_sys = %s;\n" % str(self.Neqn_p_sys))
+
+            handle.write(
+                "float absolute = %.2e;\n" % self.absolute)
+
+            handle.write(
+                "float relative = %.2e;\n" % self.relative)
 
 def runCudaIntegrator(
     integrator,

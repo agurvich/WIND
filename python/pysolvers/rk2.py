@@ -1,9 +1,8 @@
 import numpy as np 
 import copy
 
-def integrate_sie(
-    tnow,
-    tend,
+def integrate_rk2(
+    tnow,tend,
     n_integration_steps,
     constants,
     equations,
@@ -22,8 +21,7 @@ def integrate_sie(
     y1 = np.zeros(Neqn_p_sys)
     y2 = np.zeros(Neqn_p_sys)
 
-    unsolved = 0
-    nsteps=0
+    nsteps = 0
     timestep = (tend-tnow)/n_integration_steps
     while tnow < tend:
         nsteps+=3
@@ -32,55 +30,45 @@ def integrate_sie(
         y2 = copy.copy(equations)
         #import pdb; pdb.set_trace()
 
-        sie_step(
+        rk2_step(
             tnow,
             tnow+timestep,
             1,
             y1,
             constants,
-            f_func,
-            J_func)
+            f_func)
 
-        sie_step(
+        rk2_step(
             tnow,
             tnow+timestep,
             2,
             y2,
             constants,
-            f_func,
-            J_func)
+            f_func)
 
-        if checkError(y1,y2,absolute,relative) and unsolved < 10:
-            unsolved+=1
+        if checkError(y1,y2,absolute,relative):
             timestep/=2
         else:
-            equations = copy.copy(y2)
-            tnow+=timestep
+            equations = 2*y2-y1
             if DEBUG is not None:
-                DEBUG.append((tnow,copy.copy(equations),J_func(tnow,equations,constants)[0]))
-
-            timestep=(tend-tnow)
-            unsolved=0
+                DEBUG.append((tnow,copy.copy(equations)))
+            tnow+=timestep
+            timestep=timestep*2
             
     return nsteps,equations
 
-def sie_step(
+def rk2_step(
     tnow,
     tend,
     n_integration_steps,
     equations,
     constants,
-    f_func,
-    J_func):
+    f_func):
 
     timestep = (tend-tnow)/n_integration_steps
     for step_i in range(n_integration_steps):  
         dydts = f_func(tnow,equations,constants)
-        inverse = np.linalg.inv(
-            np.identity(equations.shape[0]) -
-            timestep*J_func(tnow,equations,constants)
-            )
-        equations+=timestep*np.matmul(inverse,dydts)
+        equations+=dydts*timestep
 
     return equations
     

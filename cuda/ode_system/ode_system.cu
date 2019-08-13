@@ -134,6 +134,7 @@ __global__ void calculateJacobians(
     constants+=bid*NUM_CONST;
 
     float * Jacobian = d_Jacobianss[bid];
+    if (threadIdx.x == 0){
 /* ----- PREFIX FLAG FOR PYTHON FRONTEND ----- */
 
     // constraint equation, ne = nH+ + nHe+ + 2*nHe++
@@ -172,6 +173,7 @@ __global__ void calculateJacobians(
     Jacobian[24] = -constants[9]*ne;//He++ : -alpha_(He++)ne
     Jacobian[23] = -Jacobian[24];//He+ : 9-alpha_(He++)ne
 /* ----- SUFFIX FLAG FOR PYTHON FRONTEND ----- */
+    }
 }
 
 void resetSystem(

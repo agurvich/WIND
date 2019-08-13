@@ -20,7 +20,7 @@ if [ ${7} == true ]
     fi 
     ## build the new ODE system and link to the solver .so 's
     echo "Making..."
-    make ODEOBJS="ode_system/precompile_ode_system.o ode_system/precompile_device_dydt.o" GOLDODEOBJS="../ode_system/precompile_ode_gold.o" > /dev/null 2>&1
+    make HOSTODEOBJ="precompile_ode_system.o" ODEOBJ="precompile_device_dydt.o" GOLDODEOBJS="../ode_system/precompile_ode_gold.o" > /dev/null 2>&1
     echo "...done"
     cd ../python
 fi

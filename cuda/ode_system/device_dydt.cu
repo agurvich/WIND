@@ -63,12 +63,14 @@ __device__ float calculate_dydt(
 __device__ void calculate_jacobian(
     float tnow,
     float * constants,
-    float * shared_temp_equations,
+    float * equations,
     float * Jacobian,
     int Neqn_p_sys){
+    if (threadIdx.x == 0){
+/* ----- PREFIX FLAG FOR PYTHON FRONTEND ----- */
 
     // constraint equation, ne = nH+ + nHe+ + 2*nHe++
-    float ne = shared_temp_equations[1]+shared_temp_equations[3]+shared_temp_equations[4]*2.0;
+    float ne = equations[1]+equations[3]+equations[4]*2.0;
 
     /* constants = [
         0-Gamma_(e,H0), 1-Gamma_(gamma,H0), 
@@ -81,10 +83,9 @@ __device__ void calculate_jacobian(
         ] 
     */
 
-   
     // NOTE could make this faster if we could do it in paralell 
-    if (threadIdx.x == 0){
-/* ----- PREFIX FLAG FOR PYTHON FRONTEND ----- */
+
+
         // H0
         Jacobian[0] = -(constants[0]*ne + constants[1]); // H+ : -(Gamma_(e,H0)ne + Gamma_(gamma,H0))
         Jacobian[1] = -Jacobian[0]; // H0 : 0-Gamma_(e,H0)ne + 1-Gamma_(gamma,H0)
