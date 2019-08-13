@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SYSTEM_NAME=StiffTrig #Katz96
+SYSTEM_NAME=Katz96 #StiffTrig #Katz96
 Ntiles=(75) #1 5 10 15 20 25 30 40 45 50 100 200 500)
 Nsystem_tiles=(1 5 10 20 50 100 200 500 1000) # (1) #
 
@@ -19,9 +19,9 @@ if [ ! -d ${maindata} ]
 fi
 
 function changenamedatadir(){
-    ind=`expr index ${5} -`
+    ind=`echo ${5} | sed -n 's/[-].*//p' | wc -c`
     abs_string=${5:0:ind-1}${5:ind}
-    ind=`expr index ${6} -`
+    ind=`echo ${6} | sed -n 's/[-].*//p' | wc -c`
     rel_string=${6:0:ind-1}${6:ind}
     export NAME=${1}_neqntile.${2}_nsystemtile.${3}_fixed.${4}_abs.${abs_string}_rel.${rel_string}
     export DATADIR=${maindata}/${NAME}
