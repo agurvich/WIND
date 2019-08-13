@@ -19,21 +19,21 @@ Installing the python frontend is a separate process...
 1) install conda (https://docs.conda.io/en/latest/miniconda.html)
 2) mkdir WIND/data
 3) install required python modules:
-  a) numpy 
-  b) h5py
-  c) matplotlib
-  d) scipy
-  e) pandas
-  f) pip install memory-profiler
-  g) psutil
+    1) numpy 
+    2) h5py
+    3) matplotlib
+    4) scipy
+    5) pandas
+    6) pip install memory-profiler
+    7) psutil
 4) mkdir ~/python; cd ~/python
 5) ln -s ~/path/to/WIND wind and add ~/python to your PYTHONPATH environment variable
 6) install chimes_driver
-  a) chimes-driver
-    I) cd ~/python; ln -s /path/to/chimes-driver chimes_driver
-  b) chimes
-    I) sundials static library not necessary,  nor do you have to build chimes at all
-  c) chimes-data
+    1) chimes-driver
+        1) cd ~/python; ln -s /path/to/chimes-driver chimes_driver
+    2) chimes
+        1) sundials static library not necessary,  nor do you have to build chimes at all
+    3) chimes-data
 7) clone abg_python (github.com/agurvich/abg_python) into ~/python (or add into your PYTHONPATH)
 8) move device_memory_profile into $PATH variable
 9) cd /path/to/wind/python; bash scaling_tests/single_run.sh
