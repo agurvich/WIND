@@ -2,19 +2,17 @@
 
 texture<float, 1, cudaReadModeElementType> tex;
 
-__device__ float index_texture(float index,int texture_size){
-    printf("%d, %.2f, %d\t",threadIdx.x,index,texture_size);
-    return 0.5 + index*float(texture_size);
-}
-__global__ void kernel(int M, int N, float *d_out){
-
+__global__ void kernel(
+    int texture_size,
+    float* normalized_indices){
     for (int i = 0; i < blockDim.x; i++){
         if (threadIdx.x == i){
-            float v = index_texture(float(threadIdx.x)/float(blockDim.x-1),M);
+            float v=0.5+normalized_indices[threadIdx.x]*(
+                texture_size-1);
             float x = tex1D(tex, v);
-            //printf("%f\n", x); // for deviceemu testing
-            d_out[threadIdx.x] = x;
-            printf("(%.2f, %.2f , %d)\n",v-0.5,d_out[threadIdx.x],M);
+            printf("(%.2f, %.2f, %.2f)\n",
+                normalized_indices[threadIdx.x],
+                v-0.5,x);
         }
         __syncthreads();
     }
@@ -22,55 +20,62 @@ __global__ void kernel(int M, int N, float *d_out){
     if (threadIdx.x == 1){
         printf("\n");
     }
-
-
-    }
+}
 
 int main(){
-    int M = 6;
-    int nbins = 10;
-    int N = M*nbins-1;
+    int ntexture_edges = 6; // how many "anchors" are in the texture
+    int nsamples = 10; // sample the texture in 1/nsamples increments
 
-    // memory for output
+    // create the normalized_indices
+    //  +1 to get the final 1.0 at the end
+    float *normalized_indices = (float*)malloc(
+        (nsamples+1)*sizeof(float));
 
-    float *d_out;
+    for (int i=0; i<(nsamples+1); i++){
+        normalized_indices[i] = float(i)/float(nsamples);
+    }
+    normalized_indices[3]=.75; // overwrite to check manually
 
-    cudaMalloc((void**)&d_out, sizeof(float) * N);
+    // create the device normalized_indices pointer and fill it
+    float * d_normalized_indices;
+    cudaMalloc((void**)&d_normalized_indices,
+        sizeof(float)*(nsamples+1));
+    cudaMemcpy(d_normalized_indices,
+        normalized_indices,
+        sizeof(float)*(nsamples+1),
+        cudaMemcpyHostToDevice);
 
+    // fill array with texture values
+    float *data = (float*)malloc(ntexture_edges*sizeof(float));
+    for (int i = 0; i < ntexture_edges; i++){
+        data[i] = 2*float(i);
+        printf("%d\t",i);
+    }
+    printf("\n");
 
-    // make an array half the size of the output
-
+    // make an array to store the texture values
     cudaArray* cuArray;
 
-    cudaMallocArray(&cuArray, &tex.channelDesc, M+1, 1);
+    cudaMallocArray(&cuArray, &tex.channelDesc, ntexture_edges, 1);
     cudaBindTextureToArray (tex, cuArray);
-
     tex.filterMode = cudaFilterModeLinear;
     tex.normalized = 0;
 
-    // data fill array with increasing values
-    float *data = (float*)malloc((M+1)*sizeof(float));
 
-    for (int i = 0; i < (M+1); i++)
-        data[i] = float(i);
-    ( cudaMemcpyToArray(cuArray, 0, 0, data, sizeof(float)*(M+1), cudaMemcpyHostToDevice) );
+    cudaMemcpyToArray(cuArray,0,0,data,sizeof(float)*ntexture_edges,
+        cudaMemcpyHostToDevice);
 
+    kernel<<<1, nsamples+1>>>(
+        ntexture_edges,
+        d_normalized_indices);
 
+    cudaDeviceSynchronize();
 
-    kernel<<<1, nbins+1>>>(M,N, d_out);
-
-    float *h_out = (float*)malloc(sizeof(float)*N);
-    ( cudaMemcpy(h_out, d_out, sizeof(float)*N, cudaMemcpyDeviceToHost) );
-    /*
-    for (int i = 0; i < N; i++)
-        printf("%f\n", h_out[i]);
-    */
-
-    free(h_out);
     free(data);
+    free(normalized_indices);
 
     cudaFreeArray(cuArray);
-    cudaFree(d_out);
+    cudaFree(d_normalized_indices);
 }
 
 
