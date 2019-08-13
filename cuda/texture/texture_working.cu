@@ -2,15 +2,19 @@
 
 texture<float, 1, cudaReadModeElementType> tex;
 
+__device__ float index_texture(float index,int texture_size){
+    printf("%d, %.2f, %d\t",threadIdx.x,index,texture_size);
+    return 0.5 + index*float(texture_size);
+}
 __global__ void kernel(int M, int N, float *d_out){
-    float v = 0.5+ float(threadIdx.x) /float(N+1)* float(M);
-    float x = tex1D(tex, v);
-    //printf("%f\n", x); // for deviceemu testing
-    d_out[threadIdx.x] = x;
 
     for (int i = 0; i < blockDim.x; i++){
         if (threadIdx.x == i){
-            printf("(%.2f, %.2f )\t",v-0.5,d_out[threadIdx.x]);
+            float v = index_texture(float(threadIdx.x)/float(blockDim.x-1),M);
+            float x = tex1D(tex, v);
+            //printf("%f\n", x); // for deviceemu testing
+            d_out[threadIdx.x] = x;
+            printf("(%.2f, %.2f , %d)\n",v-0.5,d_out[threadIdx.x],M);
         }
         __syncthreads();
     }
@@ -23,8 +27,8 @@ __global__ void kernel(int M, int N, float *d_out){
     }
 
 int main(){
-    int M = 2;
-    int nbins = 20;
+    int M = 6;
+    int nbins = 10;
     int N = M*nbins-1;
 
     // memory for output
@@ -34,23 +38,22 @@ int main(){
     cudaMalloc((void**)&d_out, sizeof(float) * N);
 
 
-
     // make an array half the size of the output
 
     cudaArray* cuArray;
 
-    cudaMallocArray(&cuArray, &tex.channelDesc, M, 1);
+    cudaMallocArray(&cuArray, &tex.channelDesc, M+1, 1);
     cudaBindTextureToArray (tex, cuArray);
 
     tex.filterMode = cudaFilterModeLinear;
     tex.normalized = 0;
 
     // data fill array with increasing values
-    float *data = (float*)malloc(M*sizeof(float));
+    float *data = (float*)malloc((M+1)*sizeof(float));
 
-    for (int i = 0; i < M; i++)
+    for (int i = 0; i < (M+1); i++)
         data[i] = float(i);
-    ( cudaMemcpyToArray(cuArray, 0, 0, data, sizeof(float)*M, cudaMemcpyHostToDevice) );
+    ( cudaMemcpyToArray(cuArray, 0, 0, data, sizeof(float)*(M+1), cudaMemcpyHostToDevice) );
 
 
 
