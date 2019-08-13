@@ -1,15 +1,15 @@
 #include <stdio.h>
 
-texture<float, 1, cudaReadModeElementType> tex;
+//texture<float, 1, cudaReadModeElementType> tex;
 
 __global__ void kernel(
+    cudaTextureObject_t tex,
     int texture_size,
     float* normalized_indices){
     for (int i = 0; i < blockDim.x; i++){
         if (threadIdx.x == i){
-            float v=0.5+normalized_indices[threadIdx.x]*(
-                texture_size-1);
-            float x = tex1D(tex, v);
+            float v=0.5+normalized_indices[threadIdx.x];
+            float x = tex1D<float>(tex, v);
             printf("(%.2f, %.2f, %.2f)\n",
                 normalized_indices[threadIdx.x],
                 v-0.5,x);
@@ -53,19 +53,63 @@ int main(){
     }
     printf("\n");
 
-    // make an array to store the texture values
+    float *d_data;
+    cudaMalloc((void**)&d_data,
+        sizeof(float)*(ntexture_edges));
+    cudaMemcpy(d_data,data,ntexture_edges*sizeof(float),
+        cudaMemcpyHostToDevice);
+
+    cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(
+        32,0,0,0,
+        cudaChannelFormatKindFloat);
     cudaArray* cuArray;
-
-    cudaMallocArray(&cuArray, &tex.channelDesc, ntexture_edges, 1);
-    cudaBindTextureToArray (tex, cuArray);
-    tex.filterMode = cudaFilterModeLinear;
-    tex.normalized = 0;
-
+    cudaMallocArray(&cuArray, &channelDesc, ntexture_edges, 1);
 
     cudaMemcpyToArray(cuArray,0,0,data,sizeof(float)*ntexture_edges,
         cudaMemcpyHostToDevice);
 
+    //create texture object
+    struct cudaResourceDesc resDesc;
+    memset(&resDesc,0,sizeof(resDesc));
+    resDesc.resType = cudaResourceTypeArray;
+    resDesc.res.array.array = cuArray;
+
+    //resDesc.res.linear.devPtr = d_data;
+    //resDesc.res.linear.desc = cudaCreateChannelDesc<float>(); 
+    //resDesc.res.linear.sizeInBytes = sizeof(float)*(ntexture_edges);
+
+    cudaTextureDesc texDesc;
+    memset(&texDesc, 0, sizeof(texDesc));
+    texDesc.addressMode[0] =cudaAddressModeClamp;
+    texDesc.addressMode[1] =cudaAddressModeClamp;
+    texDesc.filterMode = cudaFilterModeLinear;
+    texDesc.readMode = cudaReadModeElementType;
+    texDesc.normalizedCoords = 0;
+
+      // create texture object: we only have to do this once!
+    cudaTextureObject_t tex=0;
+    cudaCreateTextureObject(&tex, &resDesc, &texDesc, NULL);
+    
+
+    /*
+    cudaMemcpy(d_normalized_indices,
+        normalized_indices,
+        sizeof(float)*(ntexture_edges),
+        cudaMemcpyHostToDevice);
+        */
+
+    // fill array with texture values
+    /*
+    // make an array to store the texture values
+
+    cudaBindTextureToArray (tex, cuArray);
+    tex.filterMode = cudaFilterModeLinear;
+    tex.normalized = 0;
+
+    */
+
     kernel<<<1, nsamples+1>>>(
+        tex,
         ntexture_edges,
         d_normalized_indices);
 
@@ -74,7 +118,8 @@ int main(){
     free(data);
     free(normalized_indices);
 
-    cudaFreeArray(cuArray);
+    cudaDestroyTextureObject(tex);
+    //cudaFreeArray(cuArray);
     cudaFree(d_normalized_indices);
 }
 
