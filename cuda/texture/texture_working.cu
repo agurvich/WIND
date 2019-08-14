@@ -1,11 +1,11 @@
 #include <stdio.h>
 
-//texture<float, 1, cudaReadModeElementType> tex;
-
-__global__ void kernel(
+__global__ void kernelSampleTexture(
     cudaTextureObject_t tex,
     int texture_size,
     float* normalized_indices){
+
+    // force threads to execute in a specific order
     for (int i = 0; i < blockDim.x; i++){
         if (threadIdx.x == i){
             float v=0.5+(normalized_indices[threadIdx.x]*
@@ -17,10 +17,6 @@ __global__ void kernel(
         }
         __syncthreads();
     }
-    __syncthreads();
-    if (threadIdx.x == 1){
-        printf("\n");
-    }
 }
 
 cudaTextureObject_t make1DTextureFromPointer(
@@ -31,9 +27,22 @@ cudaTextureObject_t make1DTextureFromPointer(
         32,0,0,0,
         cudaChannelFormatKindFloat);
     cudaArray* cuArray;
-    cudaMallocArray(&cuArray, &channelDesc, Narr, 1);
+    // cudaMallocArray inherently allocates 2D, 
+    //  last argument is 
+    cudaMallocArray(
+        &cuArray,
+        &channelDesc,
+        Narr,
+        1);
 
-    cudaMemcpyToArray(cuArray,0,0,arr,sizeof(float)*Narr,
+    // cudaMemcpyToArray is deprecated for some reason...
+    //  so we're supposed to be using Memcpy2DToArray
+    //  https://devtalk.nvidia.com/default/topic/1048376/cuda-programming-and-performance/cudamemcpytoarray-is-deprecated/
+    cudaMemcpyToArray(
+        cuArray, // destination of data
+        0,0, // woffset and hoffset?
+        arr, // source of data
+        sizeof(float)*Narr, // bytes of data
         cudaMemcpyHostToDevice);
 
     //create texture object
@@ -56,9 +65,10 @@ cudaTextureObject_t make1DTextureFromPointer(
     return tex;
 }
 
-int main(){
-    int ntexture_edges = 6; // how many "anchors" are in the texture
-    int nsamples = 10; // sample the texture in 1/nsamples increments
+void sampleTexture(
+    cudaTextureObject_t tex,
+    int ntexture_edges,
+    int nsamples){
 
     // create the normalized_indices
     //  +1 to get the final 1.0 at the end
@@ -68,7 +78,6 @@ int main(){
     for (int i=0; i<(nsamples+1); i++){
         normalized_indices[i] = float(i)/float(nsamples);
     }
-    normalized_indices[3]=.75; // overwrite to check manually
 
     // create the device normalized_indices pointer and fill it
     float * d_normalized_indices;
@@ -78,6 +87,19 @@ int main(){
         normalized_indices,
         sizeof(float)*(nsamples+1),
         cudaMemcpyHostToDevice);
+    kernelSampleTexture<<<1, nsamples+1>>>(
+        tex,
+        ntexture_edges,
+        d_normalized_indices);
+
+    cudaDeviceSynchronize();
+    free(normalized_indices);
+    cudaFree(d_normalized_indices);
+}
+
+int main(){
+    int ntexture_edges = 6; // how many "anchors" are in the texture
+    int nsamples = 10; // sample the texture in 1/nsamples increments
 
     // fill array with texture values
     float *data = (float*)malloc(ntexture_edges*sizeof(float));
@@ -90,20 +112,9 @@ int main(){
     cudaTextureObject_t tex = make1DTextureFromPointer(
         data,ntexture_edges);
 
-    kernel<<<1, nsamples+1>>>(
-        tex,
-        ntexture_edges,
-        d_normalized_indices);
-
-    cudaDeviceSynchronize();
+    sampleTexture(tex,ntexture_edges,nsamples);
 
     free(data);
-    free(normalized_indices);
-
     cudaDestroyTextureObject(tex);
-    //cudaFreeArray(cuArray);
-    cudaFree(d_normalized_indices);
+    //cudaFree(cuArray); <--- rip?
 }
-
-
-
