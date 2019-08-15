@@ -12,8 +12,8 @@ __global__ void kernelSampleLayeredTexture(
             if (threadIdx.x == i){
                 float v=0.5+(normalized_indices[threadIdx.x]*
                     (texture_size-1));
-                //float x = tex1D<float>(tex, v);
-                float x = v;
+                float x = tex1D<float>(tex, v);
+                //float x = v;
                 printf("(%.2f, %.2f, %.2f)\n",
                     normalized_indices[threadIdx.x],
                     v-0.5,x);
@@ -85,6 +85,7 @@ cudaTextureObject_t make1DTextureFromPointer(
         &cuArray,
         &channelDesc,
         make_cudaExtent(Narr, 0, 0));
+        //cudaArrayLayered);
 
     // cudaMemcpyToArray is deprecated for some reason...
     //  so we're supposed to be using Memcpy2DToArray
