@@ -59,7 +59,7 @@ cudaTextureObject_t make1DTextureFromPointer(
     texDesc.readMode = cudaReadModeElementType;
     texDesc.normalizedCoords = 0;
 
-      // create texture object: we only have to do this once!
+    // create texture object: we only have to do this once!
     cudaTextureObject_t tex=0;
     cudaCreateTextureObject(&tex, &resDesc, &texDesc, NULL);
     return tex;

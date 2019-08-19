@@ -2,44 +2,23 @@
 
 __global__ void kernelSampleLayeredTexture(
     cudaTextureObject_t tex,
-    int texture_size,
+    int width,
+    int height,
     float* normalized_indices,
     int nlayers){
 
-    for (int layer=0; layer<nlayers; layer++){
-        // force threads to execute in a specific order
-        for (int i = 0; i < blockDim.x; i++){
-            if (threadIdx.x == i){
-                float v=0.5+(normalized_indices[threadIdx.x]*
-                    (texture_size-1));
-                float x = tex1D<float>(tex, v);
-                //float x = v;
-                printf("(%.2f, %.2f, %.2f)\n",
-                    normalized_indices[threadIdx.x],
-                    v-0.5,x);
-            }
-            __syncthreads();
+    // force threads to execute in a specific order
+    for (int i = 0; i < width; i++){
+        for(int j=0; j < height; j++){
+            float u = i+0.5;
+            float v = j+0.5;
+            float x = tex2D<float>(tex,u,v);
+            printf("(%.2f, %.2f, %.2f)\n",u-0.5,v-0.5,x);
         }
     }
 }
 
 /*
-    cudaArray *cu_3darray;
-    cudaMalloc3DArray(
-        &cu_3darray,
-        &channelDesc,
-        make_cudaExtent(width, height, num_layers),
-        cudaArrayLayered);
-
-    cudaMemcpy3DParms myparms = {0};
-    myparms.srcPos = make_cudaPos(0,0,0);
-    myparms.dstPos = make_cudaPos(0,0,0);
-    myparms.srcPtr = make_cudaPitchedPtr(
-        h_data,
-        width*sizeof(float),
-        width,
-        height);
-
     myparms.dstArray = cu_3darray;
     myparms.extent = make_cudaExtent(
         width,
@@ -47,6 +26,23 @@ __global__ void kernelSampleLayeredTexture(
         num_layers);
     myparms.kind = cudaMemcpyHostToDevice;
     checkCudaErrors(cudaMemcpy3D(&myparms));
+
+*/
+
+cudaTextureObject_t simpleLayeredTexture(float * h_data, int width, int height, int num_layers){
+    /* h_data is flattened array containing all the information... */
+    // allocate array and copy image data
+    cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
+    cudaArray *cu_3darray;
+    cudaMalloc3DArray(&cu_3darray, &channelDesc, make_cudaExtent(width, height,0)); //num_layers, cudaArrayLayered));
+    cudaMemcpy3DParms myparms = {0};
+    myparms.srcPos = make_cudaPos(0,0,0);
+    myparms.dstPos = make_cudaPos(0,0,0);
+    myparms.srcPtr = make_cudaPitchedPtr(h_data, width * sizeof(float), width, height);
+    myparms.dstArray = cu_3darray;
+    myparms.extent = make_cudaExtent(width, height, 0);//num_layers);
+    myparms.kind = cudaMemcpyHostToDevice;
+    cudaMemcpy3D(&myparms);
 
     cudaTextureObject_t         tex;
     cudaResourceDesc            texRes;
@@ -58,23 +54,24 @@ __global__ void kernelSampleLayeredTexture(
     cudaTextureDesc             texDescr;
     memset(&texDescr,0,sizeof(cudaTextureDesc));
 
-    texDescr.normalizedCoords = true;
+    texDescr.normalizedCoords = false;
     texDescr.filterMode       = cudaFilterModeLinear;
-    texDescr.addressMode[0] = cudaAddressModeWrap;
-    texDescr.addressMode[1] = cudaAddressModeWrap;
+    texDescr.addressMode[0] = cudaAddressModeClamp;
+    texDescr.addressMode[1] = cudaAddressModeClamp;
     texDescr.readMode = cudaReadModeElementType;
 
-    checkCudaErrors(cudaCreateTextureObject(&tex, &texRes, &texDescr, NULL));
+    cudaCreateTextureObject(&tex, &texRes, &texDescr, NULL);
+    return tex;
+}
 
-*/
-
-
-
-
-cudaTextureObject_t make1DTextureFromPointer(
+/*
+cudaTextureObject_t make2DLayeredTextureFromPointer(
     float * arr,
     int Narr){
     
+    int height=1;
+    int num_layers=1;
+
     cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(
         32,0,0,0,
         cudaChannelFormatKindFloat);
@@ -84,18 +81,24 @@ cudaTextureObject_t make1DTextureFromPointer(
     cudaMalloc3DArray(
         &cuArray,
         &channelDesc,
-        make_cudaExtent(Narr, 0, 0));
+        make_cudaExtent(Narr, height, num_layers));
         //cudaArrayLayered);
 
-    // cudaMemcpyToArray is deprecated for some reason...
-    //  so we're supposed to be using Memcpy2DToArray
-    //  https://devtalk.nvidia.com/default/topic/1048376/cuda-programming-and-performance/cudamemcpytoarray-is-deprecated/
-    cudaMemcpyToArray(
-        cuArray, // destination of data
-        0,0, // woffset and hoffset?
-        arr, // source of data
-        sizeof(float)*Narr, // bytes of data
-        cudaMemcpyHostToDevice);
+    cudaMemcpy3DParms myparms = {0};
+    myparms.srcPos = make_cudaPos(0,0,0);
+    myparms.dstPos = make_cudaPos(0,0,0);
+    myparms.srcPtr = make_cudaPitchedPtr(
+        arr,
+        Narr*sizeof(float),
+        Narr,
+        height);
+    myparms.dstArray = cuArray;
+    myparms.extent = make_cudaExtent(
+        Narr,
+        height,
+        num_layers);
+    myparms.kind = cudaMemcpyHostToDevice;
+    cudaMemcpy3D(&myparms);
 
     //create texture object
     struct cudaResourceDesc resDesc;
@@ -111,15 +114,17 @@ cudaTextureObject_t make1DTextureFromPointer(
     texDesc.readMode = cudaReadModeElementType;
     texDesc.normalizedCoords = 0;
 
-      // create texture object: we only have to do this once!
+    // create texture object: we only have to do this once!
     cudaTextureObject_t tex=0;
     cudaCreateTextureObject(&tex, &resDesc, &texDesc, NULL);
     return tex;
 }
+*/
 
 void sampleTexture(
     cudaTextureObject_t tex,
-    int ntexture_edges,
+    int width,
+    int height,
     int nsamples,
     int nlayers){
 
@@ -140,9 +145,10 @@ void sampleTexture(
         normalized_indices,
         sizeof(float)*(nsamples+1),
         cudaMemcpyHostToDevice);
-    kernelSampleLayeredTexture<<<1, nsamples+1>>>(
+    kernelSampleLayeredTexture<<<1, 1>>>(
         tex,
-        ntexture_edges,
+        width,
+        height,
         d_normalized_indices,
         nlayers);
 
@@ -152,21 +158,29 @@ void sampleTexture(
 }
 
 int main(){
-    int ntexture_edges = 6; // how many "anchors" are in the texture
-    int nsamples = 10; // sample the texture in 1/nsamples increments
 
+    int nsamples = 10; // sample the texture in 1/nsamples increments
+    int width = 5;
+    int height = 5;
+    int ntexture_edges = width*height; // how many "anchors" are in the texture
+
+    float xc = 2;
+    float yc = 2;
     // fill array with texture values
     float *data = (float*)malloc(ntexture_edges*sizeof(float));
-    for (int i = 0; i < ntexture_edges; i++){
-        data[i] = 2*float(i);
-        printf("%d\t",i);
+    for (int i =0; i < width; i++){
+        for (int j = 0; j < height; j++){
+            data[i+j*width] = (i-xc)*(i-xc) + (j-yc)*(j-yc);//2*float(i);
+            printf("%.1f\t",data[i+j*width]);
+        }
+        printf("\n");
     }
-    printf("\n");
-    
-    cudaTextureObject_t tex = make1DTextureFromPointer(
-        data,ntexture_edges);
 
-    sampleTexture(tex,ntexture_edges,nsamples,1);
+    //cudaTextureObject_t tex = make2DLayeredTextureFromPointer(
+        //data,ntexture_edges);
+
+    cudaTextureObject_t tex = simpleLayeredTexture(data,ntexture_edges/2, 2, 1);
+    sampleTexture(tex,width,height,nsamples,1);
 
     free(data);
     cudaDestroyTextureObject(tex);
