@@ -17,7 +17,7 @@ LINEARALGEBRAOBJS=$(LINEARALGEBRAFILES:%.c=%.o)
 INCLUDE= -Ilinear_algebra -I. -I../ode_system -Iinclude -Icommon -I../include
 
 #OPTFLAGS=-O3 #-g #
-CFLAGS=-shared --compiler-options '-fPIC' $(OPTFLAGS)
+CFLAGS=-shared --compiler-options '-fPIC -std=c99' $(OPTFLAGS)
 
 
 make: $(GOLDODEOBJS) $(LINEARALGEBRAOBJS) $(RK2OBJS) $(SIEOBJS)

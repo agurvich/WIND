@@ -2,6 +2,13 @@
 WINDCONFIG= -DADAPTIVE_TIMESTEP #-DDEBUGBLOCK=0 #-DLOUD
 export WINDCONFIG
 
+HDF5DIR=/opt/cray/hdf5/1.10.0/cray/83
+
+CHIMESDIR=/u/sciteam/gurvich/src/CHIMES_repos/chimes
+CHIMESOBJS=$(CHIMESDIR)/test_runs/init_chimes.o CHIMES_TEMP/init_wind_chimes.o
+CHIMESINCLUDE=-I$(CHIMESDIR) -I/u/sciteam/gurvich/.local/include -I$(HDF5DIR)/include
+CHIMESLIB = -L/u/sciteam/gurvich/.local/lib -lsundials_cvode -lsundials_kinsol -lsundials_nvecserial -DH5_USE_16_API -L$(HDF5DIR)/lib
+
 ## OPTIMIZATION FLAGS
 OPTFLAGS =  -O3 #-g #
 NVCOPTFLAGS = #-G 
@@ -21,7 +28,7 @@ HOSTODEOBJ=ode_system.o
 SIEHOSTOBJS = SIE_host/harness_kernel.o linear_algebra/gauss_jordan_elimination.o
 SIEHOSTOBJS +=SIE_host/utils.o SIE_host/vector_kernels.o SIE_host/cuda_utils.o ode_system/$(HOSTODEOBJ)
 
-SIEOBJS = SIE/harness.o SIE/kernel.o linear_algebra/gauss_jordan_elimination.o SIE/$(ODEOBJ)
+SIEOBJS = SIE/harness.o SIE/kernel.o SIE/$(ODEOBJ) linear_algebra/gauss_jordan_elimination.o
 RK2OBJS = RK2/harness.o RK2/kernel.o RK2/$(ODEOBJ)
 
 ## compiler flags to make shared object for python
@@ -29,30 +36,28 @@ CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG) $(OPTFLAGS)
 NVCFLAGS = -shared $(NVCOPTFLAGS)
 
 ## libraries to include
-INCLUDE = -Iinclude -ISIE_host -ISIE -IRK2 -Iode_system -Ilinear_algebra
-LIB = -lcublas -lcusolver
+INCLUDE = -Iinclude -ISIE_host -ISIE -IRK2 -Iode_system -Ilinear_algebra $(CHIMESINCLUDE)
+LIB = -lcublas -lcusolver $(CHIMESLIB)
 
 BUILDDIR = $(shell pwd)
 
-## don't make SIEhost... no point
-#SIEHOST
 make: SIE RK2 baseline SIEHOST
 
 ### PHONY TARGETS
 .PHONY: RK2
-RK2: $(RK2OBJS)
+RK2: $(RK2OBJS) $(CHIMESOBJS)
 	@#echo making the phony $@ with $^
 	@## link common objs and ode obj to the 2nd order explicit solver 
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS);
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(CHIMESOBJS);
 .PHONY: SIE
-SIE: $(SIEOBJS)
+SIE: $(SIEOBJS) $(CHIMESOBJS)
 	@#echo making the phony $@ with $^
 	@## link common objs and ode obj to the 1st order semi-implicit solver 
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS);
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(CHIMESOBJS);
 .PHONY: SIEHOST
-SIEHOST: $(SIEHOSTOBJS)
+SIEHOST: $(SIEHOSTOBJS) $(CHIMESOBJS)
 	@## link common objs and ode obj to the 1st order semi-implicit that is host-locked
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS);
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(CHIMESOBJS);
 .PHONY: baseline
 baseline:
 	cd c_baseline;make
