@@ -4,22 +4,17 @@
 // link to global texture objects defined in wind_chimes.h
 #include "wind_chimes.h"
 
-void initialize_table(
-    struct wind_chimes_T_dependent_struct * p_this_table,
+void initialize_table_constant(
+    struct wind_chimes_constant_struct * p_this_table,
     int * N_reactions,
     int * reactantss_transpose_flat,
     int * productss_transpose_flat,
-    int H2_collis_dissoc_heating_reaction_index,
-    int H2_form_heating_reaction_index,
-    void * rates){
+    int H2_form_heating_reaction_index){
 
     // bind the simple stuff that's already allocated in the struct
     p_this_table->N_reactions[0] = N_reactions[0];
     p_this_table->N_reactions[1] = N_reactions[1];
-    p_this_table->H2_collis_dissoc_heating_reaction_index=H2_collis_dissoc_heating_reaction_index;
     p_this_table->H2_form_heating_reaction_index=H2_form_heating_reaction_index; 
-
-    printf(" n reactions is %d %d \n",p_this_table->N_reactions[0],p_this_table->N_reactions[1]);
 
     // allocate and copy the reactants over, then bind to the host this_table structure
     int * d_reactantss_transpose_flat;
@@ -42,82 +37,117 @@ void initialize_table(
         sizeof(int)*3*p_this_table->N_reactions[1],
         cudaMemcpyHostToDevice);
     p_this_table->productss_transpose_flat = d_productss_transpose_flat; // needs to be a device array
-    // allocate and copy the rates over, then bind to the host table structure
+    // allocate and copy the rates over, then bind to the host table structure 
+}
 
-    float * d_rates;
-    cudaMalloc(
-        &d_rates,
-        sizeof(float)*p_this_table->N_reactions[1]);
-    cudaMemcpy(
-        d_rates,
-        rates,
-        sizeof(float)*p_this_table->N_reactions[1],
+
+void initialize_table_T_dependent(
+    struct wind_chimes_T_dependent_struct * p_this_table,
+    int * N_reactions,
+    int * reactantss_transpose_flat,
+    int * productss_transpose_flat,
+    int H2_collis_dissoc_heating_reaction_index,
+    int H2_form_heating_reaction_index){
+
+    // bind the simple stuff that's already allocated in the struct
+    p_this_table->N_reactions[0] = N_reactions[0];
+    p_this_table->N_reactions[1] = N_reactions[1];
+    p_this_table->H2_collis_dissoc_heating_reaction_index=H2_collis_dissoc_heating_reaction_index;
+    p_this_table->H2_form_heating_reaction_index=H2_form_heating_reaction_index; 
+
+    // allocate and copy the reactants over, then bind to the host this_table structure
+    int * d_reactantss_transpose_flat;
+    cudaMalloc(&d_reactantss_transpose_flat,
+        sizeof(int)*3*p_this_table->N_reactions[1]);
+    cudaMemcpy(d_reactantss_transpose_flat,
+        reactantss_transpose_flat,
+        sizeof(int)*3*p_this_table->N_reactions[1],
         cudaMemcpyHostToDevice);
-    p_this_table->rates = d_rates; // needs to be a device array
-}
+    p_this_table->reactantss_transpose_flat = d_reactantss_transpose_flat; // needs to be a device array
 
-void load_rate_coeffs_into_texture_memory(void * ){
-
-}
-
-void create_wind_chimes_structs(){
-    // do some magic that will add the necessary info to the global textures
-/* ------- chimes_table_constant ------- */
-    // read the values from the corresponding chimes_table
-    int N_reactions_all = chimes_table_constant.N_reactions[1];
-    float * ratess_flat = chimes_table_constant.rates; // 1xN_reactions_all, not log
-
-    // allocate the memory for the constant rates on the device
+    // allocate and copy the products over, then bind to the host this_table structure
+    int * d_productss_transpose_flat;
     cudaMalloc(
-        &(wind_chimes_table_constant.rates),
-        sizeof(ChimesFloat)*chimes_table_constant.N_reactions[1]);
-
-    // copy it over
+        &d_productss_transpose_flat,
+        sizeof(int)*3*p_this_table->N_reactions[1]);
     cudaMemcpy(
-        wind_chimes_table_constant.rates,
-        chimes_table_constant.rates,
-        sizeof(ChimesFloat)*chimes_table_constant.N_reactions[1],
-        cudaMemcpyHostToDevice)
+        d_productss_transpose_flat,
+        productss_transpose_flat,
+        sizeof(int)*3*p_this_table->N_reactions[1],
+        cudaMemcpyHostToDevice);
+    p_this_table->productss_transpose_flat = d_productss_transpose_flat; // needs to be a device array
+    // allocate and copy the rates over, then bind to the host table structure 
+}
 
-    // TODO need to copy over the reaction info? the number of reactions?
-    //  need to figure out how I will represent this on device anyway sigh.
-    //  might need to just make a dang struct and live with it TODO
 
-    initialize_table(
-        &wind_chimes_table_constant,
-        chimes_table_constant.N_reactions,
-        int * reactantss_transpose_flat,
-        int * productss_transpose_flat,
-        chimes_table_constant.H2_collis_dissoc_heating_reaction_index,
-        chimes_table_constant.H2_form_heating_reaction_index,
-        (void *) chimes_table_constant.rates);
+void initialize_table_AB_recombination(
+    struct wind_chimes_AB_recombination_struct * p_this_table,
+    int * N_reactions,
+    int * reactantss_transpose_flat,
+    int * productss_transpose_flat){
 
-/* ------- chimes_table_T_dependent ------- */
-    // read the values from the corresponding chimes_table
-    N_reactions_all = chimes_table_T_dependent.N_reactions[1];
-    // put the flat pointer at the head of the 2d array
-    ratess_flat = chimes_table_T_dependent.rates[0];
+    // bind the simple stuff that's already allocated in the struct
+    p_this_table->N_reactions[0] = N_reactions[0];
+    p_this_table->N_reactions[1] = N_reactions[1];
 
-    // TODO need to loop over reactions and make sure
-    //  rates are stored how I think they are in memory
-    //  before copying them to Array TODO
+    // allocate and copy the reactants over, then bind to the host this_table structure
+    int * d_reactantss_transpose_flat;
+    cudaMalloc(&d_reactantss_transpose_flat,
+        sizeof(int)*3*p_this_table->N_reactions[1]);
+    cudaMemcpy(d_reactantss_transpose_flat,
+        reactantss_transpose_flat,
+        sizeof(int)*3*p_this_table->N_reactions[1],
+        cudaMemcpyHostToDevice);
+    p_this_table->reactantss_transpose_flat = d_reactantss_transpose_flat; // needs to be a device array
 
+    // allocate and copy the products over, then bind to the host this_table structure
+    int * d_productss_transpose_flat;
+    cudaMalloc(
+        &d_productss_transpose_flat,
+        sizeof(int)*3*p_this_table->N_reactions[1]);
+    cudaMemcpy(
+        d_productss_transpose_flat,
+        productss_transpose_flat,
+        sizeof(int)*3*p_this_table->N_reactions[1],
+        cudaMemcpyHostToDevice);
+    p_this_table->productss_transpose_flat = d_productss_transpose_flat; // needs to be a device array
+    // allocate and copy the rates over, then bind to the host table structure 
+}
+
+void load_rate_coeffs_into_texture_memory(
+    cudaTextureObject_t ** p_p_texture,
+    ChimesFloat * texture_edgess_flat,
+    int n_layers, // N_reactions_all
+    int n_texture_edges, // n_texture_edgess
+    ){
 
     // allocate memory on device for these rates constants and 
-    cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
+    cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(
+        32, 0, 0, 0, cudaChannelFormatKindFloat);
     cudaMemcpy3DParms my_params = {0};
     //my_params.srcPos = make_cudaPos(0,0,0);
     //my_params.dstPos = make_cudaPos(0,0,0);
-    my_params.srcPtr = make_cudaPitchedPtr(ratess_flat,N_Temperature *sizeof(float),N_Temperature,1);
+    my_params.srcPtr = make_cudaPitchedPtr(
+        texture_edgess_flat,
+        n_texture_edges *sizeof(float),// size in bytes
+        n_texture_edges, // size in elements
+        1); // height dimensionality? (e.g. 1 for 2d?)
+
     my_params.kind = cudaMemcpyHostToDevice;
-    my_params.extent = make_cudaExtent(N_Temperature, 1, N_reactions_all);
+    my_params.extent = make_cudaExtent(
+        n_texture_edges, // x dim
+        1, // y dim
+        n_layers); // z dim (layers)
 
     // create the cuda array and copy the data to it
     cudaArray *cu_3darray;
     cudaMalloc3DArray(
         &cu_3darray,
         &channelDesc,
-        make_cudaExtent(N_Temperature, 0,N_reactions_all),
+        make_cudaExtent(
+            n_texture_edges, // x dim
+            0, // y dim -- according to stack overflow this needs to be 0  even though above it is 1
+            n_layers), // z dim
         cudaArrayLayered);
     my_params.dstArray = cu_3darray;
     cudaMemcpy3D(&my_params);
@@ -139,19 +169,157 @@ void create_wind_chimes_structs(){
 
     // create the texture object at the global memory structure
     cudaCreateTextureObject(
-        &(wind_chimes_table_T_dependent.rates),
+        *(p_p_texture),// was passed the pointer to the texture by reference
         &resDesc,
         &texDesc,
         NULL);
+}
 
-    // TODO need to copy over the reaction info
-    N_reactions[0] and N_reactions[1]
-    reactantss
-    productss
+void tranpose_flatten_chemical_equations(
+    int ** chem_indices,
+    int ** p_chem_indices_transpose_flat,
+    int N_reactions,
+    int N_chems){
 
-    H2_collis_dissoci_heating_reaction_index
-    H2_form_heating_reaction_index
+    for (int i_chem=0; i_chem<N_chems; i_chem++){
+        for (int i_rxn=0; i_rxn<N_reactions; i_rxn++){
+            (*p_chem_indices_transpose_flat)[i_chem*N_reactions+i_rxn] = chem_indices[i_rxn][i_chem];
+        }
+    }
+}
 
+void create_wind_chimes_structs(){
+    ChimesFloat * ratess_flat;
+    int * reactantss_transpose_flat;
+    int * productss_transpose_flat;
+    int N_reactions_all;
+/* ------- chimes_table_constant ------- */
+    N_reactions_all = chimes_table_constant.N_reactions[1];
+
+    // allocate the pointers for this table
+    ratess_flat = (ChimesFloat *) malloc(sizeof(ChimesFloat)*N_reactions_all);
+    reactantss_transpose_flat = (int *) malloc(sizeof(int)*3*N_reactions_all);
+    productss_transpose_flat = (int *) malloc(sizeof(int)*3*N_reactions_all);
+
+    tranpose_flatten_chemical_equations(
+        chimes_table_constant.reactants,
+        &reactantss_transpose_flat, 
+        N_reactions_all,
+        3); // 3 reactants per reaction
+
+    tranpose_flatten_chemical_equations(
+        chimes_table_constant.products,
+        &productss_transpose_flat, 
+        N_reactions_all,
+        3); // 3 products per reaction
+
+    // read the values from the corresponding chimes_table
+    initialize_table_constant(
+        &wind_chimes_table_constant,
+        chimes_table_constant.N_reactions,
+        reactantss_transpose_flat,
+        productss_transpose_flat,
+        chimes_table_constant.H2_form_heating_reaction_index)
+
+    // allocate the memory for the constant rates on the device
+    //  which are just an array, no interpolation required
+    cudaMalloc(
+        &(wind_chimes_table_constant.rates),
+        sizeof(ChimesFloat)*N_reactions_all);
+    cudaMemcpy(
+        wind_chimes_table_constant.rates,
+        chimes_table_constant.rates,
+        sizeof(ChimesFloat)*N_reactions_all,
+        cudaMemcpyHostToDevice)
+    // and free up the ratess, productss, and reactantss buffers
+    free(reactantss_transpose_flat);
+    free(productss_transpose_flat);
+    free(ratess_flat);
+
+/* ------- chimes_table_T_dependent ------- */
+    N_reactions_all = chimes_table_T_dependent.N_reactions[1];
+
+    // (re-)allocate the pointers for this table
+    ratess_flat = (ChimesFloat *) malloc(
+        sizeof(ChimesFloat)*
+        chimes_table_bins.N_Temperatures*
+        N_reactions_all);
+    reactantss_transpose_flat = (int *) malloc(sizeof(int)*3*N_reactions_all);
+    productss_transpose_flat = (int *) malloc(sizeof(int)*3*N_reactions_all);
+
+    tranpose_flatten_chemical_equations(
+        chimes_table_T_dependent.reactants,
+        &reactantss_transpose_flat, 
+        N_reactions_all,
+        3); // 3 reactants per reaction
+
+    tranpose_flatten_chemical_equations(
+        chimes_table_T_dependent.products,
+        &productss_transpose_flat, 
+        N_reactions_all,
+        3); // 3 products per reaction
+
+    // copy the values from the table over...
+    initialize_table_T_dependent(
+        &wind_chimes_table_T_dependent,
+        chimes_table_T_dependent.N_reactions,
+        reactantss_transpose_flat,
+        productss_transpose_flat,
+        chimes_table_T_dependent.H2_collis_dissoc_heating_reaction_index,
+        chimes_table_T_dependent.H2_form_heating_reaction_index);
+
+    // TODO need to make sure rates is in the right format TODO
+    // read the rate coeffs from the corresponding chimes_table
+    //  and put them into texture memory
+    load_rate_coeffs_into_texture_memory(
+        &(&wind_chimes_table_T_dependent.rates),
+        ratess_flat,
+        N_reactions_all,
+        chimes_table_bins.N_Temperatures);
+
+    // free up the ratess, productss, and reactantss buffers
+    free(reactantss_transpose_flat);
+    free(productss_transpose_flat);
+    free(ratess_flat);
+/* ------- chimes_table_AB_recombination ------- */
+
+    // (re-)allocate the pointers for this table
+    ratess_flat = (ChimesFloat *) malloc(
+        sizeof(ChimesFloat)*
+        chimes_table_bins.N_Temperatures*
+        N_reactions_all*
+        2); // 2x the rates, one for A, one for B
+
+    reactantss_transpose_flat = (int *) malloc(sizeof(int)*3*N_reactions_all);
+    productss_transpose_flat = (int *) malloc(sizeof(int)*3*N_reactions_all);
+
+    tranpose_flatten_chemical_equations(
+        chimes_table_AB_recombination.reactants,
+        &reactantss_transpose_flat, 
+        N_reactions_all,
+        3); // 3 reactants per reaction
+
+    tranpose_flatten_chemical_equations(
+        chimes_table_AB_recombination.products,
+        &productss_transpose_flat, 
+        N_reactions_all,
+        3); // 3 products per reaction
+
+    // copy the values from the table over...
+    initialize_table_AB_recombination(
+        &wind_chimes_table_AB_recombination,
+        chimes_table_AB_recombination.N_reactions,
+        reactantss_transpose_flat,
+        productss_transpose_flat);
+
+    // TODO need to make sure rates is in the right format TODO
+    // read the rate coeffs from the corresponding chimes_table
+    //  and put them into texture memory
+    load_rate_coeffs_into_texture_memory(
+        &(&wind_chimes_table_AB_recombination.rates),
+        ratess_flat,
+        2*N_reactions_all, // 2x N_reactions_all layers, first half for A second for B
+        chimes_table_bins.N_Temperatures);
 
     // for looping through mallocs on the device...
     //https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#dynamic-global-memory-allocation-and-operations
