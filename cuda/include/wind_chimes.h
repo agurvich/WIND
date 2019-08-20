@@ -23,4 +23,4 @@ extern struct wind_chimes_recombination_AB_struct{
     cudaTextureObject_t * rates; // N_Temperature texture with 2*N_reactions_all layers, 
     //  A recomb are layers [0->N_reactions_all-1] 
     //  B recomb are layers [N_reactions_all -> 2*N_reactions_all-1]
-} wind_chimes_table_AB_recombination;
+} wind_chimes_table_recombination_AB;

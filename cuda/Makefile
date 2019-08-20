@@ -4,10 +4,11 @@ export WINDCONFIG
 
 HDF5DIR=/opt/cray/hdf5/1.10.0/cray/83
 
-CHIMESDIR=/u/sciteam/gurvich/src/CHIMES_repos/chimes
+CHIMESDIR=$(HOME)/src/CHIMES_repos/chimes
+
 CHIMESOBJS=$(CHIMESDIR)/test_runs/init_chimes.o CHIMES_TEMP/init_wind_chimes.o
-CHIMESINCLUDE=-I$(CHIMESDIR) -I/u/sciteam/gurvich/.local/include -I$(HDF5DIR)/include
-CHIMESLIB = -L/u/sciteam/gurvich/.local/lib -lsundials_cvode -lsundials_kinsol -lsundials_nvecserial -DH5_USE_16_API -L$(HDF5DIR)/lib
+CHIMESINCLUDE=-I$(CHIMESDIR) -I$(HOME)/.local/include -I$(HDF5DIR)/include
+CHIMESLIB = -L$(HOME)/.local/lib -lsundials_cvode -lsundials_kinsol -lsundials_nvecserial -DH5_USE_16_API -L$(HDF5DIR)/lib
 
 ## OPTIMIZATION FLAGS
 OPTFLAGS =  -O3 #-g #

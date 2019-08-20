@@ -80,8 +80,8 @@ void initialize_table_T_dependent(
 }
 
 
-void initialize_table_AB_recombination(
-    struct wind_chimes_AB_recombination_struct * p_this_table,
+void initialize_table_recombination_AB(
+    struct wind_chimes_recombination_AB_struct * p_this_table,
     int * N_reactions,
     int * reactantss_transpose_flat,
     int * productss_transpose_flat){
@@ -118,7 +118,7 @@ void load_rate_coeffs_into_texture_memory(
     cudaTextureObject_t ** p_p_texture,
     ChimesFloat * texture_edgess_flat,
     int n_layers, // N_reactions_all
-    int n_texture_edges, // n_texture_edgess
+    int n_texture_edges // n_texture_edgess
     ){
 
     // allocate memory on device for these rates constants and 
@@ -219,7 +219,7 @@ void create_wind_chimes_structs(){
         chimes_table_constant.N_reactions,
         reactantss_transpose_flat,
         productss_transpose_flat,
-        chimes_table_constant.H2_form_heating_reaction_index)
+        chimes_table_constant.H2_form_heating_reaction_index);
 
     // allocate the memory for the constant rates on the device
     //  which are just an array, no interpolation required
@@ -230,7 +230,7 @@ void create_wind_chimes_structs(){
         wind_chimes_table_constant.rates,
         chimes_table_constant.rates,
         sizeof(ChimesFloat)*N_reactions_all,
-        cudaMemcpyHostToDevice)
+        cudaMemcpyHostToDevice);
     // and free up the ratess, productss, and reactantss buffers
     free(reactantss_transpose_flat);
     free(productss_transpose_flat);
@@ -272,7 +272,7 @@ void create_wind_chimes_structs(){
     // read the rate coeffs from the corresponding chimes_table
     //  and put them into texture memory
     load_rate_coeffs_into_texture_memory(
-        &(&wind_chimes_table_T_dependent.rates),
+        &wind_chimes_table_T_dependent.rates,
         ratess_flat,
         N_reactions_all,
         chimes_table_bins.N_Temperatures);
@@ -281,7 +281,7 @@ void create_wind_chimes_structs(){
     free(reactantss_transpose_flat);
     free(productss_transpose_flat);
     free(ratess_flat);
-/* ------- chimes_table_AB_recombination ------- */
+/* ------- chimes_table_recombination_AB ------- */
 
     // (re-)allocate the pointers for this table
     ratess_flat = (ChimesFloat *) malloc(
@@ -294,21 +294,18 @@ void create_wind_chimes_structs(){
     productss_transpose_flat = (int *) malloc(sizeof(int)*3*N_reactions_all);
 
     tranpose_flatten_chemical_equations(
-        chimes_table_AB_recombination.reactants,
+        chimes_table_recombination_AB.reactants,
         &reactantss_transpose_flat, 
         N_reactions_all,
         3); // 3 reactants per reaction
 
-    tranpose_flatten_chemical_equations(
-        chimes_table_AB_recombination.products,
-        &productss_transpose_flat, 
-        N_reactions_all,
-        3); // 3 products per reaction
+    // only 1 product per reaction -> this is already in the format we need!
+    productss_transpose_flat = chimes_table_recombination_AB.products;
 
     // copy the values from the table over...
-    initialize_table_AB_recombination(
-        &wind_chimes_table_AB_recombination,
-        chimes_table_AB_recombination.N_reactions,
+    initialize_table_recombination_AB(
+        &wind_chimes_table_recombination_AB,
+        chimes_table_recombination_AB.N_reactions,
         reactantss_transpose_flat,
         productss_transpose_flat);
 
@@ -316,7 +313,7 @@ void create_wind_chimes_structs(){
     // read the rate coeffs from the corresponding chimes_table
     //  and put them into texture memory
     load_rate_coeffs_into_texture_memory(
-        &(&wind_chimes_table_AB_recombination.rates),
+        &wind_chimes_table_recombination_AB.rates,
         ratess_flat,
         2*N_reactions_all, // 2x N_reactions_all layers, first half for A second for B
         chimes_table_bins.N_Temperatures);
