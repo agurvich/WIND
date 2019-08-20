@@ -3,16 +3,18 @@
 __global__ void kernelSampleLayeredTexture(
     cudaTextureObject_t tex,
     int width,
+    int nsamples,
     float* normalized_indices,
     int nlayers){
 
     // force threads to execute in a specific order
     for (int layer=0; layer < nlayers; layer++){
-        for (int i = 0; i < width; i++){
-            float u = i+0.5;
+        for (int i = 0; i < nsamples; i++){
+            float u = normalized_indices[i];//*width+0.5;
             float x = tex1DLayered<float>(tex,u,layer); // last 0 is the 0th layer
-            printf("(%.2f, %.2f)\n",u-0.5,x);
+            printf("(%.2f, %.2f)\t",normalized_indices[i],x);
         }
+        printf("\n");
     }
 }
 
@@ -43,7 +45,7 @@ cudaTextureObject_t simpleLayeredTexture(float * h_data, int width, int num_laye
     // Describe the output texture
     cudaTextureDesc             texDesc;
     memset(&texDesc,0,sizeof(cudaTextureDesc));
-    texDesc.normalizedCoords = false;
+    texDesc.normalizedCoords = true;
     texDesc.filterMode       = cudaFilterModeLinear;
     texDesc.addressMode[0] = cudaAddressModeClamp;
     texDesc.readMode = cudaReadModeElementType;
@@ -79,6 +81,7 @@ void sampleTexture(
     kernelSampleLayeredTexture<<<1, 1>>>(
         tex,
         width,
+        nsamples,
         d_normalized_indices,
         nlayers);
 
