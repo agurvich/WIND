@@ -6,62 +6,92 @@
 
 
 void load_rate_coeffs_into_texture_memory(){
-    // do some magic that will add the necessary info to the global textures
-    
 /* ------- chimes_table_constant ------- */
+    // read the values from the corresponding chimes_table
+    int N_reactions_all = chimes_table_constant.N_reactions[1];
+    float * ratess_flat = chimes_table_constant.rates; // 1xN_reactions_all, not log
+
     // allocate the memory for the constant rates on the device
     cudaMalloc(
         &wind_chimes_table_constant,
-        sizeof(ChimesFloat)*chimes_table_constant.N_reactions[1]);
+        sizeof(ChimesFloat)*N_reactions_all);
 
     // copy it over
     cudaMemcpy(
         wind_chimes_table_constant,
-        chimes_table_constant.rates,
-        sizeof(ChimesFloat)*chimes_table_constant.N_reactions[1],
+        ratess_flat,
+        sizeof(ChimesFloat)*N_reactions_all,
         cudaMemcpyHostToDevice)
 
-    // TODO need to copy over the reaction info? the number of reactions?
-    //  need to figure out how I will represent this on device anyway sigh.
-    //  might need to just make a dang struct and live with it TODO
+    // TODO need to copy over the reaction info
+    N_reactions[0] and N_reactions[1] 
+    reactantss // need to take the transpose
+    productss // need to take the transpose
+
+    H2_form_heating_reaction_index
         
 /* ------- chimes_table_T_dependent ------- */
-    // copy the rates over into an array...
-    cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(
-        32,0,0,0,
-        cudaChannelFormatKindFloat);
-    cudaArray* cuArray;
-    // cudaMallocArray inherently allocates 2D, 
-    //  last argument is 
-    cudaMallocArray(
-        &cuArray,
-        &channelDesc,
-        Narr,
-        1);
+    // read the values from the corresponding chimes_table
+    N_reactions_all = chimes_table_T_dependent.N_reactions[1];
+    // put the flat pointer at the head of the 2d array
+    ratess_flat = chimes_table_T_dependent.rates[0];
 
     // TODO need to loop over reactions and make sure
     //  rates are stored how I think they are in memory
     //  before copying them to Array TODO
 
-    // cudaMemcpyToArray is deprecated for some reason...
-    //  so we're supposed to be using Memcpy2DToArray
-    //  https://devtalk.nvidia.com/default/topic/1048376/cuda-programming-and-performance/cudamemcpytoarray-is-deprecated/
-    cudaMemcpyToArray(
-        cuArray, // destination of data
-        0,0, // woffset and hoffset?
-        arr, // source of data
-        sizeof(float)*Narr, // bytes of data
-        cudaMemcpyHostToDevice);
 
-    // TODO define descriptors for the texture rates TODO 
+    // allocate memory on device for these rates constants and 
+    cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
+    cudaMemcpy3DParms my_params = {0};
+    //my_params.srcPos = make_cudaPos(0,0,0);
+    //my_params.dstPos = make_cudaPos(0,0,0);
+    my_params.srcPtr = make_cudaPitchedPtr(ratess_flat,N_Temperature *sizeof(float),N_Temperature,1);
+    my_params.kind = cudaMemcpyHostToDevice;
+    my_params.extent = make_cudaExtent(N_Temperature, 1, N_reactions_all);
 
+    // create the cuda array and copy the data to it
+    cudaArray *cu_3darray;
+    cudaMalloc3DArray(
+        &cu_3darray,
+        &channelDesc,
+        make_cudaExtent(N_Temperature, 0,N_reactions_all),
+        cudaArrayLayered);
+    my_params.dstArray = cu_3darray;
+    cudaMemcpy3D(&my_params);
 
-    // create the texture object
+    // Describe the input array
+    cudaResourceDesc            resDesc;
+    memset(&resDesc,0,sizeof(cudaResourceDesc));
+
+    resDesc.resType            = cudaResourceTypeArray;
+    resDesc.res.array.array    = cu_3darray;
+
+    // Describe the output texture
+    cudaTextureDesc             texDesc;
+    memset(&texDesc,0,sizeof(cudaTextureDesc));
+    texDesc.normalizedCoords = true;
+    texDesc.filterMode       = cudaFilterModeLinear;
+    texDesc.addressMode[0] = cudaAddressModeClamp;
+    texDesc.readMode = cudaReadModeElementType;
+
     cudaCreateTextureObject(
         &wind_chimes_table_T_dependent,
         &resDesc,
         &texDesc,
         NULL);
+
+    // TODO need to copy over the reaction info
+    N_reactions[0] and N_reactions[1]
+    reactantss
+    productss
+
+    H2_collis_dissoci_heating_reaction_index
+    H2_form_heating_reaction_index
+
+
+    // for looping through mallocs on the device...
+    //https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#dynamic-global-memory-allocation-and-operations
 }
 
 void init_chimes_wind(struct globalVariables myGlobalVars){
