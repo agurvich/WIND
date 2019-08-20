@@ -96,8 +96,6 @@ int main(){
 
     int num_species = 5;
 
-
-    // add N_reactions
     initialize_table(
         &table,
         N_reactions,
@@ -106,6 +104,7 @@ int main(){
         H2_collis_dissoc_heating_reaction_index,
         H2_form_heating_reaction_index,
         rates); 
+
     printf(" n reactions is %d %d \n",table.N_reactions[0],table.N_reactions[1]);
 
     // allocate a table on the device, copy over the host structure over
