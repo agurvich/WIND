@@ -1,5 +1,5 @@
 // declare the wind_chimes structs as global variables
-extern struct wind_chimes_constant_struct{
+extern struct wind_chimes_constant_struct{ 
     int N_reactions[2];
     int H2_form_heating_reaction_index; 
     int * reactantss_transpose_flat; // 3xN_reactions_all list of reactants, flattened
@@ -7,7 +7,7 @@ extern struct wind_chimes_constant_struct{
     ChimesFloat * rates; // 
 } wind_chimes_table_constant;
 
-extern struct wind_chimes_T_dependent_struct{
+extern struct wind_chimes_T_dependent_struct{ 
     int N_reactions[2];
     int H2_collis_dissoc_heating_reaction_index; 
     int H2_form_heating_reaction_index; 

@@ -1,8 +1,14 @@
-#include "chimes_vars.h"
-#include "chimes_proto.h"
+extern "C" {
+    #include "chimes_vars.h"
+    #include "chimes_proto.h"
+}
 
 // link to global texture objects defined in wind_chimes.h
 #include "wind_chimes.h"
+
+struct wind_chimes_constant_struct wind_chimes_table_constant;
+struct wind_chimes_T_dependent_struct wind_chimes_table_T_dependent;
+struct wind_chimes_recombination_AB_struct wind_chimes_table_recombination_AB;
 
 void initialize_table_constant(
     struct wind_chimes_constant_struct * p_this_table,
@@ -322,7 +328,8 @@ void create_wind_chimes_structs(){
     //https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#dynamic-global-memory-allocation-and-operations
 }
 
-extern "C"{
+// to unmangle the name, since I can
+extern "C" {
     void init_wind_chimes(struct globalVariables * myGlobalVars){
         // call the existing C routine...
         init_chimes(myGlobalVars);

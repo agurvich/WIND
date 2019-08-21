@@ -22,21 +22,14 @@ def loadCLibraries(cuda=True):
         curdir = os.path.split(curdir)[0]
 
     if cuda:
-        exec_call = os.path.join(curdir,"cuda","lib","sie_host.so")
-        c_obj = ctypes.CDLL(exec_call)
-        cublas_init = getattr(c_obj,"_Z26initializeCublasExternallyv")
-        c_cudaIntegrateSIEhost = getattr(c_obj,"_Z16cudaIntegrateSIEffiPfS_iiff")
-
-
         ## find the first order solver shared object library that is host-locked
         exec_call = os.path.join(curdir,"cuda","lib","sie.so")
-        c_obj = ctypes.CDLL(exec_call)
+        c_obj = ctypes.CDLL(exec_call) 
+
         c_cudaIntegrateSIE = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_iiff")
 
         ## find the first order solver shared object library that is host-locked
-        exec_call = os.path.join(curdir,"cuda","lib","sie.so")
-        c_obj = ctypes.CDLL(exec_call)
-        c_cudaIntegrateSIE = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_iiff")
+        sie_init_wind = getattr(c_obj,"init_wind_chimes")
 
         ## get the second order library
         ##  cuda
@@ -44,7 +37,7 @@ def loadCLibraries(cuda=True):
         c_obj = ctypes.CDLL(exec_call)
         c_cudaIntegrateRK2 = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_iiff")
     else:
-        c_cudaIntegrateSIEhost=c_cudaIntegrateSIE=c_cudaIntegrateRK2=None
+        c_cudaIntegrateSIE=c_cudaIntegrateRK2=None
 
 
     ##  c gold standard for RK2
@@ -56,12 +49,11 @@ def loadCLibraries(cuda=True):
     exec_call = os.path.join(curdir,"cuda","lib","sie_gold.so")
     c_obj = ctypes.CDLL(exec_call)
     c_integrateSIE = getattr(c_obj,"goldIntegrateSystem")
-    return c_cudaIntegrateSIEhost,c_cudaIntegrateSIE,c_cudaIntegrateRK2,c_integrateRK2,c_integrateSIE
+    return c_cudaIntegrateSIE,c_cudaIntegrateRK2,c_integrateRK2,c_integrateSIE
 
 def main(
     RK2 = False,
     SIE = False,
-    SIEhost = False,
     gold = False,
     CHIMES = False,
     pysolver = False,
@@ -81,9 +73,8 @@ def main(
     output_mode = 'a'
     print_flag = False
  
-    if (RK2 or SIE or SIEhost):
-        (c_cudaIntegrateSIEhost,
-        c_cudaIntegrateSIE,
+    if (RK2 or SIE):
+        (c_cudaIntegrateSIE,
         c_cudaIntegrateRK2,
         c_integrateRK2,
         c_integrateSIE)=loadCLibraries()
@@ -140,14 +131,6 @@ def main(
 
 
 ## untested/defunct solvers:
-    if SIEhost:
-        cublas_init()
-
-        system.runIntegratorOutput(
-            c_cudaIntegrateSIEhost,'SIEhost',
-            output_mode = output_mode,
-            print_flag = print_flag)
-
     if CHIMES:
         my_driver = ChimesDriver(
             nH_arr, temperature_arr, metallicity_arr, shieldLength_arr, 
@@ -201,7 +184,7 @@ if __name__ == '__main__':
         'tnow=','tend=',
         'n_integration_steps=',
         'n_output_steps=',
-        'RK2=','SIE=','SIEhost=',
+        'RK2=','SIE=',
         'gold=',
         'pysolver=','CHIMES=',
         'system_name=',

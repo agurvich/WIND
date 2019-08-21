@@ -3,13 +3,12 @@ WINDCONFIG= -DADAPTIVE_TIMESTEP #-DDEBUGBLOCK=0 #-DLOUD
 export WINDCONFIG
 
 HDF5DIR=/opt/cray/hdf5/1.10.0/cray/83
-HDF5DIR=/home/abg6257/.conda/envs/python3
 
 CHIMESDIR=$(HOME)/src/CHIMES_repos/chimes
 
-CHIMESOBJS=$(CHIMESDIR)/test_runs/init_chimes.o CHIMES_TEMP/init_wind_chimes.o
-CHIMESINCLUDE=-I$(CHIMESDIR) -I$(HOME)/.local/include -I$(HDF5DIR)/include
-CHIMESLIB = -L$(HOME)/.local/lib -lsundials_cvode -lsundials_kinsol -lsundials_nvecserial -DH5_USE_16_API -L$(HDF5DIR)/lib
+CHIMESOBJS=CHIMES_TEMP/init_wind_chimes.o
+CHIMESINCLUDE=-I$(CHIMESDIR) -I/home/abg6257/.local/include -I/home/abg6257/.conda/envs/python3/include
+CHIMESLIB = -L/home/abg6257/.local/lib -lsundials_cvode -lsundials_kinsol -lsundials_nvecserial -DH5_USE_16_API -L/home/abg6257/.conda/envs/python3/lib -lhdf5
 
 ## OPTIMIZATION FLAGS
 OPTFLAGS =  -O3 #-g #
@@ -20,15 +19,11 @@ export OPTFLAGS
 
 ## Library names
 SIEEXECUTABLE	:= lib/sie.so
-SIEHOSTEXECUTABLE   := lib/sie_host.so
 RK2EXECUTABLE:= lib/rk2.so
 
 ## which ode system to link to 
 ODEOBJ=device_dydt.o
 HOSTODEOBJ=ode_system.o
-
-SIEHOSTOBJS = SIE_host/harness_kernel.o linear_algebra/gauss_jordan_elimination.o
-SIEHOSTOBJS +=SIE_host/utils.o SIE_host/vector_kernels.o SIE_host/cuda_utils.o ode_system/$(HOSTODEOBJ)
 
 SIEOBJS = SIE/harness.o SIE/kernel.o SIE/$(ODEOBJ) linear_algebra/gauss_jordan_elimination.o
 RK2OBJS = RK2/harness.o RK2/kernel.o RK2/$(ODEOBJ)
@@ -43,23 +38,19 @@ LIB = -lcublas -lcusolver $(CHIMESLIB)
 
 BUILDDIR = $(shell pwd)
 
-make: SIE RK2 baseline SIEHOST
+make: SIE RK2 baseline
 
 ### PHONY TARGETS
 .PHONY: RK2
-RK2: $(RK2OBJS) $(CHIMESOBJS)
+RK2: $(RK2OBJS) $(CHIMESOBJS) $(CHIMESDIR)/test_runs/init_chimes.o 
 	@#echo making the phony $@ with $^
 	@## link common objs and ode obj to the 2nd order explicit solver 
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(CHIMESOBJS);
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(CHIMESOBJS) $(CHIMESDIR)/test_runs/init_chimes.o;
 .PHONY: SIE
-SIE: $(SIEOBJS) $(CHIMESOBJS)
+SIE: $(SIEOBJS) $(CHIMESOBJS) $(CHIMESDIR)/test_runs/init_chimes.o 
 	@#echo making the phony $@ with $^
 	@## link common objs and ode obj to the 1st order semi-implicit solver 
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(CHIMESOBJS);
-.PHONY: SIEHOST
-SIEHOST: $(SIEHOSTOBJS) $(CHIMESOBJS)
-	@## link common objs and ode obj to the 1st order semi-implicit that is host-locked
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(CHIMESOBJS);
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(CHIMESOBJS) $(CHIMESDIR)/test_runs/init_chimes.o;
 .PHONY: baseline
 baseline:
 	cd c_baseline;make
@@ -86,6 +77,6 @@ preclean:
 	cd c_baseline;make preclean
 clean: 
 	cd c_baseline;make clean
-	rm -f $(RK2OBJS) $(SIEOBJS) $(SIEHOSTOBJS) $(CHIMESOBJS)
-	rm -f $(RK2EXECUTABLE) $(SIEEXECUTABLE) $(SIEHOSTEXECUTABLE)
+	rm -f $(RK2OBJS) $(SIEOBJS) $(CHIMESOBJS)
+	rm -f $(RK2EXECUTABLE) $(SIEEXECUTABLE)
 
