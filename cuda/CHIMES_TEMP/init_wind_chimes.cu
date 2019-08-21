@@ -322,11 +322,13 @@ void create_wind_chimes_structs(){
     //https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#dynamic-global-memory-allocation-and-operations
 }
 
-void init_chimes_wind(struct globalVariables myGlobalVars){
-    // call the existing C routine...
-    init_chimes_wind(myGlobalVars);
+extern "C"{
+    void init_wind_chimes(struct globalVariables * myGlobalVars){
+        // call the existing C routine...
+        init_chimes(myGlobalVars);
 
-    create_wind_chimes_structs();
+        create_wind_chimes_structs();
+    }
 }
 
 void init_chimes_wind_hardcoded(struct globalVariables myGlobalVars){

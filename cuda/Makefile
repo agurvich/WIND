@@ -3,6 +3,7 @@ WINDCONFIG= -DADAPTIVE_TIMESTEP #-DDEBUGBLOCK=0 #-DLOUD
 export WINDCONFIG
 
 HDF5DIR=/opt/cray/hdf5/1.10.0/cray/83
+HDF5DIR=/home/abg6257/.conda/envs/python3
 
 CHIMESDIR=$(HOME)/src/CHIMES_repos/chimes
 
@@ -85,6 +86,6 @@ preclean:
 	cd c_baseline;make preclean
 clean: 
 	cd c_baseline;make clean
-	rm -f $(RK2OBJS) $(SIEOBJS) $(SIEHOSTOBJS)
+	rm -f $(RK2OBJS) $(SIEOBJS) $(SIEHOSTOBJS) $(CHIMESOBJS)
 	rm -f $(RK2EXECUTABLE) $(SIEEXECUTABLE) $(SIEHOSTEXECUTABLE)
 

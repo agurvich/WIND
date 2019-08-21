@@ -33,6 +33,11 @@ def loadCLibraries(cuda=True):
         c_obj = ctypes.CDLL(exec_call)
         c_cudaIntegrateSIE = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_iiff")
 
+        ## find the first order solver shared object library that is host-locked
+        exec_call = os.path.join(curdir,"cuda","lib","sie.so")
+        c_obj = ctypes.CDLL(exec_call)
+        c_cudaIntegrateSIE = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_iiff")
+
         ## get the second order library
         ##  cuda
         exec_call = os.path.join(curdir,"cuda","lib","rk2.so")
