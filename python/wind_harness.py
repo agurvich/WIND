@@ -11,45 +11,12 @@ import getopt,sys
 from wind.python.ode_systems.katz96 import Katz96 as k96_system
 from wind.python.ode_systems.NR_test import NR_test as nr_test_system
 from wind.python.ode_systems.stifftrig import StiffTrig as stifftrig_system
+from wind.python.ode_systems.fullchimes import FullChimes as fullchimes_system
 
 from wind.python.pysolvers.sie import integrate_sie as py_integrateSIE
 from wind.python.pysolvers.rk2 import integrate_rk2 as py_integrateRK2
 
-def loadCLibraries(cuda=True):
-    ## find the first order solver shared object library 
-    curdir = os.path.split(os.getcwd())[0]
-    if not cuda:
-        curdir = os.path.split(curdir)[0]
-
-    if cuda:
-        ## find the first order solver shared object library that is host-locked
-        exec_call = os.path.join(curdir,"cuda","lib","sie.so")
-        c_obj = ctypes.CDLL(exec_call) 
-
-        c_cudaIntegrateSIE = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_iiff")
-
-        ## find the first order solver shared object library that is host-locked
-        sie_init_wind = getattr(c_obj,"init_wind_chimes")
-
-        ## get the second order library
-        ##  cuda
-        exec_call = os.path.join(curdir,"cuda","lib","rk2.so")
-        c_obj = ctypes.CDLL(exec_call)
-        c_cudaIntegrateRK2 = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_iiff")
-    else:
-        c_cudaIntegrateSIE=c_cudaIntegrateRK2=None
-
-
-    ##  c gold standard for RK2
-    exec_call = os.path.join(curdir,"cuda","lib","rk2_gold.so")
-    c_obj = ctypes.CDLL(exec_call)
-    c_integrateRK2 = getattr(c_obj,"goldIntegrateSystem")
-
-    ##  c gold standard for SIE
-    exec_call = os.path.join(curdir,"cuda","lib","sie_gold.so")
-    c_obj = ctypes.CDLL(exec_call)
-    c_integrateSIE = getattr(c_obj,"goldIntegrateSystem")
-    return c_cudaIntegrateSIE,c_cudaIntegrateRK2,c_integrateRK2,c_integrateSIE
+wind_dir = os.path.split(os.getcwd())[0]
 
 def main(
     RK2 = False,
@@ -57,7 +24,7 @@ def main(
     gold = False,
     CHIMES = False,
     pysolver = False,
-    system_name = 'StiffTrig',
+    system_name = 'FullChimes',
     makeplots=False,
     **kwargs):
 
@@ -67,18 +34,14 @@ def main(
         system = nr_test_system(**kwargs)
     elif system_name == 'StiffTrig':
         system = stifftrig_system(**kwargs)
+    elif system_name == 'FullChimes':
+        system = fullchimes_system(precompile=False,**kwargs)
     else:
         raise ValueError("pick Katz96 or NR_test or StiffTrig")
  
     output_mode = 'a'
     print_flag = False
  
-    if (RK2 or SIE):
-        (c_cudaIntegrateSIE,
-        c_cudaIntegrateRK2,
-        c_integrateRK2,
-        c_integrateSIE)=loadCLibraries()
-
     if RK2:
         if pysolver:
             system.runIntegratorOutput(
@@ -87,6 +50,10 @@ def main(
                 print_flag = print_flag,
                 python=True)
         elif gold:
+            exec_call = os.path.join(wind_dir,"cuda","lib","rk2_gold.so")
+            c_obj = ctypes.CDLL(exec_call)
+            c_integrateRK2 = getattr(c_obj,"goldIntegrateSystem")
+
             system.runIntegratorOutput(
                 c_integrateRK2,'RK2gold',
                 output_mode = output_mode,
@@ -94,6 +61,11 @@ def main(
 
             print("---------------------------------------------------")
         else:
+            exec_call = os.path.join(wind_dir,"cuda","lib","rk2.so")
+            c_obj = ctypes.CDLL(exec_call)
+            c_cudaIntegrateRK2 = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_iiff")
+            system.init_wind_chimes = getattr(c_obj,"init_wind_chimes")
+
             system.runIntegratorOutput(
                 c_cudaIntegrateRK2,'RK2',
                 output_mode = output_mode,
@@ -112,15 +84,23 @@ def main(
             print("---------------------------------------------------")
 
         elif gold:
+            exec_call = os.path.join(wind_dir,"cuda","lib","sie_gold.so")
+            c_obj = ctypes.CDLL(exec_call)
+            c_integrateSIE = getattr(c_obj,"goldIntegrateSystem")
+
             system.runIntegratorOutput(
                 c_integrateSIE,'SIEgold',
                 output_mode = output_mode,
                 print_flag = print_flag)
 
-
             print("---------------------------------------------------")
 
         else:
+            exec_call = os.path.join(wind_dir,"cuda","lib","sie.so")
+            c_obj = ctypes.CDLL(exec_call) 
+            c_cudaIntegrateSIE = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_iiff")
+            system.init_wind_chimes = getattr(c_obj,"init_wind_chimes")
+
             system.runIntegratorOutput(
                 c_cudaIntegrateSIE,'SIE',
                 output_mode = output_mode,
@@ -132,11 +112,21 @@ def main(
 
 ## untested/defunct solvers:
     if CHIMES:
+        from chimes_driver.driver_config import read_parameters, print_parameters 
+        from chimes_driver.driver_class import ChimesDriver
+        from wind.python.ode_systems.katz96 import chimes_parameter_file
+
+        (driver_pars,
+        global_variable_pars,
+        gas_variable_pars) = read_parameters(
+            chimes_parameter_file)
+
+
         my_driver = ChimesDriver(
             nH_arr, temperature_arr, metallicity_arr, shieldLength_arr, 
             init_chem_arr, 
             driver_pars, global_variable_pars, gas_variable_pars,
-            rank = 0)
+            rank = 0) 
 
         ## initialize the output array
         equations_over_time = np.zeros((system.n_output_steps+1,system.Neqn_p_sys))

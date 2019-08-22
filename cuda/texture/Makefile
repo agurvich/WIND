@@ -1,4 +1,4 @@
-TEXTUREFILE=1d_layered_texture.cu#texture_working.cu#
+TEXTUREFILE=texture_object.cu#1d_layered_texture.cu#texture_working.cu#
 
 ## compiler flags
 NVCFLAGS = -g -G -D_DEBUG

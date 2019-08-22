@@ -9,7 +9,6 @@ import h5py
 ## chimes_driver imports
 from chimes_driver.utils.table_utils import create_table_grid 
 from chimes_driver.driver_config import read_parameters, print_parameters 
-from chimes_driver.driver_class import ChimesDriver
 
 
 ## this package imports

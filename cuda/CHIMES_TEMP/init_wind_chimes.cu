@@ -10,6 +10,13 @@ struct wind_chimes_constant_struct wind_chimes_table_constant;
 struct wind_chimes_T_dependent_struct wind_chimes_table_T_dependent;
 struct wind_chimes_recombination_AB_struct wind_chimes_table_recombination_AB;
 
+void checkCudaError(){
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess){
+        printf("Error: %s \n",cudaGetErrorString(error));
+    }
+}
+
 void initialize_table_constant(
     struct wind_chimes_constant_struct * p_this_table,
     int * N_reactions,
@@ -121,7 +128,7 @@ void initialize_table_recombination_AB(
 }
 
 void load_rate_coeffs_into_texture_memory(
-    cudaTextureObject_t ** p_p_texture,
+    cudaTextureObject_t * p_texture,
     ChimesFloat * texture_edgess_flat,
     int n_layers, // N_reactions_all
     int n_texture_edges // n_texture_edgess
@@ -157,6 +164,7 @@ void load_rate_coeffs_into_texture_memory(
         cudaArrayLayered);
     my_params.dstArray = cu_3darray;
     cudaMemcpy3D(&my_params);
+    checkCudaError();
 
     // Describe the input array
     cudaResourceDesc            resDesc;
@@ -168,17 +176,18 @@ void load_rate_coeffs_into_texture_memory(
     // Describe the output texture
     cudaTextureDesc             texDesc;
     memset(&texDesc,0,sizeof(cudaTextureDesc));
-    texDesc.normalizedCoords = true;
+    texDesc.normalizedCoords = false;
     texDesc.filterMode       = cudaFilterModeLinear;
     texDesc.addressMode[0] = cudaAddressModeClamp;
     texDesc.readMode = cudaReadModeElementType;
 
     // create the texture object at the global memory structure
     cudaCreateTextureObject(
-        *(p_p_texture),// was passed the pointer to the texture by reference
+        p_texture,// was passed the pointer to the texture by reference
         &resDesc,
         &texDesc,
         NULL);
+    checkCudaError();
 }
 
 void tranpose_flatten_chemical_equations(
@@ -288,6 +297,7 @@ void create_wind_chimes_structs(){
     free(productss_transpose_flat);
     free(ratess_flat);
 /* ------- chimes_table_recombination_AB ------- */
+    N_reactions_all = chimes_table_recombination_AB.N_reactions[1];
 
     // (re-)allocate the pointers for this table
     ratess_flat = (ChimesFloat *) malloc(
@@ -332,9 +342,13 @@ void create_wind_chimes_structs(){
 extern "C" {
     void init_wind_chimes(struct globalVariables * myGlobalVars){
         // call the existing C routine...
+        printf("Initializing CHIMES...");
         init_chimes(myGlobalVars);
+        printf("...finished initializing CHIMES!\n");
 
+        printf("Copying data to GPU...");
         create_wind_chimes_structs();
+        printf("...finished!\n");
     }
 }
 

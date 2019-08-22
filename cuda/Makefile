@@ -6,12 +6,18 @@ HDF5DIR=/opt/cray/hdf5/1.10.0/cray/83
 
 CHIMESDIR=$(HOME)/src/CHIMES_repos/chimes
 
-CHIMESOBJS=CHIMES_TEMP/init_wind_chimes.o
-CHIMESINCLUDE=-I$(CHIMESDIR) -I/home/abg6257/.local/include -I/home/abg6257/.conda/envs/python3/include
-CHIMESLIB = -L/home/abg6257/.local/lib -lsundials_cvode -lsundials_kinsol -lsundials_nvecserial -DH5_USE_16_API -L/home/abg6257/.conda/envs/python3/lib -lhdf5
+
+WINDCHIMESOBJS=CHIMES_TEMP/init_wind_chimes.o
+
+CHIMESOBJS=$(wildcard $(CHIMESDIR)/test_runs/*.o)
+
+CHIMESINCLUDE=-I$(CHIMESDIR) -I/home/abg6257/.local/include -I/software/hdf5/1.8.12-serial/include
+CHIMESLIB = -L/home/abg6257/.local/lib -lsundials_cvode -lsundials_kinsol -lsundials_nvecserial -DH5_USE_16_API -L/software/hdf5/1.8.12-serial/lib -lhdf5
+
+
 
 ## OPTIMIZATION FLAGS
-OPTFLAGS =  -O3 #-g #
+OPTFLAGS =  -O0 -g #
 NVCOPTFLAGS = #-G 
 RK2OPTFLAGS=-Xptxas -O3
 SIEOPTFLAGS=-Xptxas -O3
@@ -42,15 +48,15 @@ make: SIE RK2 baseline
 
 ### PHONY TARGETS
 .PHONY: RK2
-RK2: $(RK2OBJS) $(CHIMESOBJS) $(CHIMESDIR)/test_runs/init_chimes.o 
+RK2: $(RK2OBJS) $(WINDCHIMESOBJS) $(CHIMESOBJS)
 	@#echo making the phony $@ with $^
 	@## link common objs and ode obj to the 2nd order explicit solver 
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(CHIMESOBJS) $(CHIMESDIR)/test_runs/init_chimes.o;
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(WINDCHIMESOBJS) $(CHIMESOBJS);
 .PHONY: SIE
-SIE: $(SIEOBJS) $(CHIMESOBJS) $(CHIMESDIR)/test_runs/init_chimes.o 
+SIE: $(SIEOBJS) $(WINDCHIMESOBJS) $(CHIMESOBJS) 
 	@#echo making the phony $@ with $^
 	@## link common objs and ode obj to the 1st order semi-implicit solver 
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(CHIMESOBJS) $(CHIMESDIR)/test_runs/init_chimes.o;
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(WINDCHIMESOBJS) $(CHIMESOBJS);
 .PHONY: baseline
 baseline:
 	cd c_baseline;make
@@ -77,6 +83,6 @@ preclean:
 	cd c_baseline;make preclean
 clean: 
 	cd c_baseline;make clean
-	rm -f $(RK2OBJS) $(SIEOBJS) $(CHIMESOBJS)
+	rm -f $(RK2OBJS) $(SIEOBJS) $(WINDCHIMESOBJS)
 	rm -f $(RK2EXECUTABLE) $(SIEEXECUTABLE)
 

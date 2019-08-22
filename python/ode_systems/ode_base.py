@@ -141,6 +141,7 @@ class ODEBase(Precompiler):
 
         absolute=5e-3,
         relative=5e-3,
+        precompile=True,
         **kwargs):
         if len(kwargs):
             raise KeyError("Unused keys:",list(kwargs.keys()))
@@ -204,13 +205,18 @@ class ODEBase(Precompiler):
         if dumpDebug:
             self.dumpToCDebugInput()
 
-        for proto_file in ['ode_system.cu','ode_gold.c','device_dydt.cu']:
-            self.make_ode_file(
-                proto_file,
-                self.Ntile,
-                self.dconstants_string,
-                self.jconstants_string)
-            #self.make_RK2_file(self,self.Ntile)
+        if precompile:
+            for proto_file in ['ode_system.cu','ode_gold.c','device_dydt.cu']:
+                self.make_ode_file(
+                    proto_file,
+                    self.Ntile,
+                    self.dconstants_string,
+                    self.jconstants_string)
+                #self.make_RK2_file(self,self.Ntile)
+
+    def preflight(self):
+        """ call this before running the integrator"""
+        pass
 
     def tileSystems(self):
         self.equations = np.tile(self.equations,self.Nsystem_tile)
@@ -319,6 +325,10 @@ class ODEBase(Precompiler):
         output_mode=None,
         print_flag = 0,
         python=False):
+
+        ## call our "preflight" function, whatever we want to do befor
+        ##  handing off to the integration...
+        self.preflight()
 
         equations = copy.copy(self.equations)
         constants = copy.copy(self.constants)
