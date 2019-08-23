@@ -3,12 +3,50 @@ extern "C" {
     #include "chimes_proto.h"
 }
 
+
 // link to global texture objects defined in wind_chimes.h
 #include "wind_chimes.h"
 
-struct wind_chimes_constant_struct wind_chimes_table_constant;
-struct wind_chimes_T_dependent_struct wind_chimes_table_T_dependent;
-struct wind_chimes_recombination_AB_struct wind_chimes_table_recombination_AB;
+__device__ void evaluate_system(
+    float tnow,
+    float * constants,
+    ChimesFloat *shared_equations,
+    ChimesFloat ** Jacobians,
+    int Nequations_per_system){
+
+}
+
+__global__ void read_texture(
+    struct wind_chimes_T_dependent_struct * p_wind_chimes_table_T_dependent,
+    struct wind_chimes_table_bins_struct * p_wind_chimes_table_bins){
+
+    // hard code all reactions, TODO Tmol switch
+    int N_reactions = p_wind_chimes_table_T_dependent->N_reactions[1];
+
+    // loop through each of the reactions
+    for (int rxn_i=0; rxn_i < N_reactions; rxn_i++){
+        // print out each temperature
+        for (int i = 0; i < p_wind_chimes_table_bins->N_Temperatures; i++){
+            float u = i+0.5;
+            float x = tex1DLayered<float>(
+                p_wind_chimes_table_T_dependent->rates,u,rxn_i); // last 0 is the 0th layer
+            printf("(%.2f, %.2f)\t",u-0.5,x);
+        }
+        printf("\n");
+    }
+}
+
+// host structs
+struct wind_chimes_table_bins_struct  h_wind_chimes_table_bins;
+struct wind_chimes_constant_struct h_wind_chimes_table_constant;
+struct wind_chimes_T_dependent_struct h_wind_chimes_table_T_dependent;
+struct wind_chimes_recombination_AB_struct h_wind_chimes_table_recombination_AB;
+
+// pointers for the device structs
+struct wind_chimes_table_bins_struct * d_p_wind_chimes_table_bins;
+struct wind_chimes_constant_struct * d_p_wind_chimes_table_constant;
+struct wind_chimes_T_dependent_struct * d_p_wind_chimes_table_T_dependent;
+struct wind_chimes_recombination_AB_struct * d_p_wind_chimes_table_recombination_AB;
 
 void checkCudaError(){
     cudaError_t error = cudaGetLastError();
@@ -92,7 +130,6 @@ void initialize_table_T_dependent(
     // allocate and copy the rates over, then bind to the host table structure 
 }
 
-
 void initialize_table_recombination_AB(
     struct wind_chimes_recombination_AB_struct * p_this_table,
     int * N_reactions,
@@ -117,15 +154,34 @@ void initialize_table_recombination_AB(
     int * d_productss_transpose_flat;
     cudaMalloc(
         &d_productss_transpose_flat,
-        sizeof(int)*3*p_this_table->N_reactions[1]);
+        sizeof(int)*p_this_table->N_reactions[1]);
     cudaMemcpy(
         d_productss_transpose_flat,
         productss_transpose_flat,
-        sizeof(int)*3*p_this_table->N_reactions[1],
+        sizeof(int)*p_this_table->N_reactions[1],
         cudaMemcpyHostToDevice);
     p_this_table->productss_transpose_flat = d_productss_transpose_flat; // needs to be a device array
-    // allocate and copy the rates over, then bind to the host table structure 
 }
+
+void initialize_table_bins(
+    struct wind_chimes_table_bins_struct * p_this_table){
+
+    // bind the simple stuff that's already allocated in the struct
+    p_this_table->N_Temperatures = chimes_table_bins.N_Temperatures;
+    ChimesFloat * d_Temperatures;
+    cudaMalloc(
+        &d_Temperatures,
+        sizeof(ChimesFloat)*(p_this_table->N_Temperatures));
+
+    cudaMemcpy(
+        d_Temperatures,
+        chimes_table_bins.Temperatures,
+        sizeof(ChimesFloat)*(p_this_table->N_Temperatures),
+        cudaMemcpyHostToDevice);
+
+    p_this_table->Temperatures = d_Temperatures; // needs to be a device array
+}
+
 
 void load_rate_coeffs_into_texture_memory(
     cudaTextureObject_t * p_texture,
@@ -230,7 +286,7 @@ void create_wind_chimes_structs(){
 
     // read the values from the corresponding chimes_table
     initialize_table_constant(
-        &wind_chimes_table_constant,
+        &h_wind_chimes_table_constant,
         chimes_table_constant.N_reactions,
         reactantss_transpose_flat,
         productss_transpose_flat,
@@ -239,10 +295,10 @@ void create_wind_chimes_structs(){
     // allocate the memory for the constant rates on the device
     //  which are just an array, no interpolation required
     cudaMalloc(
-        &(wind_chimes_table_constant.rates),
+        &(d_p_wind_chimes_table_constant->rates),
         sizeof(ChimesFloat)*N_reactions_all);
     cudaMemcpy(
-        wind_chimes_table_constant.rates,
+        d_p_wind_chimes_table_constant->rates,
         chimes_table_constant.rates,
         sizeof(ChimesFloat)*N_reactions_all,
         cudaMemcpyHostToDevice);
@@ -250,6 +306,16 @@ void create_wind_chimes_structs(){
     free(reactantss_transpose_flat);
     free(productss_transpose_flat);
     free(ratess_flat);
+
+    // copy the host struct to the device
+    cudaMalloc(
+        &d_p_wind_chimes_table_constant,
+        sizeof(wind_chimes_constant_struct));
+    cudaMemcpy(
+        d_p_wind_chimes_table_constant,
+        &h_wind_chimes_table_constant,
+        sizeof(wind_chimes_constant_struct),
+        cudaMemcpyHostToDevice);
 
 /* ------- chimes_table_T_dependent ------- */
     N_reactions_all = chimes_table_T_dependent.N_reactions[1];
@@ -276,7 +342,7 @@ void create_wind_chimes_structs(){
 
     // copy the values from the table over...
     initialize_table_T_dependent(
-        &wind_chimes_table_T_dependent,
+        &h_wind_chimes_table_T_dependent,
         chimes_table_T_dependent.N_reactions,
         reactantss_transpose_flat,
         productss_transpose_flat,
@@ -287,7 +353,7 @@ void create_wind_chimes_structs(){
     // read the rate coeffs from the corresponding chimes_table
     //  and put them into texture memory
     load_rate_coeffs_into_texture_memory(
-        &wind_chimes_table_T_dependent.rates,
+        &h_wind_chimes_table_T_dependent.rates,
         ratess_flat,
         N_reactions_all,
         chimes_table_bins.N_Temperatures);
@@ -296,6 +362,17 @@ void create_wind_chimes_structs(){
     free(reactantss_transpose_flat);
     free(productss_transpose_flat);
     free(ratess_flat);
+
+    // copy the host struct to the device
+    cudaMalloc(
+        &d_p_wind_chimes_table_T_dependent,
+        sizeof(wind_chimes_T_dependent_struct));
+    cudaMemcpy(
+        d_p_wind_chimes_table_T_dependent,
+        &h_wind_chimes_table_T_dependent,
+        sizeof(wind_chimes_T_dependent_struct),
+        cudaMemcpyHostToDevice);
+
 /* ------- chimes_table_recombination_AB ------- */
     N_reactions_all = chimes_table_recombination_AB.N_reactions[1];
 
@@ -320,7 +397,7 @@ void create_wind_chimes_structs(){
 
     // copy the values from the table over...
     initialize_table_recombination_AB(
-        &wind_chimes_table_recombination_AB,
+        &h_wind_chimes_table_recombination_AB,
         chimes_table_recombination_AB.N_reactions,
         reactantss_transpose_flat,
         productss_transpose_flat);
@@ -329,13 +406,40 @@ void create_wind_chimes_structs(){
     // read the rate coeffs from the corresponding chimes_table
     //  and put them into texture memory
     load_rate_coeffs_into_texture_memory(
-        &wind_chimes_table_recombination_AB.rates,
+        &h_wind_chimes_table_recombination_AB.rates,
         ratess_flat,
         2*N_reactions_all, // 2x N_reactions_all layers, first half for A second for B
         chimes_table_bins.N_Temperatures);
 
     // for looping through mallocs on the device...
     //https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#dynamic-global-memory-allocation-and-operations
+
+    // copy the host struct to the device
+    cudaMalloc(
+        &d_p_wind_chimes_table_recombination_AB,
+        sizeof(wind_chimes_recombination_AB_struct));
+    cudaMemcpy(
+        d_p_wind_chimes_table_recombination_AB,
+        &h_wind_chimes_table_recombination_AB,
+        sizeof(wind_chimes_recombination_AB_struct),
+        cudaMemcpyHostToDevice);
+
+/* ------- chimes_table_bins ------- */
+    initialize_table_bins(&h_wind_chimes_table_bins);
+
+    // copy the host struct to the device
+    cudaMalloc(
+        &d_p_wind_chimes_table_bins,
+        sizeof(wind_chimes_table_bins_struct));
+    cudaMemcpy(
+        d_p_wind_chimes_table_bins,
+        &h_wind_chimes_table_bins,
+        sizeof(wind_chimes_table_bins_struct),
+        cudaMemcpyHostToDevice);
+
+    read_texture<<<1,1>>>(
+        d_p_wind_chimes_table_T_dependent,
+        d_p_wind_chimes_table_bins);
 }
 
 // to unmangle the name, since I can
