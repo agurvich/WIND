@@ -17,22 +17,28 @@ __device__ void evaluate_system(
 }
 
 __global__ void read_texture(
+    struct wind_chimes_constant_struct * p_wind_chimes_table_constant,
     struct wind_chimes_T_dependent_struct * p_wind_chimes_table_T_dependent,
+    struct wind_chimes_recombination_AB_struct * p_wind_chimes_table_recombination_AB,
     struct wind_chimes_table_bins_struct * p_wind_chimes_table_bins){
 
     // hard code all reactions, TODO Tmol switch
     int N_reactions = p_wind_chimes_table_T_dependent->N_reactions[1];
+    int N_Temperatures = p_wind_chimes_table_bins->N_Temperatures;
+
+    cudaTextureObject_t tex = p_wind_chimes_table_recombination_AB->rates;
+
+    N_reactions=4; // TODO DEBUG 
 
     // loop through each of the reactions
     for (int rxn_i=0; rxn_i < N_reactions; rxn_i++){
         // print out each temperature
-        for (int i = 0; i < p_wind_chimes_table_bins->N_Temperatures; i++){
+        for (int i = 0; i < N_Temperatures; i++){
             float u = i+0.5;
-            float x = tex1DLayered<float>(
-                p_wind_chimes_table_T_dependent->rates,u,rxn_i); // last 0 is the 0th layer
-            printf("(%.2f, %.2f)\t",u-0.5,x);
+            float x = tex1DLayered<float>(tex,u,rxn_i); // last 0 is the 0th layer
+            printf("%.4f,",x);
         }
-        printf("\n");
+        printf("]\n");
     }
 }
 
@@ -185,7 +191,7 @@ void initialize_table_bins(
 
 void load_rate_coeffs_into_texture_memory(
     cudaTextureObject_t * p_texture,
-    ChimesFloat * texture_edgess_flat,
+    float * texture_edgess_flat,
     int n_layers, // N_reactions_all
     int n_texture_edges // n_texture_edgess
     ){
@@ -246,6 +252,19 @@ void load_rate_coeffs_into_texture_memory(
     checkCudaError();
 }
 
+void flatten_rates(
+    ChimesFloat ** rates,
+    float ** p_ratess_flat,
+    int N_reactions,
+    int N_Temperatures){
+
+    for (int rxn_i=0; rxn_i < N_reactions; rxn_i++){
+        for (int temp_i=0; temp_i < N_Temperatures; temp_i++){
+            (*p_ratess_flat)[rxn_i*N_Temperatures + temp_i] = (float) rates[rxn_i][temp_i];
+        }
+    }
+}
+
 void tranpose_flatten_chemical_equations(
     int ** chem_indices,
     int ** p_chem_indices_transpose_flat,
@@ -260,7 +279,7 @@ void tranpose_flatten_chemical_equations(
 }
 
 void create_wind_chimes_structs(){
-    ChimesFloat * ratess_flat;
+    float * ratess_flat;
     int * reactantss_transpose_flat;
     int * productss_transpose_flat;
     int N_reactions_all;
@@ -268,7 +287,7 @@ void create_wind_chimes_structs(){
     N_reactions_all = chimes_table_constant.N_reactions[1];
 
     // allocate the pointers for this table
-    ratess_flat = (ChimesFloat *) malloc(sizeof(ChimesFloat)*N_reactions_all);
+    //ratess_flat = (float *) malloc(sizeof(float)*N_reactions_all);
     reactantss_transpose_flat = (int *) malloc(sizeof(int)*3*N_reactions_all);
     productss_transpose_flat = (int *) malloc(sizeof(int)*3*N_reactions_all);
 
@@ -294,18 +313,21 @@ void create_wind_chimes_structs(){
 
     // allocate the memory for the constant rates on the device
     //  which are just an array, no interpolation required
+    ChimesFloat * d_rates;
     cudaMalloc(
-        &(d_p_wind_chimes_table_constant->rates),
+        &d_rates,
         sizeof(ChimesFloat)*N_reactions_all);
     cudaMemcpy(
-        d_p_wind_chimes_table_constant->rates,
+        d_rates,
         chimes_table_constant.rates,
         sizeof(ChimesFloat)*N_reactions_all,
         cudaMemcpyHostToDevice);
+    h_wind_chimes_table_constant.rates = d_rates; // needs to be a device array
+
     // and free up the ratess, productss, and reactantss buffers
     free(reactantss_transpose_flat);
     free(productss_transpose_flat);
-    free(ratess_flat);
+    //free(ratess_flat);
 
     // copy the host struct to the device
     cudaMalloc(
@@ -321,10 +343,18 @@ void create_wind_chimes_structs(){
     N_reactions_all = chimes_table_T_dependent.N_reactions[1];
 
     // (re-)allocate the pointers for this table
-    ratess_flat = (ChimesFloat *) malloc(
-        sizeof(ChimesFloat)*
+    ratess_flat = (float *) malloc(
+        sizeof(float)*
         chimes_table_bins.N_Temperatures*
         N_reactions_all);
+
+    // flatten the reaction rates
+    flatten_rates(
+        chimes_table_T_dependent.rates,
+        &ratess_flat,
+        N_reactions_all,
+        chimes_table_bins.N_Temperatures);
+
     reactantss_transpose_flat = (int *) malloc(sizeof(int)*3*N_reactions_all);
     productss_transpose_flat = (int *) malloc(sizeof(int)*3*N_reactions_all);
 
@@ -377,11 +407,28 @@ void create_wind_chimes_structs(){
     N_reactions_all = chimes_table_recombination_AB.N_reactions[1];
 
     // (re-)allocate the pointers for this table
-    ratess_flat = (ChimesFloat *) malloc(
-        sizeof(ChimesFloat)*
+    ratess_flat = (float *) malloc(
+        sizeof(float)*
         chimes_table_bins.N_Temperatures*
         N_reactions_all*
         2); // 2x the rates, one for A, one for B
+
+
+    // flatten the case A rates
+    flatten_rates(
+        chimes_table_recombination_AB.rates[0],
+        &(ratess_flat),
+        N_reactions_all,
+        chimes_table_bins.N_Temperatures);
+
+    float * offset = ratess_flat + chimes_table_bins.N_Temperatures*N_reactions_all;
+    // case B recombination is after case A
+    flatten_rates(
+        chimes_table_recombination_AB.rates[1],
+        &offset,
+        N_reactions_all,
+        chimes_table_bins.N_Temperatures);
+
 
     reactantss_transpose_flat = (int *) malloc(sizeof(int)*3*N_reactions_all);
     productss_transpose_flat = (int *) malloc(sizeof(int)*3*N_reactions_all);
@@ -438,8 +485,11 @@ void create_wind_chimes_structs(){
         cudaMemcpyHostToDevice);
 
     read_texture<<<1,1>>>(
+        d_p_wind_chimes_table_constant,
         d_p_wind_chimes_table_T_dependent,
+        d_p_wind_chimes_table_recombination_AB,
         d_p_wind_chimes_table_bins);
+    cudaDeviceSynchronize();
 }
 
 // to unmangle the name, since I can

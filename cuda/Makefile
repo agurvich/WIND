@@ -18,9 +18,9 @@ CHIMESLIB = -L/home/abg6257/.local/lib -lsundials_cvode -lsundials_kinsol -lsund
 
 ## OPTIMIZATION FLAGS
 OPTFLAGS =  -O0 -g #
-NVCOPTFLAGS = #-G 
-RK2OPTFLAGS=-Xptxas -O3
-SIEOPTFLAGS=-Xptxas -O3
+NVCOPTFLAGS = -G 
+RK2OPTFLAGS=-Xptxas -O0
+SIEOPTFLAGS=-Xptxas -O0
 export OPTFLAGS
 
 ## Library names

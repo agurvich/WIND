@@ -14,7 +14,6 @@ extern struct wind_chimes_T_dependent_struct{
     int * reactantss_transpose_flat; // 3xN_reactions_all list of reactants, flattened
     int * productss_transpose_flat; // 3xN_reactions_all list of products, flattened 
     cudaTextureObject_t rates; // N_Temperature texture with N_reactions_all layers
-    int N_Temperatures;
 } wind_chimes_table_T_dependent;
 
 extern struct wind_chimes_recombination_AB_struct{
@@ -24,7 +23,6 @@ extern struct wind_chimes_recombination_AB_struct{
     cudaTextureObject_t rates; // N_Temperature texture with 2*N_reactions_all layers, 
     //  A recomb are layers [0->N_reactions_all-1] 
     //  B recomb are layers [N_reactions_all -> 2*N_reactions_all-1]
-    int N_Temperatures;
 } wind_chimes_table_recombination_AB;
 
 
