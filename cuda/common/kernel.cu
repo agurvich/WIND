@@ -2,7 +2,6 @@
 #include <math.h>
 
 #include "solver.h"
-#include "device.h"
 #include "ode.h"
 
 #ifdef SIE

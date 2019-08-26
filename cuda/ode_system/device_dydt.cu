@@ -1,4 +1,3 @@
-#include "device.h"
 #include "ode.h"
 
 __device__ float calculate_dydt(

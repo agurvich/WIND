@@ -1,3 +1,5 @@
+#include "wind_chimes.h"
+
 __global__ void read_texture(void * input){
 
     // cast to the correct format

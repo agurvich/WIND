@@ -1,18 +1,17 @@
-__global__ void calculateDerivatives(float * , float *, float *, int, int, float);
+__device__ float calculate_dydt(
+    float ,//tnow,
+    float *, //constants,
+    float * );//equations);
 
-__global__ void calculateJacobians(float **, float *, float *, int, int, float);
+
+__device__ void calculate_jacobian(
+    float ,//tnow,
+    float *,// constants,
+    float *,// shared_temp_equations,
+    float *,// Jacobian)
+    int ); // Neqn_p_sys
 
 __global__ void read_texture(void *);
-
-void resetSystem(float**, float *, float **, float *, 
-    float *,float *,float *, int, int, float);
-
-void configureGrid(
-    int, int, 
-    int * , 
-    dim3 *, 
-    dim3 *, 
-    dim3 *);
 
 extern void * RHS_input;
 

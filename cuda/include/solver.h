@@ -20,6 +20,8 @@ __global__ void integrateSystem(
     float, // timestep
     float *, // equations_flat
     float *, // constants_flat
+    //float *, // Jacobians_flat 
+    //float *, // Inverses_flat 
     int, // Nsystems
     int, // Neqn_p_sys
     int *,  // nsteps

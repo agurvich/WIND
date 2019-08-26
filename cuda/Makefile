@@ -20,7 +20,6 @@ RK2EXECUTABLE:= lib/rk2.so
 
 ## which ode system to link to 
 ODEOBJ=device_dydt.o
-HOSTODEOBJ=ode_system.o
 
 ## integrator objects
 SIEOBJS = SIE/harness.o SIE/kernel.o SIE/$(ODEOBJ) linear_algebra/gauss_jordan_elimination.o
@@ -34,7 +33,7 @@ CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG) $(OPTFLAGS)
 NVCFLAGS = -shared $(NVCOPTFLAGS)
 
 ## libraries to include
-INCLUDE = -Iinclude -ISIE_host -ISIE -IRK2 -Iode_system -Ilinear_algebra $(CHIMESINCLUDE)
+INCLUDE = -Iinclude -ISIE -IRK2 -Iode_system -Ilinear_algebra $(CHIMESINCLUDE)
 LIB = -lcublas -lcusolver $(CHIMESLIB)
 
 BUILDDIR = $(shell pwd)
@@ -75,7 +74,6 @@ RK2/%.o:
 preclean:
 	rm -f SIE/precompile_device_dydt.o 
 	rm -f RK2/precompile_device_dydt.o
-	rm -f ode_system/precompile_ode_system.o
 	cd c_baseline;make preclean
 clean: 
 	cd c_baseline;make clean
