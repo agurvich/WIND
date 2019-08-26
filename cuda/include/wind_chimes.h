@@ -1,3 +1,9 @@
+extern "C" {
+    #include "chimes_vars.h"
+    #include "chimes_proto.h"
+}
+
+
 // declare the wind_chimes structs as global variables
 extern struct wind_chimes_constant_struct{ 
     int N_reactions[2];
@@ -30,3 +36,11 @@ extern struct wind_chimes_table_bins_struct{
   int N_Temperatures; 
   ChimesFloat *Temperatures; 
 } wind_chimes_table_bins;
+
+extern struct RHS_input_struct{
+    struct wind_chimes_constant_struct * table_constant;
+    struct wind_chimes_T_dependent_struct * table_T_dependent;
+    struct wind_chimes_recombination_AB_struct * table_recombination_AB;
+
+    struct wind_chimes_table_bins_struct * table_bins;
+} * d_p_wind_chimes_RHS_input;

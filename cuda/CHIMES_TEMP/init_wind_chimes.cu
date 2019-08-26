@@ -1,22 +1,41 @@
-extern "C" {
-    #include "chimes_vars.h"
-    #include "chimes_proto.h"
-}
-
-
 // link to global texture objects defined in wind_chimes.h
 #include "wind_chimes.h"
+#include "ode.h"
 
-__device__ void evaluate_system(
-    float tnow,
-    float * constants,
-    ChimesFloat *shared_equations,
-    ChimesFloat ** Jacobians,
-    int Nequations_per_system){
+__global__ void read_texture(void * input){
 
+    // cast to the correct format
+    struct RHS_input_struct * p_RHS_input = (struct RHS_input_struct *) input;
+
+    // unpack the RHS_input struct
+    struct wind_chimes_constant_struct * p_wind_chimes_table_constant = p_RHS_input->table_constant;
+    struct wind_chimes_T_dependent_struct * p_wind_chimes_table_T_dependent = p_RHS_input->table_T_dependent;
+    struct wind_chimes_recombination_AB_struct * p_wind_chimes_table_recombination_AB = p_RHS_input->table_recombination_AB;
+    struct wind_chimes_table_bins_struct * p_wind_chimes_table_bins = p_RHS_input->table_bins;
+
+    // hard code all reactions, TODO Tmol switch
+    int N_reactions = p_wind_chimes_table_T_dependent->N_reactions[1];
+    int N_Temperatures = p_wind_chimes_table_bins->N_Temperatures;
+
+    cudaTextureObject_t tex = p_wind_chimes_table_recombination_AB->rates;
+
+    N_reactions=4; // TODO DEBUG 
+
+    // loop through each of the reactions
+    for (int rxn_i=0; rxn_i < N_reactions; rxn_i++){
+        // print out each temperature
+        for (int i = 0; i < N_Temperatures; i++){
+            float u = i+0.5;
+            float x = tex1DLayered<float>(tex,u,rxn_i); // last 0 is the 0th layer
+            printf("%.4f,",x);
+        }
+        printf("]\n");
+    }
 }
 
-__global__ void read_texture(
+__device__ void update_system(
+    float * rates,
+    float ** jacobian,
     struct wind_chimes_constant_struct * p_wind_chimes_table_constant,
     struct wind_chimes_T_dependent_struct * p_wind_chimes_table_T_dependent,
     struct wind_chimes_recombination_AB_struct * p_wind_chimes_table_recombination_AB,
@@ -47,12 +66,16 @@ struct wind_chimes_table_bins_struct  h_wind_chimes_table_bins;
 struct wind_chimes_constant_struct h_wind_chimes_table_constant;
 struct wind_chimes_T_dependent_struct h_wind_chimes_table_T_dependent;
 struct wind_chimes_recombination_AB_struct h_wind_chimes_table_recombination_AB;
+struct RHS_input_struct h_wind_chimes_RHS_input;
 
 // pointers for the device structs
 struct wind_chimes_table_bins_struct * d_p_wind_chimes_table_bins;
 struct wind_chimes_constant_struct * d_p_wind_chimes_table_constant;
 struct wind_chimes_T_dependent_struct * d_p_wind_chimes_table_T_dependent;
 struct wind_chimes_recombination_AB_struct * d_p_wind_chimes_table_recombination_AB;
+
+// pointer for struct that contains pointers to the other structs
+struct RHS_input_struct * d_p_wind_chimes_RHS_input; // defined in wind_chimes.h?
 
 void checkCudaError(){
     cudaError_t error = cudaGetLastError();
@@ -484,12 +507,27 @@ void create_wind_chimes_structs(){
         sizeof(wind_chimes_table_bins_struct),
         cudaMemcpyHostToDevice);
 
-    read_texture<<<1,1>>>(
-        d_p_wind_chimes_table_constant,
-        d_p_wind_chimes_table_T_dependent,
-        d_p_wind_chimes_table_recombination_AB,
-        d_p_wind_chimes_table_bins);
-    cudaDeviceSynchronize();
+
+/* ------- RHS input struct ------- */
+    // bind the pointers we just created to a single
+    //  struct to pass them all at once
+    h_wind_chimes_RHS_input.table_constant = d_p_wind_chimes_table_constant;
+    h_wind_chimes_RHS_input.table_T_dependent = d_p_wind_chimes_table_T_dependent;
+    h_wind_chimes_RHS_input.table_recombination_AB = d_p_wind_chimes_table_recombination_AB;
+    h_wind_chimes_RHS_input.table_bins = d_p_wind_chimes_table_bins;
+
+    // copy the host struct to the device
+    cudaMalloc(
+        &d_p_wind_chimes_RHS_input,
+        sizeof(RHS_input_struct));
+
+    cudaMemcpy(
+        d_p_wind_chimes_RHS_input,
+        &h_wind_chimes_RHS_input,
+        sizeof(RHS_input_struct),
+        cudaMemcpyHostToDevice);
+
+    RHS_input = (void *) d_p_wind_chimes_RHS_input;
 }
 
 // to unmangle the name, since I can

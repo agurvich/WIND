@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include "solver.h"
 #include "ode.h"
-  
+
+void * RHS_input; 
+
 int cudaIntegrateSystem(
     float tnow, // the current time
     float tend, // the time we integrating the system to
@@ -71,6 +73,10 @@ int cudaIntegrateSystem(
     //printf("%d blocksize, %d gridsize\n",blocksize,gridsize);
     dim3 dimBlock( blocksize, 1 );
     dim3 dimGrid( gridsize, 1 );
+
+
+    read_texture<<<1,1>>>(RHS_input);
+    cudaDeviceSynchronize();
 
     //shared mem -> 2 float arrays for each system and 1 shared flag
     integrateSystem<<<dimGrid,dimBlock,

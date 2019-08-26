@@ -48,12 +48,12 @@ make: SIE RK2 baseline
 
 ### PHONY TARGETS
 .PHONY: RK2
-RK2: $(RK2OBJS) $(WINDCHIMESOBJS) $(CHIMESOBJS)
+RK2: $(WINDCHIMESOBJS) $(CHIMESOBJS) $(RK2OBJS)
 	@#echo making the phony $@ with $^
 	@## link common objs and ode obj to the 2nd order explicit solver 
 	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(WINDCHIMESOBJS) $(CHIMESOBJS);
 .PHONY: SIE
-SIE: $(SIEOBJS) $(WINDCHIMESOBJS) $(CHIMESOBJS) 
+SIE: $(WINDCHIMESOBJS) $(CHIMESOBJS) $(SIEOBJS) 
 	@#echo making the phony $@ with $^
 	@## link common objs and ode obj to the 1st order semi-implicit solver 
 	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(WINDCHIMESOBJS) $(CHIMESOBJS);
