@@ -2,19 +2,10 @@
 WINDCONFIG= -DADAPTIVE_TIMESTEP #-DDEBUGBLOCK=0 #-DLOUD
 export WINDCONFIG
 
-HDF5DIR=/opt/cray/hdf5/1.10.0/cray/83
-
 CHIMESDIR=$(HOME)/src/CHIMES_repos/chimes
-
-
-WINDCHIMESOBJS=CHIMES_TEMP/init_wind_chimes.o
-
 CHIMESOBJS=$(wildcard $(CHIMESDIR)/test_runs/*.o)
-
 CHIMESINCLUDE=-I$(CHIMESDIR) -I/home/abg6257/.local/include -I/software/hdf5/1.8.12-serial/include
 CHIMESLIB = -L/home/abg6257/.local/lib -lsundials_cvode -lsundials_kinsol -lsundials_nvecserial -DH5_USE_16_API -L/software/hdf5/1.8.12-serial/lib -lhdf5
-
-
 
 ## OPTIMIZATION FLAGS
 OPTFLAGS =  -O0 -g #
@@ -31,8 +22,12 @@ RK2EXECUTABLE:= lib/rk2.so
 ODEOBJ=device_dydt.o
 HOSTODEOBJ=ode_system.o
 
+## integrator objects
 SIEOBJS = SIE/harness.o SIE/kernel.o SIE/$(ODEOBJ) linear_algebra/gauss_jordan_elimination.o
 RK2OBJS = RK2/harness.o RK2/kernel.o RK2/$(ODEOBJ)
+
+## wind chimes source files for chemistry-- should live in CHIMES eventually...
+WINDCHIMESOBJS=CHIMES_TEMP/init_wind_chimes.o CHIMES_TEMP/kernels.o
 
 ## compiler flags to make shared object for python
 CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG) $(OPTFLAGS)
@@ -65,9 +60,10 @@ baseline:
 	@#echo compiling $@ from $<
 	@## compile this source file to object
 	nvcc $(NVCFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 $(INCLUDE) $(LIB) -o $@ $<;
-### solver specific files
-%device_dydt.o:
-	@#echo compiling $@ with $(*D) only $(*F) leftover
+### solver specific files 
+%device_dydt.o: 
+	@#echo compiling $@ with $(*D) only $(*F) leftover-- compiling this device_dydt with whatever requested solver specific opt flags are 
+	@# defined...
 	nvcc $(NVCFLAGS) $($(*D)OPTFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 $(INCLUDE) $(LIB) -o $*device_dydt.o ode_system/$(*F)device_dydt.cu;
 SIE/%.o:
 	@#echo compiling $@ with SIE flags

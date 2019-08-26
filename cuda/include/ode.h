@@ -1,4 +1,3 @@
-
 __global__ void calculateDerivatives(float * , float *, float *, int, int, float);
 
 __global__ void calculateJacobians(float **, float *, float *, int, int, float);
@@ -16,4 +15,5 @@ void configureGrid(
     dim3 *);
 
 extern void * RHS_input;
+
 #define NUM_CONST 2
