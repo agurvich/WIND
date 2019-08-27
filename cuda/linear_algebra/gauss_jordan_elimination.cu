@@ -1,5 +1,7 @@
 #include <stdio.h>
+#include "config.h"
 #include "linear_algebra.h"
+
 
 __device__ int getGJETID(int iterations){
     //return blockIdx.x*blockDim.x+threadIdx.x;
@@ -13,12 +15,12 @@ __device__ int getGJEBID(){
 }
 
 __device__ void scaleRow(
-    float * row_array, 
+    WindFloat * row_array, 
     int Ndim,
     int place_index, 
-    float * scale_factor_out,
+    WindFloat * scale_factor_out,
     bool read_scale_factor,
-    float * shared_array){
+    WindFloat * shared_array){
 
     if (read_scale_factor){
         if (threadIdx.x==0){
@@ -40,13 +42,13 @@ __device__ void scaleRow(
 }
 
 __device__ void subtractRows(
-    float * target_row_array,
-    float * row_array, 
+    WindFloat * target_row_array,
+    WindFloat * row_array, 
     int Ndim,
     int place_index, 
-    float * scale_factor_out,
+    WindFloat * scale_factor_out,
     bool read_scale_factor,
-    float * shared_array){
+    WindFloat * shared_array){
 
     // were we passed a scale_factor to scale by 
     //  or should we read it from the column we're 
@@ -75,14 +77,14 @@ __device__ void subtractRows(
 }
 
 __device__ void gjeUFactor(
-    float * d_this_matrix_flat,
-    float * d_inverse_matrix_flat,
+    WindFloat * d_this_matrix_flat,
+    WindFloat * d_inverse_matrix_flat,
     int Ndim,
-    float * shared_array){
+    WindFloat * shared_array){
 
     // allocate a place to store row scale factors
     //  so that they may be applied to the d_inverse_matrix
-    float d_this_row_scale_factor;
+    WindFloat d_this_row_scale_factor;
 
     // put this matrix into upper triangular form
     for (int row_i=0; row_i<Ndim;row_i++){
@@ -126,13 +128,13 @@ __device__ void gjeUFactor(
 }
 
 __device__ void gjeLFactor(
-    float * d_this_matrix_flat,
-    float * d_inverse_matrix_flat,
+    WindFloat * d_this_matrix_flat,
+    WindFloat * d_inverse_matrix_flat,
     int Ndim,
-    float * shared_array){
+    WindFloat * shared_array){
 
     //  so that they may be applied to the d_inverse_matrix
-    float d_this_row_scale_factor;
+    WindFloat d_this_row_scale_factor;
 
     int bri;
     int bnri;
@@ -163,7 +165,7 @@ __device__ void gjeLFactor(
 }
 
 __device__ void setIdentity(
-    float * d_inverse_matrix_flat,
+    WindFloat * d_inverse_matrix_flat,
     int Ndim){
 
     int tid;
@@ -186,13 +188,13 @@ __device__ void setIdentity(
 }
 
 __device__ void gjeInvertMatrix(
-    float * d_this_matrix_flat,
-    float * d_inverse_matrix_flat,
+    WindFloat * d_this_matrix_flat,
+    WindFloat * d_inverse_matrix_flat,
     int Ndim,
-    float * shared_array){
+    WindFloat * shared_array){
 
     // allocate a temporary inverse matrix
-    //extern __shared__ float d_inverse_matrix_flat[];
+    //extern __shared__ WindFloat d_inverse_matrix_flat[];
 
     // generate an identity matrix in the shared inverse matrix 
     setIdentity(d_inverse_matrix_flat,Ndim);
@@ -212,13 +214,13 @@ __device__ void gjeInvertMatrix(
 }
 
 __global__ void gjeInvertMatrixBatched(
-    float * d_matricess_flat,
-    float * d_inverse_matricess_flat,
+    WindFloat * d_matricess_flat,
+    WindFloat * d_inverse_matricess_flat,
     int Ndim,
     int Nbatch){
 
     int bid = getGJEBID();
-    __shared__ float shared_array[1];
+    __shared__ WindFloat shared_array[1];
     gjeInvertMatrix(
         d_matricess_flat + bid*Ndim*Ndim,
         d_inverse_matricess_flat + bid*Ndim*Ndim,

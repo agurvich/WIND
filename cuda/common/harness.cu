@@ -1,6 +1,7 @@
 #include <stdio.h>
-#include "solver.h"
+#include "config.h"
 #include "ode.h"
+
 
 void * RHS_input; 
 
@@ -8,8 +9,8 @@ int cudaIntegrateSystem(
     float tnow, // the current time
     float tend, // the time we integrating the system to
     int n_integration_steps,
-    float * constants, // the constants for each system
-    float * equations, // a flattened array containing the y value for each equation in each system
+    WindFloat * constants, // the constants for each system
+    WindFloat * equations, // a flattened array containing the y value for each equation in each system
     int Nsystems, // the number of systems
     int Nequations_per_system, // the number of equations in each system
     float ABSOLUTE, // the absolute tolerance
@@ -25,22 +26,22 @@ int cudaIntegrateSystem(
 
     // copy the arrays over to the device
     int Nequations = Nsystems*Nequations_per_system;
-    long equations_size = Nequations*sizeof(float);
+    long equations_size = Nequations*sizeof(WindFloat);
 
-    float *constantsDevice;
-    cudaMalloc((void**)&constantsDevice, Nsystems*NUM_CONST*sizeof(float)); 
-    cudaMemcpy( constantsDevice, constants, Nsystems*NUM_CONST*sizeof(float), cudaMemcpyHostToDevice ); 
+    WindFloat *constantsDevice;
+    cudaMalloc((void**)&constantsDevice, Nsystems*NUM_CONST*sizeof(WindFloat)); 
+    cudaMemcpy( constantsDevice, constants, Nsystems*NUM_CONST*sizeof(WindFloat), cudaMemcpyHostToDevice ); 
 
-    float *equationsDevice;
+    WindFloat *equationsDevice;
     cudaMalloc((void**)&equationsDevice, equations_size); 
     cudaMemcpy( equationsDevice, equations, equations_size, cudaMemcpyHostToDevice ); 
 
 #ifdef SIE
-    float *JacobiansDevice;
+    WindFloat *JacobiansDevice;
     cudaMalloc((void**)&JacobiansDevice, Nequations_per_system*equations_size); 
     //cudaMemcpy( JacobiansDevice, Jacobians, equations_size, cudaMemcpyHostToDevice ); 
 
-    float *inversesDevice;
+    WindFloat *inversesDevice;
     cudaMalloc((void**)&inversesDevice, Nequations_per_system*equations_size); 
     //cudaMemcpy( JacobiansDevice, Jacobians, equations_size, cudaMemcpyHostToDevice ); 
 #endif
@@ -80,7 +81,7 @@ int cudaIntegrateSystem(
 
     //shared mem -> 2 float arrays for each system and 1 shared flag
     integrateSystem<<<dimGrid,dimBlock,
-        Nequations_per_system*(2*sizeof(float))+ sizeof(int)
+        Nequations_per_system*(2*sizeof(WindFloat))+ sizeof(int)
         >>> (
         tnow, tend,
         (tend-tnow)/n_integration_steps,

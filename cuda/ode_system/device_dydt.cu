@@ -1,12 +1,14 @@
+#include "config.h"
 #include "ode.h"
 
-__device__ float calculate_dydt(
+
+__device__ WindFloat calculate_dydt(
     float tnow,
-    float * constants,
-    float * equations){
+    WindFloat * constants,
+    WindFloat * equations){
 /* ----- PREFIX FLAG FOR PYTHON FRONTEND ----- */
     // constraint equation, ne = nH+ + nHe+ + 2*nHe++
-    float ne = equations[1]+equations[3]+equations[4]*2.0;
+    WindFloat ne = equations[1]+equations[3]+equations[4]*2.0;
 
     /* constants = [
         Gamma_(e,H0), Gamma_(gamma,H0), 
@@ -61,15 +63,15 @@ __device__ float calculate_dydt(
 
 __device__ void calculate_jacobian(
     float tnow,
-    float * constants,
-    float * equations,
-    float * Jacobian,
+    WindFloat * constants,
+    WindFloat * equations,
+    WindFloat * Jacobian,
     int Neqn_p_sys){
     if (threadIdx.x == 0){
 /* ----- PREFIX FLAG FOR PYTHON FRONTEND ----- */
 
     // constraint equation, ne = nH+ + nHe+ + 2*nHe++
-    float ne = equations[1]+equations[3]+equations[4]*2.0;
+    WindFloat ne = equations[1]+equations[3]+equations[4]*2.0;
 
     /* constants = [
         0-Gamma_(e,H0), 1-Gamma_(gamma,H0), 

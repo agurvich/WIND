@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <math.h>
 
-#include "solver.h"
+#include "config.h"
 #include "ode.h"
 
 #ifdef SIE
@@ -9,11 +9,11 @@
 #endif
 
 __device__ void checkError(
-    float y1, float y2,
+    WindFloat y1, WindFloat y2,
     int * shared_error_flag,
     float ABSOLUTE, float RELATIVE){
     // determine if any equation is above the absolute or relative tolerances
-    float abs_error = fabs(y2 - y1);
+    WindFloat abs_error = fabs(y2 - y1);
     if(abs_error > ABSOLUTE){
         *shared_error_flag = 1;
 #ifdef LOUD
@@ -21,9 +21,9 @@ __device__ void checkError(
 #endif
     }
 #if SIE
-    float rel_error = fabs((y2-y1)/(y2+1e-12));
+    WindFloat rel_error = fabs((y2-y1)/(y2+1e-12));
 #else
-    float rel_error = fabs((y2-y1)/(2*y2-y1+1e-12));
+    WindFloat rel_error = fabs((y2-y1)/(2*y2-y1+1e-12));
 #endif
 
     if(rel_error > RELATIVE && 
@@ -40,10 +40,10 @@ __device__ void checkError(
 #ifdef SIE
 __device__ void  scaleAndInvertJacobians(
     float timestep,
-    float * Jacobians,
-    float * inverses,
+    WindFloat * Jacobians,
+    WindFloat * inverses,
     int Nequations_per_system,
-    float * shared_array){
+    WindFloat * shared_array){
 
     int this_index;
     // loop through each row and perform 1-hJ
@@ -65,19 +65,19 @@ __device__ void  scaleAndInvertJacobians(
 }
 #endif
     
-__device__ float innerstep(
+__device__ WindFloat innerstep(
     float tnow, // the current time
     float tstop, // the time we want to stop
     int n_integration_steps, // the timestep to take
-    float * constants, // the constants for each system
-    float * shared_equations, // place to store the current state
+    WindFloat * constants, // the constants for each system
+    WindFloat * shared_equations, // place to store the current state
 #ifdef SIE
-    float * shared_dydts,
-    float * Jacobians,float * inverses,
+    WindFloat * shared_dydts,
+    WindFloat * Jacobians,WindFloat * inverses,
 #endif
     int Nequations_per_system){ // the number of equations in each system
 
-    float dydt = 0;
+    WindFloat dydt = 0;
     float timestep = (tstop-tnow)/n_integration_steps;
 #ifdef SIE
     int this_index;
@@ -140,11 +140,11 @@ __global__ void integrateSystem(
     float tnow, // the current time
     float tend, // the time we integrating the system to
     float timestep,
-    float * constants, // the constants for each system
-    float * equations, // a flattened array containing the y value for each equation in each system
+    WindFloat * constants, // the constants for each system
+    WindFloat * equations, // a flattened array containing the y value for each equation in each system
 #ifdef SIE
-    float * Jacobians,
-    float * inverses,
+    WindFloat * Jacobians,
+    WindFloat * inverses,
 #endif
     int Nsystems, // the number of systems
     int Nequations_per_system,
@@ -164,18 +164,18 @@ __global__ void integrateSystem(
     // offset pointer to find flat constants in global memory
     constants+=NUM_CONST*blockIdx.x;
 
-    extern __shared__ float total_shared[];
+    extern __shared__ WindFloat total_shared[];
     // total_shared is a pointer to the beginning of this block's shared
     //  memory. If we want to use multiple shared memory arrays we must
     //  manually offset them within that block and allocate enough memory
     //  when initializing the kernel (<<dimGrid,dimBlock,sbytes>>)
     int * shared_error_flag = (int *) &total_shared[0];
-    float * shared_equations = (float *) &total_shared[1];
+    WindFloat * shared_equations = (WindFloat *) &total_shared[1];
 #ifdef SIE
-    float * shared_dydts = (float *) &shared_equations[Nequations_per_system];
+    WindFloat * shared_dydts = (WindFloat *) &shared_equations[Nequations_per_system];
 #endif
 
-    float y1,y2,current_y;
+    WindFloat y1,y2,current_y;
 
     int this_nsteps = 0;
     // ensure thread within limit
