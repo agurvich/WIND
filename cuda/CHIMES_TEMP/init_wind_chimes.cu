@@ -469,7 +469,7 @@ void create_wind_chimes_structs(){
         sizeof(RHS_input_struct),
         cudaMemcpyHostToDevice);
 
-    RHS_input = (void *) d_p_wind_chimes_RHS_input;
+    d_p_RHS_input = (void *) d_p_wind_chimes_RHS_input;
 }
 
 // to unmangle the name, since I can

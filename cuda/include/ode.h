@@ -3,6 +3,7 @@ __global__ void integrateSystem(
     float, // tnow
     float, // tend
     float, // timestep
+    void *, // RHS_input
     WindFloat *, // equations_flat
     WindFloat *, // constants_flat
     WindFloat *, // Jacobians_flat 
@@ -37,4 +38,4 @@ __device__ WindFloat evaluate_RHS_function(
     WindFloat *, // Jacobians,
     int); // Nequations_per_system)
 
-extern void * RHS_input;
+extern void * d_p_RHS_input;

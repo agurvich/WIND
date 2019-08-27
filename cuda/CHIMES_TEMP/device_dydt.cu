@@ -66,7 +66,7 @@ __device__ void propagate_rate_coeff(
     for (int prod_i=0; prod_i<N_products; prod_i++){
         this_prod = productss[tid + prod_i*N_reactions];
         if (this_prod >0) {
-            atomicAdd((float *) &shared_dydts[this_prod],(float) this_rate_coeff);// TODO yikes no atomic add for doubles??
+            atomicAdd(&shared_dydts[this_prod],this_rate_coeff);// TODO yikes no atomic add for doubles??
         }
     }
 
@@ -87,7 +87,7 @@ __device__ void propagate_rate_coeff(
         this_react = reactantss[tid + reactant_i*N_reactions];
         if (this_react >0){
             // subtract it from the total rate
-            atomicAdd((float *) &shared_dydts[this_react],(float) -this_rate_coeff); // TODO yikes no atomic add for doubles??
+            atomicAdd(&shared_dydts[this_react],-this_rate_coeff); // TODO yikes no atomic add for doubles??
 #ifdef SIE
             // take the partial derivative w.r.t to this reactant
             this_partial = this_rate_coeff/(shared_equations[this_react]*nH);
@@ -96,14 +96,14 @@ __device__ void propagate_rate_coeff(
             for (int temp_react_i=0; temp_react_i<N_reactants; temp_react_i++){
                 temp_react = reactantss[tid + temp_react_i*N_reactions];
                 jindex = this_react*blockDim.x + temp_react; // J is in column-major-order
-                if (temp_react >0) atomicAdd((float *) &Jacobians[jindex],(float) -this_partial); // TODO yikes no atomic add for doubles??
+                if (temp_react >0) atomicAdd(&Jacobians[jindex],-this_partial); // TODO yikes no atomic add for doubles??
             } // for temp_react in reacts
 
             // update rows of product jacobian with partial creation rate
             for (int temp_prod_i=0; temp_prod_i<N_products; temp_prod_i++){
                 temp_prod = productss[tid + temp_prod_i*N_reactions];
                 jindex = this_react*blockDim.x + temp_prod; // J is in column-major-order
-                if (temp_prod >0) atomicAdd((float *) &Jacobians[jindex],(float) this_partial); // TODO yikes no atomic add for doubles??
+                if (temp_prod >0) atomicAdd(&Jacobians[jindex],this_partial); // TODO yikes no atomic add for doubles??
             } // for temp_prod in prods 
 #endif
         }// if this_react > 0 

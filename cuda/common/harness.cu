@@ -3,7 +3,7 @@
 #include "ode.h"
 
 
-void * RHS_input; 
+void * d_p_RHS_input; 
 
 int cudaIntegrateSystem(
     float tnow, // the current time
@@ -82,6 +82,7 @@ int cudaIntegrateSystem(
         >>> (
         tnow, tend,
         (tend-tnow)/n_integration_steps,
+        d_p_RHS_input,
         constantsDevice,equationsDevice,
 #ifdef SIE
         JacobiansDevice,inversesDevice,
