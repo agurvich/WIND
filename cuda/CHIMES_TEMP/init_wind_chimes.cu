@@ -379,20 +379,17 @@ void create_wind_chimes_structs(){
         2); // 2x the rates, one for A, one for B
 
 
-    // flatten the case A rates
-    flatten_rates(
-        chimes_table_recombination_AB.rates[0],
-        &(ratess_flat),
-        N_reactions_all,
-        chimes_table_bins.N_Temperatures);
-
-    float * offset = ratess_flat + chimes_table_bins.N_Temperatures*N_reactions_all;
-    // case B recombination is after case A
-    flatten_rates(
-        chimes_table_recombination_AB.rates[1],
-        &offset,
-        N_reactions_all,
-        chimes_table_bins.N_Temperatures);
+    // transpose and flatten the rates inline since recombination_AB is [N_reactions,2,N_Temperatures] wide...
+    //   T_T 
+    offset = chimes_table_bins.N_Temperatures*N_reactions_all;
+    for (int rxn_i=0; rxn_i<N_reactions_all; rxn_i++){
+        for (int temp_i=0; temp_i<chimes_table_bins.N_Temperatures; temp_i++){
+            // transpose and flatten the case A rates
+            ratess_flat[rxn_i*N_Temperatures + temp_i] = (float) chimes_table_recombination_AB.rates[rxn_i][0][temp_i];
+            // transpose and flatten the case B rates
+            ratess_flat[rxn_i*N_Temperatures + temp_i + offset] = (float) chimes_table_recombination_AB.rates[rxn_i][1][temp_i];
+        }
+    }
 
 
     reactantss_transpose_flat = (int *) malloc(sizeof(int)*3*N_reactions_all);
