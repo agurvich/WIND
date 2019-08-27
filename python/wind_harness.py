@@ -63,7 +63,8 @@ def main(
         else:
             exec_call = os.path.join(wind_dir,"cuda","lib","rk2.so")
             c_obj = ctypes.CDLL(exec_call)
-            c_cudaIntegrateRK2 = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_iiff")
+            #c_cudaIntegrateRK2 = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_iiff")
+            c_cudaIntegrateRK2 = getattr(c_obj,"WINDIntegrateSystem")
             system.init_wind_chimes = getattr(c_obj,"init_wind_chimes")
 
             system.runIntegratorOutput(
@@ -98,7 +99,8 @@ def main(
         else:
             exec_call = os.path.join(wind_dir,"cuda","lib","sie.so")
             c_obj = ctypes.CDLL(exec_call) 
-            c_cudaIntegrateSIE = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_iiff")
+            #c_cudaIntegrateSIE = getattr(c_obj,"_Z19cudaIntegrateSystemffiPfS_iiff")
+            c_cudaIntegrateSIE = getattr(c_obj,"WINDIntegrateSystem")
             system.init_wind_chimes = getattr(c_obj,"init_wind_chimes")
 
             system.runIntegratorOutput(

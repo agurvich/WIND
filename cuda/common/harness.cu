@@ -112,3 +112,27 @@ int cudaIntegrateSystem(
     return nloops;
 } // cudaIntegrateRK2
 
+extern "C" {
+    int WINDIntegrateSystem(
+        float tnow, // the current time
+        float tend, // the time we integrating the system to
+        int n_integration_steps,
+        WindFloat * constants, // the constants for each system
+        WindFloat * equations, // a flattened array containing the y value for each equation in each system
+        int Nsystems, // the number of systems
+        int Nequations_per_system, // the number of equations in each system
+        float ABSOLUTE, // the absolute tolerance
+        float RELATIVE){
+
+        return cudaIntegrateSystem(
+            tnow,
+            tend,
+            n_integration_steps,
+            constants,
+            equations,
+            Nsystems,
+            Nequations_per_system,
+            ABSOLUTE,
+            RELATIVE);
+    }
+}

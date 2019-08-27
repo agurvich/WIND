@@ -1,5 +1,6 @@
 // link to global texture objects defined in wind_chimes.h
 #include "wind_chimes.h"
+#include "config.h"
 #include "ode.h"
 
 // host structs
