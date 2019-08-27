@@ -49,6 +49,9 @@ __device__ void propagate_rate_coeff(
     WindFloat * shared_dydts,
     WindFloat * Jacobians){
 
+   // Devices of compute capability 3.x have configurable bank size, which can be set using cudaDeviceSetSharedMemConfig() to either four bytes (cudaSharedMemBankSizeFourByte, the default) or eight bytes (cudaSharedMemBankSizeEightByte). Setting the bank size to eight bytes can help avoid shared memory bank conflicts when accessing double precision data. 
+
+    WindFloat this_partial;
     int this_react;
     // calculate the rate itself by multiplying by reactant abundances and 
     //  factors of nH
@@ -58,37 +61,53 @@ __device__ void propagate_rate_coeff(
         this_rate_coeff/=nH; // want Nreacts-1 many factors of nH
     }
 
-
-    // update creation rates in shared_dydts
-    for (int reactant_i=0; reactant_i<N_reactants; reactant_i++){
-        this_react = reactantss[tid + reactant_i*N_reactions];
-        if (this_react >0){
-            atomicAdd((float *) &shared_dydts[this_react],(float) -this_rate_coeff);
-// update Jacobian
-#ifdef SIE
-            for (int prod_i=0; prod_i<N_products; prod_i++){
-                this_prod = productss[tid + prod_i*N_reactions];
-                if (this_prod >0){ 
-                    atomicAdd(
-                        &Jacobians[f(this_react,this_prod)],
-                        -this_rate_coeff/shared_equations[this_prod]);
-                    atomicAdd(
-                        &Jacobians[f(this_prod,this_react)],
-                        this_rate_coeff/shared_equations[this_react]);
-                } // if this_prod >0
-            } // for prod in prods
-#endif
-        }// if this_react > 0 
-    }// for react in reacts
-
     int this_prod;
-    // update destruction rates in shared_dydts
+    // update creation rates in shared_dydts
     for (int prod_i=0; prod_i<N_products; prod_i++){
         this_prod = productss[tid + prod_i*N_reactions];
         if (this_prod >0) {
-            atomicAdd((float *) &shared_dydts[this_prod],(float) this_rate_coeff);
+            atomicAdd((float *) &shared_dydts[this_prod],(float) this_rate_coeff);// TODO yikes no atomic add for doubles??
         }
     }
+
+    // update destruction rates in shared_dydts (and Jacobian if necessary)
+    int jindex;
+    // TODO could we stage the column in shared or thread-private memory?
+    //  doesn't look like i have a spare shared array (using both 
+    //  shared_equations for looking up abundances and
+    //  shared_dydts for accumulation)
+
+    //  but... since we're just using shared_equations for look-up... what if 
+    //  each thread pulls a copy from shared_equations at the beginning and then thread 0 
+    //  refills it after we're done?
+
+
+    int temp_react,temp_prod;
+    for (int reactant_i=0; reactant_i<N_reactants; reactant_i++){
+        this_react = reactantss[tid + reactant_i*N_reactions];
+        if (this_react >0){
+            // subtract it from the total rate
+            atomicAdd((float *) &shared_dydts[this_react],(float) -this_rate_coeff); // TODO yikes no atomic add for doubles??
+#ifdef SIE
+            // take the partial derivative w.r.t to this reactant
+            this_partial = this_rate_coeff/(shared_equations[this_react]*nH);
+
+            // update rows of reactant Jacobian with partial destruction rate
+            for (int temp_react_i=0; temp_react_i<N_reactants; temp_react_i++){
+                temp_react = reactantss[tid + temp_react_i*N_reactions];
+                jindex = this_react*blockDim.x + temp_react; // J is in column-major-order
+                if (temp_react >0) atomicAdd((float *) &Jacobians[jindex],(float) -this_partial); // TODO yikes no atomic add for doubles??
+            } // for temp_react in reacts
+
+            // update rows of product jacobian with partial creation rate
+            for (int temp_prod_i=0; temp_prod_i<N_products; temp_prod_i++){
+                temp_prod = productss[tid + temp_prod_i*N_reactions];
+                jindex = this_react*blockDim.x + temp_prod; // J is in column-major-order
+                if (temp_prod >0) atomicAdd((float *) &Jacobians[jindex],(float) this_partial); // TODO yikes no atomic add for doubles??
+            } // for temp_prod in prods 
+#endif
+        }// if this_react > 0 
+    }// for react in reacts 
 }
 
 __device__ float determine_interpolation_range(

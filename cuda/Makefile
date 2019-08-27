@@ -62,11 +62,11 @@ baseline:
 	nvcc $(NVCFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 $(INCLUDE) $(LIB) -o $@ $<;
 ### solver specific files 
 %device_dydt.o: 
-	@#echo compiling $@ with $(*D) only $(*F) leftover-- compiling this device_dydt with whatever requested solver specific opt flags are 
+	@echo compiling $@ with $(*D) only $(*F) leftover-- compiling this device_dydt with whatever requested solver specific opt flags are 
 	@# defined...
-	nvcc $(NVCFLAGS) $($(*D)OPTFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 $(INCLUDE) $(LIB) -o $*device_dydt.o $(ODESOURCE);
+	nvcc $(NVCFLAGS) $($(*D)OPTFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 -D$(*D) $(INCLUDE) $(LIB) -o $*device_dydt.o $(ODESOURCE);
 SIE/%.o:
-	@#echo compiling $@ with SIE flags
+	@echo compiling $@ with SIE flags
 	nvcc $(NVCFLAGS) $(SIEOPTFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 -DSIE $(INCLUDE) $(LIB) -o $@ common/$*.cu
 RK2/%.o:
 	@#echo compiling $@ with RK2 flags
