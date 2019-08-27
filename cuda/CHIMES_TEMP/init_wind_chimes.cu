@@ -260,7 +260,7 @@ void create_wind_chimes_structs(){
         chimes_table_constant.reactants,
         &reactantss_transpose_flat, 
         N_reactions_all,
-        3); // 3 reactants per reaction
+        2); // 2 reactants per reaction
 
     tranpose_flatten_chemical_equations(
         chimes_table_constant.products,
@@ -402,7 +402,7 @@ void create_wind_chimes_structs(){
         chimes_table_recombination_AB.reactants,
         &reactantss_transpose_flat, 
         N_reactions_all,
-        3); // 3 reactants per reaction
+        2); // 3 reactants per reaction
 
     // only 1 product per reaction -> this is already in the format we need!
     productss_transpose_flat = chimes_table_recombination_AB.products;

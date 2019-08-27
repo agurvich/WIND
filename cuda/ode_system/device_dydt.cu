@@ -113,3 +113,31 @@ __device__ void calculate_jacobian(
 
     __syncthreads();
 } //calculate_jacobian 
+
+
+__device__ WindFloat evaluate_RHS_function(
+    float tnow,
+    void * RHS_input,
+    WindFloat * constants,
+    WindFloat * shared_equations,
+    WindFloat * shared_dydts,
+    WindFloat * Jacobians,
+    int Nequations_per_system){
+    //calculate the derivative for this equation
+    WindFloat dydt = calculate_dydt(
+        tnow,
+        constants,
+        shared_equations);
+
+#ifdef SIE
+
+    // calculate the jacobian for the whole system
+    calculate_jacobian(
+        tnow,
+        constants,
+        shared_equations,
+        Jacobians,
+        Nequations_per_system);
+#endif
+    return dydt;
+}

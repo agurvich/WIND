@@ -19,14 +19,15 @@ SIEEXECUTABLE	:= lib/sie.so
 RK2EXECUTABLE:= lib/rk2.so
 
 ## which ode system to link to 
-ODEOBJ=device_dydt.o
+ODESOURCE := CHIMES_TEMP/device_dydt.cu
+ODEOBJ := $(notdir $(ODESOURCE:.cu=.o))
 
 ## integrator objects
 SIEOBJS = SIE/harness.o SIE/kernel.o SIE/$(ODEOBJ) linear_algebra/gauss_jordan_elimination.o
 RK2OBJS = RK2/harness.o RK2/kernel.o RK2/$(ODEOBJ)
 
 ## wind chimes source files for chemistry-- should live in CHIMES eventually...
-WINDCHIMESOBJS=CHIMES_TEMP/init_wind_chimes.o CHIMES_TEMP/kernels.o
+WINDCHIMESOBJS=CHIMES_TEMP/init_wind_chimes.o
 
 ## compiler flags to make shared object for python
 CFLAGS = --compiler-options '-fPIC' $(WINDCONFIG) $(OPTFLAGS)
@@ -34,7 +35,7 @@ NVCFLAGS = -shared $(NVCOPTFLAGS)
 
 ## libraries to include
 INCLUDE = -Iinclude -ISIE -IRK2 -Iode_system -Ilinear_algebra $(CHIMESINCLUDE)
-LIB = -lcublas -lcusolver $(CHIMESLIB)
+LIB = $(CHIMESLIB) #-lcublas -lcusolver 
 
 BUILDDIR = $(shell pwd)
 
@@ -63,7 +64,7 @@ baseline:
 %device_dydt.o: 
 	@#echo compiling $@ with $(*D) only $(*F) leftover-- compiling this device_dydt with whatever requested solver specific opt flags are 
 	@# defined...
-	nvcc $(NVCFLAGS) $($(*D)OPTFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 $(INCLUDE) $(LIB) -o $*device_dydt.o ode_system/$(*F)device_dydt.cu;
+	nvcc $(NVCFLAGS) $($(*D)OPTFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 $(INCLUDE) $(LIB) -o $*device_dydt.o $(ODESOURCE);
 SIE/%.o:
 	@#echo compiling $@ with SIE flags
 	nvcc $(NVCFLAGS) $(SIEOPTFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 -DSIE $(INCLUDE) $(LIB) -o $@ common/$*.cu

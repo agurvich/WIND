@@ -76,9 +76,6 @@ int cudaIntegrateSystem(
     dim3 dimGrid( gridsize, 1 );
 
 
-    read_texture<<<1,1>>>(RHS_input);
-    cudaDeviceSynchronize();
-
     //shared mem -> 2 float arrays for each system and 1 shared flag
     integrateSystem<<<dimGrid,dimBlock,
         Nequations_per_system*(2*sizeof(WindFloat))+ sizeof(int)
@@ -88,6 +85,8 @@ int cudaIntegrateSystem(
         constantsDevice,equationsDevice,
 #ifdef SIE
         JacobiansDevice,inversesDevice,
+#else
+        NULL,NULL,
 #endif
         Nsystems,Nequations_per_system,
         nloopsDevice,

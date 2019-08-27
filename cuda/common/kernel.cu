@@ -69,39 +69,35 @@ __device__ WindFloat innerstep(
     float tnow, // the current time
     float tstop, // the time we want to stop
     int n_integration_steps, // the timestep to take
+    void * RHS_input, // void pointer to RHS_input struct
     WindFloat * constants, // the constants for each system
     WindFloat * shared_equations, // place to store the current state
-#ifdef SIE
     WindFloat * shared_dydts,
-    WindFloat * Jacobians,WindFloat * inverses,
-#endif
+    WindFloat * Jacobians, WindFloat * inverses,
     int Nequations_per_system){ // the number of equations in each system
 
     WindFloat dydt = 0;
     float timestep = (tstop-tnow)/n_integration_steps;
+
 #ifdef SIE
     int this_index;
 #endif
+
     for (int nsteps=0; nsteps<n_integration_steps; nsteps++){
         // limit step size based on remaining time
         timestep = fmin(tstop - tnow, timestep);
 
         __syncthreads();
-        //calculate the derivative for this equation
-        dydt = calculate_dydt(
-            tnow,
-            constants,
-            shared_equations);
 
-#ifdef SIE
-
-        // calculate the jacobian for the whole system
-        calculate_jacobian(
+        dydt = evaluate_RHS_function(
             tnow,
+            RHS_input,
             constants,
             shared_equations,
+            shared_dydts,
             Jacobians,
-            Nequations_per_system);
+            Nequations_per_system); 
+#ifdef SIE
 
         // invert 1-hJ into inverses
         scaleAndInvertJacobians(
@@ -140,12 +136,11 @@ __global__ void integrateSystem(
     float tnow, // the current time
     float tend, // the time we integrating the system to
     float timestep,
+    void * RHS_input, // pointer to a RHS_input struct for computing the RHS function
     WindFloat * constants, // the constants for each system
     WindFloat * equations, // a flattened array containing the y value for each equation in each system
-#ifdef SIE
     WindFloat * Jacobians,
     WindFloat * inverses,
-#endif
     int Nsystems, // the number of systems
     int Nequations_per_system,
     int * nsteps, // the number of equations in each system
@@ -171,9 +166,7 @@ __global__ void integrateSystem(
     //  when initializing the kernel (<<dimGrid,dimBlock,sbytes>>)
     int * shared_error_flag = (int *) &total_shared[0];
     WindFloat * shared_equations = (WindFloat *) &total_shared[1];
-#ifdef SIE
     WindFloat * shared_dydts = (WindFloat *) &shared_equations[Nequations_per_system];
-#endif
 
     WindFloat y1,y2,current_y;
 
@@ -202,12 +195,11 @@ __global__ void integrateSystem(
             y1 = innerstep(
                     tnow, tnow+timestep,
                     1,
+                    RHS_input,
                     constants,
                     shared_equations,
-#ifdef SIE
                     shared_dydts,
                     Jacobians,inverses,
-#endif
                     Nequations_per_system );
 
 #ifdef DEBUGBLOCK
@@ -228,12 +220,11 @@ __global__ void integrateSystem(
             y2 = innerstep(
                     tnow, tnow+timestep,
                     2,
+                    RHS_input,
                     constants,
                     shared_equations,
-#ifdef SIE
                     shared_dydts,
                     Jacobians,inverses,
-#endif
                     Nequations_per_system );
 
 #ifdef DEBUGBLOCK
@@ -273,7 +264,6 @@ __global__ void integrateSystem(
 #ifdef RK2
                 shared_equations[threadIdx.x] = 2*y2-y1;
                 __syncthreads();
-#else
                 // shared_equations already has y2 in it from last
                 //  call to innerstep if SIE
 #endif
@@ -281,13 +271,13 @@ __global__ void integrateSystem(
 
 #ifdef ADAPTIVE_TIMESTEP
                 // let's get a little more optimistic
-#ifdef RK2
+    #ifdef RK2
                 // increase one refinement level
                 timestep*=2;
-#else
+    #else
                 // go for gold
                 timestep=(tend-tnow);
-#endif
+    #endif
 
 #endif
             }// if shared_error_flag -> else
