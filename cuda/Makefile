@@ -2,10 +2,19 @@
 WINDCONFIG= -DADAPTIVE_TIMESTEP #-DDEBUGBLOCK=0 #-DLOUD
 export WINDCONFIG
 
+## QUEST
+#HDF5INCLUDE=/software/hdf5/1.8.12-serial/include
+#HDF5LIB=/software/hdf5/1.8.12-serial/lib
+
+
+## spark
+HDF5INCLUDE=/usr/include/hdf5/serial
+HDF5LIB=/usr/lib/x86_64-linux-gnu/hdf5/serial/
+
 CHIMESDIR=$(HOME)/src/CHIMES_repos/chimes
 CHIMESOBJS=$(wildcard $(CHIMESDIR)/test_runs/*.o)
-CHIMESINCLUDE=-I$(CHIMESDIR) -I/home/abg6257/.local/include -I/software/hdf5/1.8.12-serial/include
-CHIMESLIB = -L/home/abg6257/.local/lib -lsundials_cvode -lsundials_kinsol -lsundials_nvecserial -DH5_USE_16_API -L/software/hdf5/1.8.12-serial/lib -lhdf5
+CHIMESINCLUDE=-I$(CHIMESDIR) -I$(HOME)/.local/include -I$(HDF5INCLUDE)
+CHIMESLIB = -L$(HOME)/.local/lib -lsundials_cvode -lsundials_kinsol -lsundials_nvecserial -DH5_USE_16_API -L$(HDF5LIB) -lhdf5
 
 ## OPTIMIZATION FLAGS
 OPTFLAGS =  -O0 -g #
