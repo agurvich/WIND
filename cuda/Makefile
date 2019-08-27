@@ -7,6 +7,9 @@ export WINDCONFIG
 #HDF5LIB=/software/hdf5/1.8.12-serial/lib
 
 
+## CUDACOMPUTE=sm_35 ## for quest and BW
+CUDACOMPUTE=sm_60
+
 ## spark
 HDF5INCLUDE=/usr/include/hdf5/serial
 HDF5LIB=/usr/lib/x86_64-linux-gnu/hdf5/serial/
@@ -55,12 +58,12 @@ make: SIE RK2 baseline
 RK2: $(WINDCHIMESOBJS) $(CHIMESOBJS) $(RK2OBJS)
 	@#echo making the phony $@ with $^
 	@## link common objs and ode obj to the 2nd order explicit solver 
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(WINDCHIMESOBJS) $(CHIMESOBJS);
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=$(CUDACOMPUTE) $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(WINDCHIMESOBJS) $(CHIMESOBJS);
 .PHONY: SIE
 SIE: $(WINDCHIMESOBJS) $(CHIMESOBJS) $(SIEOBJS) 
 	@#echo making the phony $@ with $^
 	@## link common objs and ode obj to the 1st order semi-implicit solver 
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=sm_35 $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(WINDCHIMESOBJS) $(CHIMESOBJS);
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=$(CUDACOMPUTE) $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(WINDCHIMESOBJS) $(CHIMESOBJS);
 .PHONY: baseline
 baseline:
 	cd c_baseline;make
@@ -68,18 +71,18 @@ baseline:
 %.o: %.cu
 	@#echo compiling $@ from $<
 	@## compile this source file to object
-	nvcc $(NVCFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 $(INCLUDE) $(LIB) -o $@ $<;
+	nvcc $(NVCFLAGS) $(CFLAGS) --device-c -c -arch=$(CUDACOMPUTE) $(INCLUDE) $(LIB) -o $@ $<;
 ### solver specific files 
 %device_dydt.o: 
 	@echo compiling $@ with $(*D) only $(*F) leftover-- compiling this device_dydt with whatever requested solver specific opt flags are 
 	@# defined...
-	nvcc $(NVCFLAGS) $($(*D)OPTFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 -D$(*D) $(INCLUDE) $(LIB) -o $*device_dydt.o $(ODESOURCE);
+	nvcc $(NVCFLAGS) $($(*D)OPTFLAGS) $(CFLAGS) --device-c -c -arch=$(CUDACOMPUTE) -D$(*D) $(INCLUDE) $(LIB) -o $*device_dydt.o $(ODESOURCE);
 SIE/%.o:
 	@echo compiling $@ with SIE flags
-	nvcc $(NVCFLAGS) $(SIEOPTFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 -DSIE $(INCLUDE) $(LIB) -o $@ common/$*.cu
+	nvcc $(NVCFLAGS) $(SIEOPTFLAGS) $(CFLAGS) --device-c -c -arch=$(CUDACOMPUTE) -DSIE $(INCLUDE) $(LIB) -o $@ common/$*.cu
 RK2/%.o:
 	@#echo compiling $@ with RK2 flags
-	nvcc $(NVCFLAGS) $(RK2OPTFLAGS) $(CFLAGS) --device-c -c -arch=sm_35 -DRK2 $(INCLUDE) $(LIB) -o $@ common/$*.cu
+	nvcc $(NVCFLAGS) $(RK2OPTFLAGS) $(CFLAGS) --device-c -c -arch=$(CUDACOMPUTE) -DRK2 $(INCLUDE) $(LIB) -o $@ common/$*.cu
 ### Clean up
 preclean:
 	rm -f SIE/precompile_device_dydt.o 
