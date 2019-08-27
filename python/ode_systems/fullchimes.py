@@ -157,9 +157,10 @@ class FullChimes(ODEBase):
         ## run the ode_base __init__
         super().__init__(
             name = 'FullChimes',
-            nconst=10, ## TODO count how many hydro variables i'm passing it
-            Neqn_p_sys = 5, ## TODO decide how many abundances i'm sending it
+            nconst=2, 
+            Neqn_p_sys = 10, ## TODO decide how many abundances i'm sending it
             tend=tend,
+            precision=np.float64,
             **kwargs)
         
         ## what is the name of each equation
@@ -222,10 +223,8 @@ class FullChimes(ODEBase):
         """ sends the hydro variables nH and Temperature"""
  
         ## use the grid to create flat arrays of rate coefficients and abundance arrays
-        constants = np.array(
-            [(nh,temp) for (nh,temp) in 
-            zip(self.nH_arr,self.temperature_arr)]).flatten()
-        return constants.astype(np.float32)
+        constants = np.array(list(zip(self.temperature_arr,self.nH_arr))).flatten()
+        return constants.astype(self.precision)
     
     def calculate_jacobian(self,system_index=0):
         raise NotImplementedError("This is hard to replicate for Full Chimes, no Jacobian!")

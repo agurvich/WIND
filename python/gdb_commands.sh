@@ -1,9 +1,9 @@
 #!/bin/bash
 
-LINE=24
-LINE2=354
+LINE=388
+LINE2=51
 FILE1=init_wind_chimes.cu
-FILE2=init_wind_chimes.cu
+FILE2=device_dydt.cu
 
 cuda-gdb python -ex 'set breakpoint pending on' -ex 'dir ../cuda/CHIMES_TEMP' -ex 'dir ../cuda/CHIMES_TEMP' -ex "b ${FILE1}:${LINE}" -ex "b ${FILE2}:${LINE2}" -ex 'run wind_harness.py --SIE=True'
 

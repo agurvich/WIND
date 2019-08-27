@@ -142,6 +142,7 @@ class ODEBase(Precompiler):
         absolute=5e-3,
         relative=5e-3,
         precompile=True,
+        precision = np.float32,
         **kwargs):
         if len(kwargs):
             raise KeyError("Unused keys:",list(kwargs.keys()))
@@ -163,6 +164,8 @@ class ODEBase(Precompiler):
 
         self.absolute = absolute
         self.relative = relative
+
+        self.precision = precision
 
         ## format the absolute and relative tolerances
         abs_string = ("%.0e"%self.absolute).replace('e-0','e')
@@ -283,7 +286,7 @@ class ODEBase(Precompiler):
                         tiled_jacobian_flat[offset:offset+self.orig_Neqn_p_sys] = this_row 
                 jacobian_flat = tiled_jacobian_flat
             ## indices above are in column major order to match cuBLAS specification
-            return_val = jacobian_flat.astype(np.float32).reshape(self.Neqn_p_sys,self.Neqn_p_sys).T
+            return_val = jacobian_flat.astype(self.precision).reshape(self.Neqn_p_sys,self.Neqn_p_sys).T
             return return_val
 
     def calculate_derivative(self,rates=None):
@@ -293,7 +296,7 @@ class ODEBase(Precompiler):
             ## tile the rates
             if self.Ntile > 1:
                 rates = np.tile(rates,self.Ntile) 
-            return rates.astype(np.float32)
+            return rates.astype(self.precision)
 
     def calculate_eqmss(self):
         raise NotImplementedError
@@ -460,13 +463,16 @@ def runCudaIntegrator(
     if print_flag:
         print("equations before:",equations)
 
+    print(equations)
+    print(constants)
+
     before = copy.copy(equations)
     nsteps =integrator(
         ctypes.c_float(np.float32(tnow)),
         ctypes.c_float(np.float32(tend)),
         ctypes.c_int(int(n_integration_steps)),
-        constants.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-        equations.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        constants.ctypes.data_as(ctypes.POINTER(ctypes.c_double)), ## note this is hardcoded to double
+        equations.ctypes.data_as(ctypes.POINTER(ctypes.c_double)), ## note this is hardcoded to double
         ctypes.c_int(Nsystems),
         ctypes.c_int(Nequations_per_system),
         ctypes.c_float(absolute),
