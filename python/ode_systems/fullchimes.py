@@ -217,13 +217,13 @@ class FullChimes(ODEBase):
 
         ## use the grid to create flat arrays of rate coefficients and abundance arrays
         equations = np.concatenate([self.init_chem_arr[:,1:3],self.init_chem_arr[:,4:7]],axis=1).flatten()
-        return equations.astype(np.float32)
+        return self.init_chem_arr.astype(self.precision).flatten() #equations.astype(np.float32)
 
     def init_constants(self):
         """ sends the hydro variables nH and Temperature"""
  
         ## use the grid to create flat arrays of rate coefficients and abundance arrays
-        constants = np.array(list(zip(self.temperature_arr,self.nH_arr))).flatten()
+        constants = np.array(list(zip(np.log10(self.temperature_arr),self.nH_arr))).flatten()
         return constants.astype(self.precision)
     
     def calculate_jacobian(self,system_index=0):
@@ -334,7 +334,7 @@ class FullChimes(ODEBase):
                 del handle['Equilibrium']
                 group = handle.create_group('Equilibrium')
                 print("overwriting: Equilibrium")
-            group['eqmss'] = self.eqmss.reshape(self.Nsystems,self.Neqn_p_sys)
+            group['eqmss'] = self.eqmss.reshape(-1,self.Neqn_p_sys)
             group['grid_nHs'] = np.tile(np.log10(self.nH_arr),self.Nsystem_tile)
             group['grid_temperatures'] = np.tile(np.log10(self.temperature_arr),self.Nsystem_tile)
             group['grid_solar_metals'] = np.tile(

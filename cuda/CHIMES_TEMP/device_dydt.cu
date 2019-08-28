@@ -52,6 +52,7 @@ __device__ void propagate_rate_coeff(
    // Devices of compute capability 3.x have configurable bank size, which can be set using cudaDeviceSetSharedMemConfig() to either four bytes (cudaSharedMemBankSizeFourByte, the default) or eight bytes (cudaSharedMemBankSizeEightByte). Setting the bank size to eight bytes can help avoid shared memory bank conflicts when accessing double precision data. 
 
     WindFloat this_partial;
+    WindFloat this_abundance;
     int this_react;
     // calculate the rate itself by multiplying by reactant abundances and 
     //  factors of nH
@@ -90,7 +91,9 @@ __device__ void propagate_rate_coeff(
             atomicAdd(&shared_dydts[this_react],-this_rate_coeff); // TODO yikes no atomic add for doubles??
 #ifdef SIE
             // take the partial derivative w.r.t to this reactant
-            this_partial = this_rate_coeff/(shared_equations[this_react]*nH);
+            this_abundance = shared_equations[this_react]*nH;
+            if (this_abundance>0) this_partial = this_rate_coeff/this_abundance;
+            else this_partial=0;
 
             // update rows of reactant Jacobian with partial destruction rate
             for (int temp_react_i=0; temp_react_i<N_reactants; temp_react_i++){
@@ -148,7 +151,7 @@ __device__ void loop_over_reactions_constant(
 
     int tid;
     ChimesFloat this_rate_coeff;
-    for (int rxn_i=0; rxn_i < N_reactions/blockDim.x; rxn_i++){
+    for (int rxn_i=0; rxn_i < (N_reactions/blockDim.x+1); rxn_i++){
         // do blockDim.x many reactions simultaneously
         tid = rxn_i*blockDim.x + threadIdx.x;
 
@@ -191,7 +194,7 @@ __device__ void loop_over_reactions_T_dependent(
 
     int tid;
     ChimesFloat this_rate_coeff;
-    for (int rxn_i=0; rxn_i < N_reactions/blockDim.x; rxn_i++){
+    for (int rxn_i=0; rxn_i < (N_reactions/blockDim.x+1); rxn_i++){
         // do blockDim.x many reactions simultaneously
         tid = rxn_i*blockDim.x + threadIdx.x;
 
@@ -239,14 +242,14 @@ __device__ WindFloat evaluate_RHS_function(
     struct wind_chimes_table_bins_struct * p_wind_chimes_table_bins = p_RHS_input->table_bins;
 
     // constantss_flat = [T0,nH0,T1,nH1,T2,nH2...] and constants = &constantss_flat[NUM_CONST*blockIdx.x]
-    WindFloat Temperature = constants[0];
+    WindFloat logTemperature = constants[0];
     WindFloat nH = constants[1]; 
 
-    WindFloat TMOL = 100.0;
+    WindFloat logTMOL = 2.01;
     
 /* ------- chimes_table_constant ------- */
     loop_over_reactions_constant(
-        p_wind_chimes_table_constant->N_reactions[Temperature<TMOL],
+        p_wind_chimes_table_constant->N_reactions[logTemperature<logTMOL],
         p_wind_chimes_table_constant->reactantss_transpose_flat,2,
         p_wind_chimes_table_constant->productss_transpose_flat,3,
         p_wind_chimes_table_constant->rates,
@@ -257,12 +260,12 @@ __device__ WindFloat evaluate_RHS_function(
 
 /* ------- chimes_table_T_dependent ------- */
     float T_tex_coord = determine_interpolation_range(
-        Temperature,
+        logTemperature,
         p_wind_chimes_table_bins->Temperatures,
         p_wind_chimes_table_bins->N_Temperatures);
     
     loop_over_reactions_T_dependent(
-        p_wind_chimes_table_T_dependent->N_reactions[Temperature<TMOL],
+        p_wind_chimes_table_T_dependent->N_reactions[logTemperature<logTMOL],
         p_wind_chimes_table_T_dependent->reactantss_transpose_flat,3,
         p_wind_chimes_table_T_dependent->productss_transpose_flat,3,
         p_wind_chimes_table_T_dependent->rates,
@@ -275,7 +278,7 @@ __device__ WindFloat evaluate_RHS_function(
 
 /* ------- chimes_table_recombination_AB ------- */
     loop_over_reactions_T_dependent(
-        p_wind_chimes_table_recombination_AB->N_reactions[Temperature<TMOL],
+        p_wind_chimes_table_recombination_AB->N_reactions[logTemperature<logTMOL],
         p_wind_chimes_table_recombination_AB->reactantss_transpose_flat,2,
         p_wind_chimes_table_recombination_AB->productss_transpose_flat,1,
         p_wind_chimes_table_recombination_AB->rates,
