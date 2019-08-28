@@ -59,8 +59,8 @@ __device__ void propagate_rate_coeff(
     for (int reactant_i=0; reactant_i<N_reactants; reactant_i++){
         this_react = reactantss[tid + reactant_i*N_reactions];
         if (this_react>0) this_rate_coeff*=nH*shared_equations[this_react];
-        this_rate_coeff/=nH; // want Nreacts-1 many factors of nH
     }
+    this_rate_coeff/=nH; // want Nreacts-1 many factors of nH
 
     int this_prod;
     // update creation rates in shared_dydts
@@ -90,8 +90,8 @@ __device__ void propagate_rate_coeff(
             // subtract it from the total rate
             atomicAdd(&shared_dydts[this_react],-this_rate_coeff); // TODO yikes no atomic add for doubles??
 #ifdef SIE
-            // take the partial derivative w.r.t to this reactant
-            this_abundance = shared_equations[this_react]*nH;
+            // take the partial derivative w.r.t to this reactant abundance
+            this_abundance = shared_equations[this_react];
             if (this_abundance>0) this_partial = this_rate_coeff/this_abundance;
             else this_partial=0;
 
@@ -158,7 +158,7 @@ __device__ void loop_over_reactions_constant(
         // do we have more reactions to solve?
         if (tid < N_reactions){
             // read rate directly from array
-            this_rate_coeff = rate_coeffs[tid];
+            this_rate_coeff = rate_coeffs[tid]*3.15e7; //1/yr
 
             // put this rate coefficient's contribution in the relevant
             //  rate arrays and jacobian entries
@@ -203,7 +203,7 @@ __device__ void loop_over_reactions_T_dependent(
             // read off the rate coefficient from the texture
             this_rate_coeff = pow(10.0,
                 (ChimesFloat) tex1DLayered<float>(
-                    rate_coeff_tex,T_tex_coord,layer_offset+tid));
+                    rate_coeff_tex,T_tex_coord,layer_offset+tid))*3.15e7; // 1/yr
 
             // put this rate coefficient's contribution in the relevant
             //  rate arrays and jacobian entries
@@ -231,6 +231,12 @@ __device__ WindFloat evaluate_RHS_function(
     WindFloat * shared_dydts,
     WindFloat * Jacobians,
     int Nequations_per_system){
+
+    // zero out the derivative vector and jacobian matrix
+    shared_dydts[threadIdx.x]=0;
+    for (int i=0; i<blockDim.x; i++){
+        Jacobians[i*blockDim.x + threadIdx.x]=0;
+    }
 
     // cast input struct to the correct format
     struct RHS_input_struct * p_RHS_input = (struct RHS_input_struct *) RHS_input;

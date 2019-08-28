@@ -44,6 +44,8 @@ class ODECache(object):
             return 5
         elif 'NR_test' in self.name:
             return 2
+        elif 'FullChimes' in self.name:
+            return 10
         else:
             raise KeyError("What system is this?")
 
@@ -244,6 +246,7 @@ class ODECache(object):
         savefig = None,
         use_color = None,
         solvers = None,
+        equation_indices = None,
         **kwargs):
 
         ax = plt.gca() if ax is None else ax
@@ -253,11 +256,12 @@ class ODECache(object):
         lws = [4,4,4,4]*2
 
         custom_lines = [Line2D(
-            [0], [0], color=colors[i],
+            [0], [0], color=colors[self.solvers[i]],
             lw=lws[1],ls=linestyles[-1]) 
             for i in range(len(self.solvers))]
         
         solvers = self.solvers if solvers is None else solvers
+        equation_indices = range(200) if equation_indices is None else equation_indices
 
         this_total_nstepss = []
         ## for each solver that was used (e.g. RK2, SIE, etc...)
@@ -295,6 +299,9 @@ class ODECache(object):
             ## plot each equation in the system
             for equation_i in range(len(yss)):
 
+                if equation_i not in equation_indices:
+                    continue
+
                 color = (colors[self.solvers[solver_j]] if use_color is 
                     None else use_color)
 
@@ -303,9 +310,10 @@ class ODECache(object):
 
                 ax.plot(
                     times,ys,
-                    c=color,
+                    #c=color,
                     ls = linestyles[equation_i%len(linestyles)],
-                    lw=lws[equation_i%len(lws)])
+                    lw=lws[equation_i%len(lws)],
+                    label='%d'%equation_i)
 
                 if minss is not None:
                     ax.fill_between(
@@ -354,6 +362,7 @@ class ODECache(object):
             ax,None,
             subtitle = subtitle,
             logflag=(0,0),
+            make_legend=1,
             **kwargs)
         
         walls = [np.sum(self.walltimess[solver])
@@ -364,18 +373,21 @@ class ODECache(object):
 
         line_labels = [
             "     %s - %d steps \n %f s (%d systems)"%(
-            solver,nsteps*nsystems,wall,nsystems) 
+            solver,nsteps,wall,nsystems) 
             for solver,nsteps,wall,nsystems in zip(
                 self.solvers,this_total_nstepss,walls,nsystemss)]
 
         loc = 0 if 'loc' not in kwargs else kwargs['loc']
         if make_legend_info:
-            ax.legend(
+            legend = ax.legend(frameon=False)
+            legend1 = ax.legend(
                 custom_lines, 
                 line_labels,
                 frameon = 0,
                 loc = loc
                 )
+            ax.add_artist(legend)
+            ax.add_artist(legend1)
 
         fig.set_size_inches(16,9)
         if savefig is not None:

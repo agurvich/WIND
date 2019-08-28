@@ -158,7 +158,7 @@ class FullChimes(ODEBase):
         super().__init__(
             name = 'FullChimes',
             nconst=2, 
-            Neqn_p_sys = 10, ## TODO decide how many abundances i'm sending it
+            Neqn_p_sys = 10,
             tend=tend,
             precision=np.float64,
             **kwargs)
@@ -216,7 +216,7 @@ class FullChimes(ODEBase):
         y_heliums = helium_mass_fractions / (4*(1-helium_mass_fractions))
 
         ## use the grid to create flat arrays of rate coefficients and abundance arrays
-        equations = np.concatenate([self.init_chem_arr[:,1:3],self.init_chem_arr[:,4:7]],axis=1).flatten()
+        #equations = np.concatenate([self.init_chem_arr[:,1:3],self.init_chem_arr[:,4:7]],axis=1).flatten()
         return self.init_chem_arr.astype(self.precision).flatten() #equations.astype(np.float32)
 
     def init_constants(self):
