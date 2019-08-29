@@ -6,26 +6,29 @@ import numpy as np
 import h5py
 from abg_python.all_utils import nameAxes,bufferAxesLabels,fitLeastSq,add_curve_label
 from abg_python.distinct_colours import get_distinct
+from abg_python.snapshot_utils import inv_chimes_dict
 import pandas as pd
 import os
 
 
-all_colors = get_distinct(9)
+all_colors = get_distinct(10)
 
-arch_colors = all_colors[5:]
+arch_colors = all_colors[6:]
 
 plot_labels = {
     'SIE':'SIE-gpu',
     'SIEgold':'SIE-cpu',
     'RK2':'RK2-gpu',
-    'RK2gold':'RK2-cpu'
+    'RK2gold':'RK2-cpu',
+    'CHIMES':'CVODE'
 }
 
 linestyles = {
     'SIE':'-',
     'SIEgold':'--',
     'RK2':'-',
-    'RK2gold':'--'
+    'RK2gold':'--',
+    'CHIMES':'--'
 }
 
 
@@ -35,7 +38,8 @@ colors = {
     'SIE':all_colors[0],
     'SIEgold':all_colors[1],
     'RK2':all_colors[2],
-    'RK2gold':all_colors[3]
+    'RK2gold':all_colors[3],
+    'CHIMES':all_colors[4]
 }
 
 class ODECache(object):
@@ -134,6 +138,7 @@ class ODECache(object):
                     continue
                 labels+=[solver]
                 solver = handle[solver]
+                print(solver['equations_over_time'].value.shape)
                 eqnsss[labels[-1]]=(
                     solver['equations_over_time'].value.reshape(
                    -1,self.Nsystems,
@@ -247,6 +252,7 @@ class ODECache(object):
         use_color = None,
         solvers = None,
         equation_indices = None,
+        annotate=True,
         **kwargs):
 
         ax = plt.gca() if ax is None else ax
@@ -310,10 +316,10 @@ class ODECache(object):
 
                 ax.plot(
                     times,ys,
-                    #c=color,
+                    c=color,
                     ls = linestyles[equation_i%len(linestyles)],
-                    lw=lws[equation_i%len(lws)],
-                    label='%d'%equation_i)
+                    lw = lws[equation_i%len(lws)]*2**(solver=='RK2'),
+                    label=inv_chimes_dict[equation_i])
 
                 if minss is not None:
                     ax.fill_between(
@@ -322,11 +328,23 @@ class ODECache(object):
                         maxss[equation_i],
                         color=color,
                         alpha = 1)
+
+                if annotate and solver_j==0:
+                    ax.text(
+                        times[-1],
+                        ys[-1],
+                        inv_chimes_dict[equation_i],
+                        va='bottom',
+                        ha='right' if equation_i<4 else 'left',
+                        #colors[equation_i],
+                        fontsize=14)
                 
             ## save the total number of steps so we can put 
             ##  it in the legend...
             total_steps = np.sum(nsteps)
             this_total_nstepss +=[ total_steps]
+
+        
 
         ## plot converged value
         if plot_eqm:
@@ -373,20 +391,23 @@ class ODECache(object):
 
         line_labels = [
             "     %s - %d steps \n %f s (%d systems)"%(
-            solver,nsteps,wall,nsystems) 
+            plot_labels[solver],nsteps,wall,nsystems) 
             for solver,nsteps,wall,nsystems in zip(
                 self.solvers,this_total_nstepss,walls,nsystemss)]
 
         loc = 0 if 'loc' not in kwargs else kwargs['loc']
         if make_legend_info:
-            legend = ax.legend(frameon=False)
+            if not annotate:
+                legend = ax.legend(frameon=False,loc=2)
+                ax.add_artist(legend)
+
             legend1 = ax.legend(
                 custom_lines, 
                 line_labels,
                 frameon = 0,
                 loc = loc
                 )
-            ax.add_artist(legend)
+
             ax.add_artist(legend1)
 
         fig.set_size_inches(16,9)

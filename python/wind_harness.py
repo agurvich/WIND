@@ -114,6 +114,7 @@ def main(
 
 ## untested/defunct solvers:
     if CHIMES:
+        from chimes_driver.utils.table_utils import create_table_grid 
         from chimes_driver.driver_config import read_parameters, print_parameters 
         from chimes_driver.driver_class import ChimesDriver
         from wind.python.ode_systems.katz96 import chimes_parameter_file
@@ -123,11 +124,20 @@ def main(
         gas_variable_pars) = read_parameters(
             chimes_parameter_file)
 
+        (nH_arr,temperature_arr,
+        metallicity_arr,shieldLength_arr,
+        init_chem_arr) = create_table_grid(
+            driver_pars,
+            global_variable_pars,
+            print_flag=False)
 
         my_driver = ChimesDriver(
-            nH_arr, temperature_arr, metallicity_arr, shieldLength_arr, 
+            nH_arr,temperature_arr, 
+            metallicity_arr,shieldLength_arr, 
             init_chem_arr, 
-            driver_pars, global_variable_pars, gas_variable_pars,
+            driver_pars,
+            global_variable_pars,
+            gas_variable_pars,
             rank = 0) 
 
         ## initialize the output array
@@ -136,17 +146,17 @@ def main(
         nsteps = np.zeros(system.n_output_steps) ## no way to measure this :[ 
 
         ## change the DT within chimes-driver
-        my_driver.myGasVars.hydro_timestep = (system.tend - system.tnow)*3.15e7/system.n_output_steps ## s
+        #my_driver.myGasVars.hydro_timestep = (system.tend - system.tnow)*3.15e7/system.n_output_steps ## s
 
-        my_driver.walltimes = []
-        final_output_array, chimes_cumulative_time = my_driver.run()
+        final_output_array, my_driver.walltimes = my_driver.run()
         
         equations_over_time = np.transpose(
             np.concatenate(
-                np.concatenate(
-                    [final_output_array[:,1:3,:],final_output_array[:,4:7,:]]
-                    ,axis=1) ## get rid of primordial molecular abundances
-                ,axis=0) ## flatten the different systems into one array
+                #np.concatenate(
+                    #[final_output_array[:,1:3,:],final_output_array[:,4:7,:]]
+                    #,axis=1) ## get rid of primordial molecular abundances
+                    final_output_array[:,:-1,:], ## get rid of temperature array...?
+                axis=0) ## flatten the different systems into one array
             ) ## swap the time and systems axes to match wind convention
 
         ## output to the savefile

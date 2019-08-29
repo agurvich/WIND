@@ -234,9 +234,12 @@ __device__ WindFloat evaluate_RHS_function(
 
     // zero out the derivative vector and jacobian matrix
     shared_dydts[threadIdx.x]=0;
+
+#ifdef SIE
     for (int i=0; i<blockDim.x; i++){
         Jacobians[i*blockDim.x + threadIdx.x]=0;
     }
+#endif
 
     // cast input struct to the correct format
     struct RHS_input_struct * p_RHS_input = (struct RHS_input_struct *) RHS_input;
