@@ -58,7 +58,7 @@ __device__ void propagate_rate_coeff(
     //  factors of nH
     for (int reactant_i=0; reactant_i<N_reactants; reactant_i++){
         this_react = reactantss[tid + reactant_i*N_reactions];
-        if (this_react>0) this_rate_coeff*=nH*shared_equations[this_react];
+        if (this_react>=0) this_rate_coeff*=nH*shared_equations[this_react];
     }
     this_rate_coeff/=nH; // want Nreacts-1 many factors of nH
 
@@ -66,7 +66,7 @@ __device__ void propagate_rate_coeff(
     // update creation rates in shared_dydts
     for (int prod_i=0; prod_i<N_products; prod_i++){
         this_prod = productss[tid + prod_i*N_reactions];
-        if (this_prod >0) {
+        if (this_prod >=0) {
             atomicAdd(&shared_dydts[this_prod],this_rate_coeff);// TODO yikes no atomic add for doubles??
         }
     }
@@ -86,7 +86,7 @@ __device__ void propagate_rate_coeff(
     int temp_react,temp_prod;
     for (int reactant_i=0; reactant_i<N_reactants; reactant_i++){
         this_react = reactantss[tid + reactant_i*N_reactions];
-        if (this_react >0){
+        if (this_react >=0){
             // subtract it from the total rate
             atomicAdd(&shared_dydts[this_react],-this_rate_coeff); // TODO yikes no atomic add for doubles??
 #ifdef SIE
@@ -99,14 +99,14 @@ __device__ void propagate_rate_coeff(
             for (int temp_react_i=0; temp_react_i<N_reactants; temp_react_i++){
                 temp_react = reactantss[tid + temp_react_i*N_reactions];
                 jindex = this_react*blockDim.x + temp_react; // J is in column-major-order
-                if (temp_react >0) atomicAdd(&Jacobians[jindex],-this_partial); // TODO yikes no atomic add for doubles??
+                if (temp_react >=0) atomicAdd(&Jacobians[jindex],-this_partial); // TODO yikes no atomic add for doubles??
             } // for temp_react in reacts
 
             // update rows of product jacobian with partial creation rate
             for (int temp_prod_i=0; temp_prod_i<N_products; temp_prod_i++){
                 temp_prod = productss[tid + temp_prod_i*N_reactions];
                 jindex = this_react*blockDim.x + temp_prod; // J is in column-major-order
-                if (temp_prod >0) atomicAdd(&Jacobians[jindex],this_partial); // TODO yikes no atomic add for doubles??
+                if (temp_prod >=0) atomicAdd(&Jacobians[jindex],this_partial); // TODO yikes no atomic add for doubles??
             } // for temp_prod in prods 
 #endif
         }// if this_react > 0 
@@ -158,7 +158,7 @@ __device__ void loop_over_reactions_constant(
         // do we have more reactions to solve?
         if (tid < N_reactions){
             // read rate directly from array
-            this_rate_coeff = rate_coeffs[tid]*3.15e7; //1/yr
+            this_rate_coeff = rate_coeffs[tid]; //1/yr
 
             // put this rate coefficient's contribution in the relevant
             //  rate arrays and jacobian entries
@@ -203,7 +203,7 @@ __device__ void loop_over_reactions_T_dependent(
             // read off the rate coefficient from the texture
             this_rate_coeff = pow(10.0,
                 (ChimesFloat) tex1DLayered<float>(
-                    rate_coeff_tex,T_tex_coord,layer_offset+tid))*3.15e7; // 1/yr
+                    rate_coeff_tex,T_tex_coord,layer_offset+tid)); // 1/yr
 
             // put this rate coefficient's contribution in the relevant
             //  rate arrays and jacobian entries

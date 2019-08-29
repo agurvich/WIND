@@ -225,7 +225,7 @@ void flatten_rates(
 
     for (int rxn_i=0; rxn_i < N_reactions; rxn_i++){
         for (int temp_i=0; temp_i < N_Temperatures; temp_i++){
-            (*p_ratess_flat)[rxn_i*N_Temperatures + temp_i] = (float) rates[rxn_i][temp_i];
+            (*p_ratess_flat)[rxn_i*N_Temperatures + temp_i] = (float) rates[rxn_i][temp_i] + 7.4983; // *=3.15e7 -> 1/yr
         }
     }
 }
@@ -275,6 +275,9 @@ void create_wind_chimes_structs(){
         reactantss_transpose_flat,
         productss_transpose_flat,
         chimes_table_constant.H2_form_heating_reaction_index);
+
+    // convert the rates to 1/yr
+    for (int rxn_i; rxn_i < N_reactions_all; rxn_i++) chimes_table_constant.rates[rxn_i]*=3.15e7;
 
     // allocate the memory for the constant rates on the device
     //  which are just an array, no interpolation required
@@ -344,9 +347,6 @@ void create_wind_chimes_structs(){
         chimes_table_T_dependent.H2_collis_dissoc_heating_reaction_index,
         chimes_table_T_dependent.H2_form_heating_reaction_index);
 
-    // TODO need to make sure rates is in the right format TODO
-    // read the rate coeffs from the corresponding chimes_table
-    //  and put them into texture memory
     load_rate_coeffs_into_texture_memory(
         &h_wind_chimes_table_T_dependent.rates,
         ratess_flat,
@@ -385,9 +385,11 @@ void create_wind_chimes_structs(){
     for (int rxn_i=0; rxn_i<N_reactions_all; rxn_i++){
         for (int temp_i=0; temp_i<chimes_table_bins.N_Temperatures; temp_i++){
             // transpose and flatten the case A rates
-            ratess_flat[rxn_i*chimes_table_bins.N_Temperatures + temp_i] = (float) chimes_table_recombination_AB.rates[rxn_i][0][temp_i];
+            ratess_flat[rxn_i*chimes_table_bins.N_Temperatures + temp_i] = 
+                (float) chimes_table_recombination_AB.rates[rxn_i][0][temp_i] + 7.4983; // *=3.15e7 -> 1/yr
             // transpose and flatten the case B rates
-            ratess_flat[rxn_i*chimes_table_bins.N_Temperatures + temp_i + offset] = (float) chimes_table_recombination_AB.rates[rxn_i][1][temp_i];
+            ratess_flat[rxn_i*chimes_table_bins.N_Temperatures + temp_i + offset] = 
+                (float) chimes_table_recombination_AB.rates[rxn_i][1][temp_i] + 7.4983; // *=3.15e7 -> 1/yr
         }
     }
 

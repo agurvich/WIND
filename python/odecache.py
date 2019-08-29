@@ -259,7 +259,7 @@ class ODECache(object):
         fig = ax.get_figure()
         from matplotlib.lines import Line2D
         linestyles = ['--',':','-.','-']
-        lws = [4,4,4,4]*2
+        lws = [4,4*0.8,4*0.8**2,0.5]*2
 
         custom_lines = [Line2D(
             [0], [0], color=colors[self.solvers[i]],
@@ -313,12 +313,11 @@ class ODECache(object):
 
                 ys = yss[equation_i]
 
-
                 ax.plot(
                     times,ys,
                     c=color,
                     ls = linestyles[equation_i%len(linestyles)],
-                    lw = lws[equation_i%len(lws)]*2**(solver=='RK2'),
+                    lw = lws[solver_j],
                     label=inv_chimes_dict[equation_i])
 
                 if minss is not None:
@@ -390,8 +389,10 @@ class ODECache(object):
              for solver in self.solvers] 
 
         line_labels = [
-            "     %s - %d steps \n %f s (%d systems)"%(
-            plot_labels[solver],nsteps,wall,nsystems) 
+            "     %s - %s steps \n %f s (%d systems)"%(
+            plot_labels[solver],
+            "%d"%nsteps if nsteps>0 else "?",
+            wall,nsystems) 
             for solver,nsteps,wall,nsystems in zip(
                 self.solvers,this_total_nstepss,walls,nsystemss)]
 
