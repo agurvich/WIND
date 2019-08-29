@@ -20,10 +20,10 @@ CHIMESINCLUDE=-I$(CHIMESDIR) -I$(HOME)/.local/include -I$(HDF5INCLUDE)
 CHIMESLIB = -L$(HOME)/.local/lib -lsundials_cvode -lsundials_kinsol -lsundials_nvecserial -DH5_USE_16_API -L$(HDF5LIB) -lhdf5
 
 ## OPTIMIZATION FLAGS
-OPTFLAGS =  -O0 -g #
-NVCOPTFLAGS = -G 
-RK2OPTFLAGS=-Xptxas -O0
-SIEOPTFLAGS=-Xptxas -O0
+OPTFLAGS =  -O3 #-g #
+NVCOPTFLAGS = #-G 
+RK2OPTFLAGS=-Xptxas -O3
+SIEOPTFLAGS=-Xptxas -O3
 export OPTFLAGS
 
 ## Library names

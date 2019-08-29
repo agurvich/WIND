@@ -196,11 +196,14 @@ class ODEBase(Precompiler):
 
         ## initialize equations and constants
         self.equations = self.init_equations()
-        self.constants = self.init_constants()
-        self.eqmss = self.calculate_eqmss()
 
         self.Nsystems = int(
             self.equations.shape[0]//self.Neqn_p_sys)
+
+        self.constants = self.init_constants()
+        self.eqmss = self.calculate_eqmss()
+
+
     
         ## deal with any tiling
         self.tileSystems()
@@ -348,6 +351,9 @@ class ODEBase(Precompiler):
         walltimes = []
 
 
+
+        print("Integrating:",self.Nsystems,'systems of',self.Neqn_p_sys,'equations')
+
         while nloops < self.n_output_steps:#while tcur < tend:
             init_time = time.time()
             if not python:
@@ -462,9 +468,6 @@ def runCudaIntegrator(
 
     if print_flag:
         print("equations before:",equations)
-
-    print(equations)
-    print(constants)
 
     before = copy.copy(equations)
     nsteps =integrator(

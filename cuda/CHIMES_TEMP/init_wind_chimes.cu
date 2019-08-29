@@ -277,7 +277,7 @@ void create_wind_chimes_structs(){
         chimes_table_constant.H2_form_heating_reaction_index);
 
     // convert the rates to 1/yr
-    for (int rxn_i; rxn_i < N_reactions_all; rxn_i++) chimes_table_constant.rates[rxn_i]*=3.15e7;
+    for (int rxn_i=0; rxn_i < N_reactions_all; rxn_i++) chimes_table_constant.rates[rxn_i]*=3.15e7;
 
     // allocate the memory for the constant rates on the device
     //  which are just an array, no interpolation required

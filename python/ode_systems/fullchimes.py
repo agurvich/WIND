@@ -204,6 +204,7 @@ class FullChimes(ODEBase):
         ## overwrite the driver pars
         self.driver_pars["driver_mode"] = "noneq_evolution"
         self.driver_pars['n_iterations'] = self.n_output_steps
+        self.driver_pars['hydro_timestep']= self.tend*3.15e7 ## in seconds
 
         (self.nH_arr,self.temperature_arr,
         self.metallicity_arr,self.shieldLength_arr,
@@ -215,6 +216,8 @@ class FullChimes(ODEBase):
         helium_mass_fractions = self.metallicity_arr[:,1]
         y_heliums = helium_mass_fractions / (4*(1-helium_mass_fractions))
 
+        self.Neqn_p_sys = self.init_chem_arr.shape[-1]
+            
         ## use the grid to create flat arrays of rate coefficients and abundance arrays
         #equations = np.concatenate([self.init_chem_arr[:,1:3],self.init_chem_arr[:,4:7]],axis=1).flatten()
         return self.init_chem_arr.astype(self.precision).flatten() #equations.astype(np.float32)
@@ -324,7 +327,7 @@ class FullChimes(ODEBase):
             for (nH,T,y_helium) 
             in zip(self.nH_arr,self.temperature_arr,y_heliums)]) 
 
-        return eqmss
+        return np.ones((self.Nsystems,self.Neqn_p_sys))#eqmss
 
     def dumpToODECache(self):
         with h5py.File(self.h5name,'a') as handle:  

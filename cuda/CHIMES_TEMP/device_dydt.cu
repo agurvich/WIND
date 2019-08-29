@@ -5,6 +5,8 @@
 #include "wind_chimes.h"
 
 
+#define logTMOL 3.00
+
 __global__ void read_texture(void * input){
 
     // cast to the correct format
@@ -253,9 +255,7 @@ __device__ WindFloat evaluate_RHS_function(
     // constantss_flat = [T0,nH0,T1,nH1,T2,nH2...] and constants = &constantss_flat[NUM_CONST*blockIdx.x]
     WindFloat logTemperature = constants[0];
     WindFloat nH = constants[1]; 
-
-    WindFloat logTMOL = 2.01;
-    
+ 
 /* ------- chimes_table_constant ------- */
     loop_over_reactions_constant(
         p_wind_chimes_table_constant->N_reactions[logTemperature<logTMOL],

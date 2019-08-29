@@ -49,7 +49,7 @@ class ODECache(object):
         elif 'NR_test' in self.name:
             return 2
         elif 'FullChimes' in self.name:
-            return 10
+            return 157
         else:
             raise KeyError("What system is this?")
 
@@ -138,7 +138,7 @@ class ODECache(object):
                     continue
                 labels+=[solver]
                 solver = handle[solver]
-                print(solver['equations_over_time'].value.shape)
+                print(labels[-1],solver['equations_over_time'].value.shape)
                 eqnsss[labels[-1]]=(
                     solver['equations_over_time'].value.reshape(
                    -1,self.Nsystems,
@@ -311,7 +311,7 @@ class ODECache(object):
                 color = (colors[self.solvers[solver_j]] if use_color is 
                     None else use_color)
 
-                ys = yss[equation_i]
+                ys = self.equations_over_time[solver][system_index,equation_i,:]
 
                 ax.plot(
                     times,ys,
@@ -320,6 +320,7 @@ class ODECache(object):
                     lw = lws[solver_j],
                     label=inv_chimes_dict[equation_i])
 
+                minss=None
                 if minss is not None:
                     ax.fill_between(
                         times,
@@ -328,15 +329,16 @@ class ODECache(object):
                         color=color,
                         alpha = 1)
 
-                if annotate and solver_j==0:
-                    ax.text(
-                        times[-1],
-                        ys[-1],
-                        inv_chimes_dict[equation_i],
-                        va='bottom',
-                        ha='right' if equation_i<4 else 'left',
-                        #colors[equation_i],
-                        fontsize=14)
+                if annotate and solver=='SIE':
+                    if ys[-1]>1e-20:
+                        ax.text(
+                            times[-1],
+                            ys[-1]+1e-261,
+                            inv_chimes_dict[equation_i],
+                            va='bottom',
+                            ha='right' if equation_i<4 else 'left',
+                            #colors[equation_i],
+                            fontsize=14)
                 
             ## save the total number of steps so we can put 
             ##  it in the legend...

@@ -119,25 +119,33 @@ def main(
         from chimes_driver.driver_class import ChimesDriver
         from wind.python.ode_systems.katz96 import chimes_parameter_file
 
-        (driver_pars,
-        global_variable_pars,
-        gas_variable_pars) = read_parameters(
-            chimes_parameter_file)
+        system = fullchimes_system(precompile=False,**kwargs)
 
-        (nH_arr,temperature_arr,
-        metallicity_arr,shieldLength_arr,
-        init_chem_arr) = create_table_grid(
-            driver_pars,
-            global_variable_pars,
-            print_flag=False)
+        ## handle system tiling...
+        if system.Nsystem_tile>1:
+            for var in ['nH_arr','temperature_arr',
+                'metallicity_arr',
+                'shieldLength_arr',
+                'init_chem_arr']:
+                foo=getattr(system,var)
+                orig_shape=foo.shape
+                if len(orig_shape)==1:
+                    setattr(system,
+                        var,
+                        np.tile(foo,system.Nsystem_tile))
+                elif len(orig_shape)==2:
+                    setattr(system,var,np.tile(
+                        foo.flatten(),
+                        system.Nsystem_tile).reshape(
+                        orig_shape[0]*system.Nsystem_tile,-1))
 
         my_driver = ChimesDriver(
-            nH_arr,temperature_arr, 
-            metallicity_arr,shieldLength_arr, 
-            init_chem_arr, 
-            driver_pars,
-            global_variable_pars,
-            gas_variable_pars,
+            system.nH_arr,system.temperature_arr, 
+            system.metallicity_arr,system.shieldLength_arr, 
+            system.init_chem_arr, 
+            system.driver_pars,
+            system.global_variable_pars,
+            system.gas_variable_pars,
             rank = 0) 
 
         ## initialize the output array
