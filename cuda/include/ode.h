@@ -39,3 +39,14 @@ __device__ WindFloat evaluate_RHS_function(
     int); // Nequations_per_system)
 
 extern void * d_p_RHS_input;
+
+int cudaIntegrateSystem(
+    float ,//tnow, // the current time
+    float ,//tend, // the time we integrating the system to
+    int ,//n_integration_steps,
+    WindFloat * ,//constants, // the constants for each system
+    WindFloat * ,//equations, // a flattened array containing the y value for each equation in each system
+    int ,//Nsystems, // the number of systems
+    int ,//Nequations_per_system, // the number of equations in each system
+    float ,//ABSOLUTE, // the absolute tolerance
+    float );//RELATIVE)// the relative tolerance

@@ -209,6 +209,7 @@ if __name__ == '__main__':
     #--savename : name of galaxy to use
     #--mps : mps flag, default = 0
     for i,opt in enumerate(opts):
+        print(opt)
         if opt[1]=='':
             opts[i]=('mode',opt[0].replace('-',''))
         else:

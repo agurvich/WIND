@@ -1,8 +1,8 @@
 extern "C" {
     #include "chimes_vars.h"
     #include "chimes_proto.h"
+    void init_wind_chimes(struct globalVariables *);
 }
-
 
 // declare the wind_chimes structs as global variables
 extern struct wind_chimes_constant_struct{ 

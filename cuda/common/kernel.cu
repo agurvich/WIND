@@ -18,10 +18,10 @@ __device__ void checkError(
     float ABSOLUTE, float RELATIVE){
     // determine if any equation is above the absolute or relative tolerances
     WindFloat abs_error = fabs(y2 - y1);
+    int bid = get_bid();
     if(abs_error > ABSOLUTE){
         *shared_error_flag = 1;
 #ifdef LOUD
-        int bid = get_bid();
         printf("%d-%d absolute failed: %.2e\n",bid,threadIdx.x,abs_error);
 #endif
     }
@@ -282,7 +282,8 @@ __global__ void integrateSystem(
                 timestep*=2;
     #else
                 // go for gold
-                timestep=(tend-tnow);
+                //timestep=(tend-tnow);
+                timestep*=2;
     #endif
 
 #endif

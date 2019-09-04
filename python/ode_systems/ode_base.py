@@ -168,8 +168,8 @@ class ODEBase(Precompiler):
         self.precision = precision
 
         ## format the absolute and relative tolerances
-        abs_string = ("%.0e"%self.absolute).replace('e-0','e')
-        rel_string = ("%.0e"%self.relative).replace('e-0','e')
+        abs_string = ("%.0e"%self.absolute).replace('e-0','e-').replace('e-','e')
+        rel_string = ("%.0e"%self.relative).replace('e-0','e-').replace('e-','e')
 
         self.name = '_'.join(
             [self.name,

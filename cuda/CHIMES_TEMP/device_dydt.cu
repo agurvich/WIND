@@ -13,7 +13,7 @@ __global__ void read_texture(void * input){
     struct RHS_input_struct * p_RHS_input = (struct RHS_input_struct *) input;
 
     // unpack the RHS_input struct
-    struct wind_chimes_constant_struct * p_wind_chimes_table_constant = p_RHS_input->table_constant;
+    //struct wind_chimes_constant_struct * p_wind_chimes_table_constant = p_RHS_input->table_constant;
     struct wind_chimes_T_dependent_struct * p_wind_chimes_table_T_dependent = p_RHS_input->table_T_dependent;
     struct wind_chimes_recombination_AB_struct * p_wind_chimes_table_recombination_AB = p_RHS_input->table_recombination_AB;
     struct wind_chimes_table_bins_struct * p_wind_chimes_table_bins = p_RHS_input->table_bins;

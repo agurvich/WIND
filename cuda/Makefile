@@ -1,5 +1,5 @@
 ## WIND Configuration Options
-WINDCONFIG= -DADAPTIVE_TIMESTEP -DLOUD #-DDEBUGBLOCK=0 #
+WINDCONFIG= -DADAPTIVE_TIMESTEP #-DLOUD #-DDEBUGBLOCK=0 #
 export WINDCONFIG
 
 ## QUEST
@@ -27,16 +27,19 @@ SIEOPTFLAGS=-Xptxas -O0
 export OPTFLAGS
 
 ## Library names
-SIEEXECUTABLE	:= lib/sie.so
-RK2EXECUTABLE:= lib/rk2.so
+SIELIBRARY  := lib/sie.so
+RK2LIBRARY  := lib/rk2.so
+
+SIEEXECUTABLE  := sie_main
+RK2EXECUTABLE  := rk2_main
 
 ## which ode system to link to 
 ODESOURCE := CHIMES_TEMP/device_dydt.cu
 ODEOBJ := $(notdir $(ODESOURCE:.cu=.o))
 
 ## integrator objects
-SIEOBJS = SIE/harness.o SIE/kernel.o SIE/$(ODEOBJ) linear_algebra/gauss_jordan_elimination.o
-RK2OBJS = RK2/harness.o RK2/kernel.o RK2/$(ODEOBJ)
+SIEOBJS = SIE/harness.o SIE/kernel.o SIE/main.o SIE/$(ODEOBJ) linear_algebra/gauss_jordan_elimination.o
+RK2OBJS = RK2/harness.o RK2/kernel.o RK2/main.o RK2/$(ODEOBJ)
 
 ## wind chimes source files for chemistry-- should live in CHIMES eventually...
 WINDCHIMESOBJS=CHIMES_TEMP/init_wind_chimes.o
@@ -58,12 +61,14 @@ make: SIE RK2 baseline
 RK2: $(WINDCHIMESOBJS) $(CHIMESOBJS) $(RK2OBJS)
 	@#echo making the phony $@ with $^
 	@## link common objs and ode obj to the 2nd order explicit solver 
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=$(CUDACOMPUTE) $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(WINDCHIMESOBJS) $(CHIMESOBJS);
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=$(CUDACOMPUTE) $(INCLUDE) $(LIB) -o $($@LIBRARY) $($@OBJS) $(WINDCHIMESOBJS) $(CHIMESOBJS);
+	nvcc $(NVCOPTFLAGS) $(WINDCONFIG) $(OPTFLAGS) -arch=$(CUDACOMPUTE) $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(WINDCHIMESOBJS) $(CHIMESOBJS);
 .PHONY: SIE
 SIE: $(WINDCHIMESOBJS) $(CHIMESOBJS) $(SIEOBJS) 
 	@#echo making the phony $@ with $^
 	@## link common objs and ode obj to the 1st order semi-implicit solver 
-	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=$(CUDACOMPUTE) $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(WINDCHIMESOBJS) $(CHIMESOBJS);
+	nvcc $(NVCFLAGS) $(CFLAGS)  -arch=$(CUDACOMPUTE) $(INCLUDE) $(LIB) -o $($@LIBRARY) $($@OBJS) $(WINDCHIMESOBJS) $(CHIMESOBJS);
+	nvcc $(NVCOPTFLAGS) $(WINDCONFIG) $(OPTFLAGS) -arch=$(CUDACOMPUTE) $(INCLUDE) $(LIB) -o $($@EXECUTABLE) $($@OBJS) $(WINDCHIMESOBJS) $(CHIMESOBJS);
 .PHONY: baseline
 baseline:
 	cd c_baseline;make
@@ -91,5 +96,6 @@ preclean:
 clean: 
 	cd c_baseline;make clean
 	rm -f $(RK2OBJS) $(SIEOBJS) $(WINDCHIMESOBJS)
+	rm -f $(RK2LIBRARY) $(SIELIBRARY)
 	rm -f $(RK2EXECUTABLE) $(SIEEXECUTABLE)
 

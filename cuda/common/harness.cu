@@ -61,20 +61,25 @@ int cudaIntegrateSystem(
     cudaMemcpy(tendDevice, &tend, sizeof(float), cudaMemcpyHostToDevice ); 
 
     // setup the grid dimensions
+
+    //Maximum number of threads per multiprocessor:  2048
+    //Maximum number of threads per block:           1024
+    //Max dimension size of a thread block (x,y,z): (1024, 1024, 64)
+    //Max dimension size of a grid size    (x,y,z): (2.147.483.647, 65.535, 65.535)
     int blocksize,gridsize;
     if (Nequations_per_system < THREAD_BLOCK_LIMIT){
         blocksize = Nequations_per_system;
         gridsize = Nsystems;
     }
     else{
-        blocksize = THREAD_BLOCK_LIMIT;
-        gridsize = Nequations/THREAD_BLOCK_LIMIT+1;
+        printf("Too many equations/system, keep it below 1024\n");
+        blocksize = 0;
+        gridsize = 0;
     }
 
     //printf("%d blocksize, %d gridsize\n",blocksize,gridsize);
     dim3 dimBlock( blocksize, 1 );
     dim3 dimGrid( gridsize, 1 );
-
 
     //shared mem -> 2 float arrays for each system and 1 shared flag
     integrateSystem<<<dimGrid,dimBlock,
