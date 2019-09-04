@@ -8,6 +8,10 @@
 #include "linear_algebra.h"
 #endif
 
+__device__ size_t get_bid(){
+    return blockIdx.x;//blockDim.x;
+}
+
 __device__ void checkError(
     WindFloat y1, WindFloat y2,
     int * shared_error_flag,
@@ -17,7 +21,8 @@ __device__ void checkError(
     if(abs_error > ABSOLUTE){
         *shared_error_flag = 1;
 #ifdef LOUD
-        printf("%d absolute failed: %.2e\n",threadIdx.x,abs_error);
+        int bid = get_bid();
+        printf("%d-%d absolute failed: %.2e\n",bid,threadIdx.x,abs_error);
 #endif
     }
 #if SIE
@@ -31,7 +36,7 @@ __device__ void checkError(
         fabs(y2) > ABSOLUTE){
         *shared_error_flag = 1;
 #ifdef LOUD
-        printf("%d relative failed: %.2e\n",threadIdx.x,rel_error);
+        printf("%d-%d relative failed: %.2e\n",bid,threadIdx.x,rel_error);
 #endif
         }
     __syncthreads();
@@ -148,16 +153,17 @@ __global__ void integrateSystem(
     float RELATIVE){  // the relative tolerance
 
     // unique thread ID , based on local ID in block and block ID
-    int tid = threadIdx.x + ( blockDim.x * blockIdx.x);
+    int bid = get_bid();
+    int tid = threadIdx.x + ( blockDim.x * bid);
 
 #ifdef SIE
     // offset pointer to find flat jacobian and inverses in global memory
-    Jacobians+= Nequations_per_system*Nequations_per_system*blockIdx.x;
-    inverses+= Nequations_per_system*Nequations_per_system*blockIdx.x;
+    Jacobians+= Nequations_per_system*Nequations_per_system*bid;
+    inverses+= Nequations_per_system*Nequations_per_system*bid;
 #endif
 
     // offset pointer to find flat constants in global memory
-    constants+=NUM_CONST*blockIdx.x;
+    constants+=NUM_CONST*bid;
 
     extern __shared__ WindFloat total_shared[];
     // total_shared is a pointer to the beginning of this block's shared
@@ -203,7 +209,7 @@ __global__ void integrateSystem(
                     Nequations_per_system );
 
 #ifdef DEBUGBLOCK
-            if (threadIdx.x==0 && blockIdx.x==DEBUGBLOCK){
+            if (threadIdx.x==0 && bid==DEBUGBLOCK){
                 printf("%02d - cuda - y1 ",this_nsteps);
                 for (int i=0; i<Nequations_per_system; i++){
                     printf("%.6f\t",shared_equations[i]);
@@ -228,7 +234,7 @@ __global__ void integrateSystem(
                     Nequations_per_system );
 
 #ifdef DEBUGBLOCK
-            if (threadIdx.x==0 && blockIdx.x==DEBUGBLOCK){
+            if (threadIdx.x==0 && bid==DEBUGBLOCK){
                 printf("%02d - cuda - y2 ",this_nsteps);
                 for (int i=0; i<Nequations_per_system; i++){
                     printf("%.6f\t",shared_equations[i]);
@@ -287,7 +293,7 @@ __global__ void integrateSystem(
         // copy the y values back to global memory
         equations[tid]=shared_equations[threadIdx.x];
 #ifdef LOUD
-        if (threadIdx.x == 1 && blockIdx.x == 0){
+        if (threadIdx.x == 1 && bid == 0){
             printf("nsteps taken: %d - tnow: %.2f\n",this_nsteps,tnow);
         }
 #endif
