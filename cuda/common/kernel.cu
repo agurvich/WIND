@@ -246,7 +246,7 @@ __global__ void integrateSystem(
 #endif
 
 #ifdef RK2
-            if (*shared_error_flag && unsolved <20){
+            if (*shared_error_flag && unsolved <30){
 #else
             if (*shared_error_flag && unsolved <10){
 #endif

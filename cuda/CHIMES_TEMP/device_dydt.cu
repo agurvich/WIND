@@ -5,7 +5,7 @@
 #include "wind_chimes.h"
 
 
-#define logTMOL 3.00
+#define logTMOL -3.00
 
 __global__ void read_texture(void * input){
 
@@ -43,6 +43,7 @@ __device__ void propagate_rate_coeff(
     ChimesFloat nH,
     int tid,
     int N_reactions,
+    int N_reactions_all,
     int * reactantss,
     int N_reactants,
     int * productss,
@@ -52,14 +53,11 @@ __device__ void propagate_rate_coeff(
     WindFloat * Jacobians){
 
    // Devices of compute capability 3.x have configurable bank size, which can be set using cudaDeviceSetSharedMemConfig() to either four bytes (cudaSharedMemBankSizeFourByte, the default) or eight bytes (cudaSharedMemBankSizeEightByte). Setting the bank size to eight bytes can help avoid shared memory bank conflicts when accessing double precision data. 
-
-    WindFloat this_partial;
-    WindFloat this_abundance;
     int this_react;
     // calculate the rate itself by multiplying by reactant abundances and 
     //  factors of nH
     for (int reactant_i=0; reactant_i<N_reactants; reactant_i++){
-        this_react = reactantss[tid + reactant_i*N_reactions];
+        this_react = reactantss[tid + reactant_i*N_reactions_all];
         if (this_react>=0) this_rate_coeff*=nH*shared_equations[this_react];
     }
     this_rate_coeff/=nH; // want Nreacts-1 many factors of nH
@@ -67,14 +65,13 @@ __device__ void propagate_rate_coeff(
     int this_prod;
     // update creation rates in shared_dydts
     for (int prod_i=0; prod_i<N_products; prod_i++){
-        this_prod = productss[tid + prod_i*N_reactions];
+        this_prod = productss[tid + prod_i*N_reactions_all];
         if (this_prod >=0) {
             atomicAdd(&shared_dydts[this_prod],this_rate_coeff);// TODO yikes no atomic add for doubles??
         }
     }
 
     // update destruction rates in shared_dydts (and Jacobian if necessary)
-    int jindex;
     // TODO could we stage the column in shared or thread-private memory?
     //  doesn't look like i have a spare shared array (using both 
     //  shared_equations for looking up abundances and
@@ -85,9 +82,14 @@ __device__ void propagate_rate_coeff(
     //  refills it after we're done?
 
 
+#ifdef SIE
+    int jindex;
     int temp_react,temp_prod;
+    WindFloat this_partial;
+    WindFloat this_abundance;
+#endif
     for (int reactant_i=0; reactant_i<N_reactants; reactant_i++){
-        this_react = reactantss[tid + reactant_i*N_reactions];
+        this_react = reactantss[tid + reactant_i*N_reactions_all];
         if (this_react >=0){
             // subtract it from the total rate
             atomicAdd(&shared_dydts[this_react],-this_rate_coeff); // TODO yikes no atomic add for doubles??
@@ -99,14 +101,14 @@ __device__ void propagate_rate_coeff(
 
             // update rows of reactant Jacobian with partial destruction rate
             for (int temp_react_i=0; temp_react_i<N_reactants; temp_react_i++){
-                temp_react = reactantss[tid + temp_react_i*N_reactions];
+                temp_react = reactantss[tid + temp_react_i*N_reactions_all];
                 jindex = this_react*blockDim.x + temp_react; // J is in column-major-order
                 if (temp_react >=0) atomicAdd(&Jacobians[jindex],-this_partial); // TODO yikes no atomic add for doubles??
             } // for temp_react in reacts
 
             // update rows of product jacobian with partial creation rate
             for (int temp_prod_i=0; temp_prod_i<N_products; temp_prod_i++){
-                temp_prod = productss[tid + temp_prod_i*N_reactions];
+                temp_prod = productss[tid + temp_prod_i*N_reactions_all];
                 jindex = this_react*blockDim.x + temp_prod; // J is in column-major-order
                 if (temp_prod >=0) atomicAdd(&Jacobians[jindex],this_partial); // TODO yikes no atomic add for doubles??
             } // for temp_prod in prods 
@@ -141,6 +143,7 @@ __device__ float determine_interpolation_range(
 
 __device__ void loop_over_reactions_constant(
     int N_reactions,
+    int N_reactions_all,
     int * reactantss_transpose_flat,
     int N_reactants,
     int * productss_transpose_flat,
@@ -169,6 +172,7 @@ __device__ void loop_over_reactions_constant(
                 nH,
                 tid,
                 N_reactions,
+                N_reactions_all,
                 reactantss_transpose_flat,
                 N_reactants,
                 productss_transpose_flat,
@@ -182,6 +186,7 @@ __device__ void loop_over_reactions_constant(
 
 __device__ void loop_over_reactions_T_dependent(
     int N_reactions,
+    int N_reactions_all,
     int * reactantss_transpose_flat,
     int N_reactants,
     int * productss_transpose_flat,
@@ -214,6 +219,7 @@ __device__ void loop_over_reactions_T_dependent(
                 nH,
                 tid,
                 N_reactions,
+                N_reactions_all,
                 reactantss_transpose_flat,
                 N_reactants,
                 productss_transpose_flat,
@@ -259,6 +265,7 @@ __device__ WindFloat evaluate_RHS_function(
 /* ------- chimes_table_constant ------- */
     loop_over_reactions_constant(
         p_wind_chimes_table_constant->N_reactions[logTemperature<logTMOL],
+        p_wind_chimes_table_constant->N_reactions[1],// use to stride *_transpose_flat correctly
         p_wind_chimes_table_constant->reactantss_transpose_flat,2,
         p_wind_chimes_table_constant->productss_transpose_flat,3,
         p_wind_chimes_table_constant->rates,
@@ -275,6 +282,7 @@ __device__ WindFloat evaluate_RHS_function(
     
     loop_over_reactions_T_dependent(
         p_wind_chimes_table_T_dependent->N_reactions[logTemperature<logTMOL],
+        p_wind_chimes_table_T_dependent->N_reactions[1],// use to stride *_transpose_flat correctly
         p_wind_chimes_table_T_dependent->reactantss_transpose_flat,3,
         p_wind_chimes_table_T_dependent->productss_transpose_flat,3,
         p_wind_chimes_table_T_dependent->rates,
@@ -288,6 +296,7 @@ __device__ WindFloat evaluate_RHS_function(
 /* ------- chimes_table_recombination_AB ------- */
     loop_over_reactions_T_dependent(
         p_wind_chimes_table_recombination_AB->N_reactions[logTemperature<logTMOL],
+        p_wind_chimes_table_recombination_AB->N_reactions[1], // need to stride nts_transpose
         p_wind_chimes_table_recombination_AB->reactantss_transpose_flat,2,
         p_wind_chimes_table_recombination_AB->productss_transpose_flat,1,
         p_wind_chimes_table_recombination_AB->rates,
