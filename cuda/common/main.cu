@@ -34,37 +34,16 @@ int main(int argc, const char *argv[]){
     ChimesGlobalVars.scale_metal_tolerances = 0; 
     ChimesGlobalVars.n_threads = 1; 
     
-    int Nsystems = 1;
+    int Nsystems = 10000;
+    int Nequations_per_system;
 
-    int use_metals = 0;
+    int use_metals = 1;
     float ABSOLUTE = 5e-3;
     float RELATIVE = 5e-3;
 
-    int Nequations_per_system = 10;
-    if (use_metals){
-        Nequations_per_system = 157;
-    }
-
-    // set metal flags
-    for (i = 0; i < 9; i++) 
-        ChimesGlobalVars.element_included[i] = use_metals; 
-
-    // initialize wind-chimes
-    printf("Initializing WIND-CHIMES...\n");
-    init_wind_chimes(&ChimesGlobalVars); 
-    printf("... finished initializing WIND-CHIMES!\n");
-
-    float tnow = 0;
-    float tend = 10;
-    int n_integration_steps = 1;
-    WindFloat * constants;
-    WindFloat * equations;
-
-    constants = (WindFloat *) malloc(sizeof(WindFloat)*NUM_CONST*Nsystems);
-    equations = (WindFloat *) malloc(sizeof(WindFloat)*Nequations_per_system*Nsystems);
-
+    WindFloat * base_equations;
     WindFloat base_constants[2] = {2,100};
-    WindFloat base_equations[10] = {
+    WindFloat base_equations_part[10] = {
         1.10032392, // ne
         0, // HI
         1, // HII
@@ -76,6 +55,42 @@ int main(int argc, const char *argv[]){
         2.44161347e-04, // H2p
         0}; // H3p
 
+    WindFloat base_equations_full[157] = {
+        1.10032392e+00,0,1,0,0,9.92922857e-02,0,0
+        ,2.44161347e-04,0,0,0,0,0,0,0,8.45212853e-05
+        ,0,0,0,0,0,0,0,4.85668803e-04,0,0,0,0,0,0,0
+        ,0,0,9.97876850e-05,0,0,0,0,0,0,0,0,0
+        ,0,3.48549183e-05,0,0,0,0,0,0,0,0,0,0
+        ,0,0,3.45263361e-05,0,0,0,0,0,0,0,0,0
+        ,0,0,0,0,0,1.80909410e-05,0,0,0,0,0,0,0,0
+        ,0,0,0,0,0,0,0,0,2.27883925e-06,0,0,0,0,0,0,0
+        ,0,0,0,0,0,0,0,0,0,0,0,0,0,2.78030529e-05,0,0,0,0
+        ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+
+    if (use_metals){
+        Nequations_per_system = 157;
+        base_equations = base_equations_full;
+    }
+    else{
+        Nequations_per_system = 10;
+        base_equations = base_equations_part;
+    }
+
+    // set metal flags
+    for (i = 0; i < 9; i++) 
+        ChimesGlobalVars.element_included[i] = use_metals; 
+
+    // initialize integration variables
+    float tnow = 0;
+    float tend = 10;
+    int n_integration_steps = 1;
+    WindFloat * constants;
+    WindFloat * equations;
+
+    constants = (WindFloat *) malloc(sizeof(WindFloat)*NUM_CONST*Nsystems);
+    equations = (WindFloat *) malloc(sizeof(WindFloat)*Nequations_per_system*Nsystems);
+
     // tile our base system Nsystems many times
     for (int system_i=0; system_i<Nsystems;system_i++){
         for (int constant_i=0; constant_i<NUM_CONST; constant_i++){
@@ -86,6 +101,11 @@ int main(int argc, const char *argv[]){
             equations[system_i*Nequations_per_system+equation_i]=base_equations[equation_i];
         }
     }
+
+    // initialize wind-chimes
+    printf("Initializing WIND-CHIMES...\n");
+    init_wind_chimes(&ChimesGlobalVars); 
+    printf("... finished initializing WIND-CHIMES!\n");
 
     printf("Integrating %d systems of %d equations\n",Nsystems,Nequations_per_system);
     int nsteps = cudaIntegrateSystem(
@@ -101,7 +121,7 @@ int main(int argc, const char *argv[]){
 
     printf("%d steps final:\n",nsteps);
     for (int equation_i=0; equation_i<Nequations_per_system; equation_i++){
-        printf("%.2e\t",equations[equation_i]);
+        printf("%.2e    ",equations[equation_i]);
     }
     printf("\n");
 } 

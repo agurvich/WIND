@@ -20,10 +20,10 @@ CHIMESINCLUDE=-I$(CHIMESDIR) -I$(HOME)/.local/include -I$(HDF5INCLUDE)
 CHIMESLIB = -L$(HOME)/.local/lib -lsundials_cvode -lsundials_kinsol -lsundials_nvecserial -DH5_USE_16_API -L$(HDF5LIB) -lhdf5
 
 ## OPTIMIZATION FLAGS
-OPTFLAGS =  -O0 -g #
-NVCOPTFLAGS = -G 
-RK2OPTFLAGS=-Xptxas -O0
-SIEOPTFLAGS=-Xptxas -O0
+OPTFLAGS =  -O3 #-g #
+NVCOPTFLAGS =  --generate-line-info #-G
+RK2OPTFLAGS=-Xptxas -O3
+SIEOPTFLAGS=-Xptxas -O3
 export OPTFLAGS
 
 ## Library names
@@ -93,9 +93,10 @@ preclean:
 	rm -f SIE/precompile_device_dydt.o 
 	rm -f RK2/precompile_device_dydt.o
 	cd c_baseline;make preclean
+mclean:
+	rm -f $(RK2EXECUTABLE) $(SIEEXECUTABLE) SIE/main.o RK2/main.o
 clean: 
 	cd c_baseline;make clean
 	rm -f $(RK2OBJS) $(SIEOBJS) $(WINDCHIMESOBJS)
 	rm -f $(RK2LIBRARY) $(SIELIBRARY)
 	rm -f $(RK2EXECUTABLE) $(SIEEXECUTABLE)
-

@@ -334,7 +334,7 @@ class ODEBase(Precompiler):
 
         ## call our "preflight" function, whatever we want to do befor
         ##  handing off to the integration...
-        self.preflight()
+        ##self.preflight()
 
         equations = copy.copy(self.equations)
         constants = copy.copy(self.constants)
@@ -466,8 +466,10 @@ def runCudaIntegrator(
     absolute,relative,
     print_flag=1):
 
+    print_flag=1
     if print_flag:
-        print("equations before:",equations)
+        print("equations before:",equations[:Nequations_per_system])
+    raise Exception("STOP!")
 
     before = copy.copy(equations)
     nsteps =integrator(
